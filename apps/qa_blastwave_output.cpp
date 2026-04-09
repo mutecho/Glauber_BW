@@ -1,0 +1,253 @@
+#include <TFile.h>
+#include <TH1F.h>
+#include <TH2F.h>
+#include <TTree.h>
+
+#include <cmath>
+#include <cstdlib>
+#include <exception>
+#include <iostream>
+#include <limits>
+#include <string>
+#include <unordered_map>
+
+namespace {
+
+struct EventBranches {
+  Int_t eventId = 0;
+  Double_t impactParameter = 0.0;
+  Int_t nParticipants = 0;
+  Double_t eps2 = 0.0;
+  Double_t psi2 = 0.0;
+  Int_t nCharged = 0;
+};
+
+struct ParticleBranches {
+  Int_t eventId = 0;
+  Int_t pid = 0;
+  Int_t charge = 0;
+  Double_t mass = 0.0;
+  Double_t x = 0.0;
+  Double_t y = 0.0;
+  Double_t z = 0.0;
+  Double_t t = 0.0;
+  Double_t px = 0.0;
+  Double_t py = 0.0;
+  Double_t pz = 0.0;
+  Double_t energy = 0.0;
+  Double_t etaS = 0.0;
+  Double_t sourceX = 0.0;
+  Double_t sourceY = 0.0;
+};
+
+void printUsage(const char* programName) {
+  std::cout
+      << "Usage: " << programName << " --input <file.root> [--output <qa.root>] "
+      << "[--expect-nevents <int>]\n";
+}
+
+double computePseudorapidity(double px, double py, double pz) {
+  const double momentumMagnitude = std::sqrt(px * px + py * py + pz * pz);
+  const double denominator = momentumMagnitude - pz;
+  if (denominator <= 1.0e-9) {
+    return (pz >= 0.0) ? 10.0 : -10.0;
+  }
+  return 0.5 * std::log((momentumMagnitude + pz) / denominator);
+}
+
+bool isFinite(double value) {
+  return std::isfinite(value);
+}
+
+}  // namespace
+
+int main(int argc, char** argv) {
+  try {
+    std::string inputPath;
+    std::string outputPath = "qa_validation.root";
+    int expectedEvents = -1;
+
+    for (int iArg = 1; iArg < argc; ++iArg) {
+      const std::string option = argv[iArg];
+      if (option == "--help") {
+        printUsage(argv[0]);
+        return 0;
+      }
+      if (iArg + 1 >= argc) {
+        throw std::invalid_argument("Missing value for " + option);
+      }
+      const std::string value = argv[++iArg];
+      if (option == "--input") {
+        inputPath = value;
+      } else if (option == "--output") {
+        outputPath = value;
+      } else if (option == "--expect-nevents") {
+        expectedEvents = std::stoi(value);
+      } else {
+        throw std::invalid_argument("Unknown option: " + option);
+      }
+    }
+
+    if (inputPath.empty()) {
+      throw std::invalid_argument("--input is required.");
+    }
+
+    TFile inputFile(inputPath.c_str(), "READ");
+    if (inputFile.IsZombie()) {
+      throw std::runtime_error("Failed to open input ROOT file: " + inputPath);
+    }
+
+    auto* eventsTree = dynamic_cast<TTree*>(inputFile.Get("events"));
+    auto* particlesTree = dynamic_cast<TTree*>(inputFile.Get("particles"));
+    if (eventsTree == nullptr || particlesTree == nullptr) {
+      throw std::runtime_error("Required trees 'events' or 'particles' are missing.");
+    }
+
+    const char* requiredObjects[] = {"Npart", "eps2", "psi2", "x-y", "px-py", "pT", "eta", "phi"};
+    for (const char* objectName : requiredObjects) {
+      if (inputFile.Get(objectName) == nullptr) {
+        throw std::runtime_error(std::string("Missing required QA object: ") + objectName);
+      }
+    }
+
+    EventBranches eventBranches;
+    ParticleBranches particleBranches;
+
+    eventsTree->SetBranchAddress("event_id", &eventBranches.eventId);
+    eventsTree->SetBranchAddress("b", &eventBranches.impactParameter);
+    eventsTree->SetBranchAddress("Npart", &eventBranches.nParticipants);
+    eventsTree->SetBranchAddress("eps2", &eventBranches.eps2);
+    eventsTree->SetBranchAddress("psi2", &eventBranches.psi2);
+    eventsTree->SetBranchAddress("Nch", &eventBranches.nCharged);
+
+    particlesTree->SetBranchAddress("event_id", &particleBranches.eventId);
+    particlesTree->SetBranchAddress("pid", &particleBranches.pid);
+    particlesTree->SetBranchAddress("charge", &particleBranches.charge);
+    particlesTree->SetBranchAddress("mass", &particleBranches.mass);
+    particlesTree->SetBranchAddress("x", &particleBranches.x);
+    particlesTree->SetBranchAddress("y", &particleBranches.y);
+    particlesTree->SetBranchAddress("z", &particleBranches.z);
+    particlesTree->SetBranchAddress("t", &particleBranches.t);
+    particlesTree->SetBranchAddress("px", &particleBranches.px);
+    particlesTree->SetBranchAddress("py", &particleBranches.py);
+    particlesTree->SetBranchAddress("pz", &particleBranches.pz);
+    particlesTree->SetBranchAddress("E", &particleBranches.energy);
+    particlesTree->SetBranchAddress("eta_s", &particleBranches.etaS);
+    particlesTree->SetBranchAddress("source_x", &particleBranches.sourceX);
+    particlesTree->SetBranchAddress("source_y", &particleBranches.sourceY);
+
+    TH2F hXY("qa_x-y", "QA emission coordinates;x [fm];y [fm]", 120, -15.0, 15.0, 120, -15.0, 15.0);
+    TH2F hPxPy("qa_px-py", "QA transverse momentum map;p_{x} [GeV];p_{y} [GeV]", 120, -3.0, 3.0,
+               120, -3.0, 3.0);
+    TH1F hPsi2("qa_psi2", "QA participant-plane angle;#Psi_{2} [rad];Events", 128, -1.7, 1.7);
+    TH1F hPt("qa_pT", "QA transverse momentum;p_{T} [GeV];Particles", 120, 0.0, 3.0);
+    TH1F hEta("qa_eta", "QA pseudorapidity;#eta;Particles", 120, -6.0, 6.0);
+    TH1F hPhi("qa_phi", "QA azimuth;#phi;Particles", 128, -3.2, 3.2);
+
+    std::unordered_map<int, int> particleCountsByEvent;
+    double maxMassShellDeviation = 0.0;
+    double maxAbsEtaS = 0.0;
+    double maxEnergy = 0.0;
+
+    for (Long64_t iEntry = 0; iEntry < particlesTree->GetEntries(); ++iEntry) {
+      particlesTree->GetEntry(iEntry);
+
+      const double fields[] = {
+          particleBranches.mass, particleBranches.x,   particleBranches.y,
+          particleBranches.z,    particleBranches.t,   particleBranches.px,
+          particleBranches.py,   particleBranches.pz,  particleBranches.energy,
+          particleBranches.etaS, particleBranches.sourceX, particleBranches.sourceY};
+      for (double field : fields) {
+        if (!isFinite(field)) {
+          throw std::runtime_error("Detected NaN/Inf in particle tree.");
+        }
+      }
+
+      const double massShellDeviation =
+          std::abs(particleBranches.energy * particleBranches.energy -
+                   (particleBranches.px * particleBranches.px +
+                    particleBranches.py * particleBranches.py +
+                    particleBranches.pz * particleBranches.pz) -
+                   particleBranches.mass * particleBranches.mass);
+      maxMassShellDeviation = std::max(maxMassShellDeviation, massShellDeviation);
+      maxAbsEtaS = std::max(maxAbsEtaS, std::abs(static_cast<double>(particleBranches.etaS)));
+      maxEnergy = std::max(maxEnergy, static_cast<double>(particleBranches.energy));
+
+      ++particleCountsByEvent[particleBranches.eventId];
+      hXY.Fill(particleBranches.x, particleBranches.y);
+      hPxPy.Fill(particleBranches.px, particleBranches.py);
+      hPt.Fill(std::hypot(particleBranches.px, particleBranches.py));
+      hEta.Fill(
+          computePseudorapidity(particleBranches.px, particleBranches.py, particleBranches.pz));
+      hPhi.Fill(std::atan2(particleBranches.py, particleBranches.px));
+    }
+
+    if (maxMassShellDeviation > 1.0e-4) {
+      throw std::runtime_error(
+          "Mass-shell validation exceeded 1e-4 GeV^2. max deviation = " +
+          std::to_string(maxMassShellDeviation) +
+          ", max |eta_s| = " + std::to_string(maxAbsEtaS) +
+          ", max E = " + std::to_string(maxEnergy));
+    }
+
+    double meanNpart = 0.0;
+    double meanEps2 = 0.0;
+    int previousEventId = -1;
+
+    for (Long64_t iEntry = 0; iEntry < eventsTree->GetEntries(); ++iEntry) {
+      eventsTree->GetEntry(iEntry);
+
+      if (previousEventId >= 0 && eventBranches.eventId != previousEventId + 1) {
+        throw std::runtime_error("event_id sequence is not continuous.");
+      }
+      previousEventId = eventBranches.eventId;
+
+      const int observedParticleCount =
+          particleCountsByEvent.count(eventBranches.eventId) > 0
+              ? particleCountsByEvent[eventBranches.eventId]
+              : 0;
+      if (observedParticleCount != eventBranches.nCharged) {
+        throw std::runtime_error("Nch does not match particle multiplicity for an event.");
+      }
+
+      meanNpart += eventBranches.nParticipants;
+      meanEps2 += eventBranches.eps2;
+      hPsi2.Fill(eventBranches.psi2);
+    }
+
+    if (expectedEvents >= 0 && eventsTree->GetEntries() != expectedEvents) {
+      throw std::runtime_error("events tree entry count does not match --expect-nevents.");
+    }
+
+    const double eventCount = static_cast<double>(eventsTree->GetEntries());
+    if (eventCount > 0.0) {
+      meanNpart /= eventCount;
+      meanEps2 /= eventCount;
+    }
+
+    TFile qaFile(outputPath.c_str(), "RECREATE");
+    if (qaFile.IsZombie()) {
+      throw std::runtime_error("Failed to create QA ROOT file: " + outputPath);
+    }
+    hXY.Write();
+    hPxPy.Write();
+    hPsi2.Write();
+    hPt.Write();
+    hEta.Write();
+    hPhi.Write();
+    qaFile.Close();
+
+    std::cout << "validation_passed"
+              << " events=" << eventsTree->GetEntries()
+              << " particles=" << particlesTree->GetEntries()
+              << " mean_Npart=" << meanNpart
+              << " mean_eps2=" << meanEps2
+              << " max_abs_eta_s=" << maxAbsEtaS
+              << " max_E=" << maxEnergy
+              << " max_mass_shell_deviation=" << maxMassShellDeviation << '\n';
+    return 0;
+  } catch (const std::exception& error) {
+    std::cerr << "qa_blastwave_output failed: " << error.what() << '\n';
+    return 1;
+  }
+}
