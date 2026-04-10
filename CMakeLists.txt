@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(ROOT CONFIG REQUIRED COMPONENTS Core Hist RIO Tree)
+find_package(ROOT CONFIG REQUIRED COMPONENTS Core Graf Gpad Hist RIO Tree)
 
 add_library(blastwave_core
   src/BlastWaveGenerator.cpp
@@ -46,6 +46,8 @@ target_link_libraries(generate_blastwave_events
   PRIVATE
     blastwave_core
     ROOT::Core
+    ROOT::Graf
+    ROOT::Gpad
     ROOT::Hist
     ROOT::RIO
     ROOT::Tree

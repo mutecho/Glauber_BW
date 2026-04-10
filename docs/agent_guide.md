@@ -142,7 +142,7 @@ Important implementation note:
 
 ## ROOT Output Contract
 
-One generated ROOT file contains two trees plus QA histograms.
+One generated ROOT file contains three trees plus QA histograms.
 
 ### Tree `events`
 
@@ -154,6 +154,16 @@ Branches:
 - `eps2`
 - `psi2`
 - `Nch`
+
+### Tree `participants`
+
+Branches:
+
+- `event_id`
+- `nucleus_id`
+- `x`
+- `y`
+- `z`
 
 ### Tree `particles`
 
@@ -180,11 +190,17 @@ Branches:
 - `Npart`
 - `eps2`
 - `psi2`
+- `participant_x-y`
 - `x-y`
 - `px-py`
 - `pT`
 - `eta`
 - `phi`
+
+### Embedded Visual Object
+
+- `participant_x-y_canvas`
+  A ROOT canvas that draws `participant_x-y` and overlays circle outlines for nucleus A and nucleus B using the configured impact parameter and Woods-Saxon radius.
 
 The QA executable expects all of these objects to exist.
 
@@ -285,6 +301,7 @@ The QA executable additionally validates:
 
 ## Known Behavior And Interpretation Notes
 
+- The file now stores a `participants` tree, so downstream code can inspect participant geometry directly instead of inferring it from `source_x/source_y` in the particle tree.
 - `eta` is controlled by the source `eta_s` profile, but the final particle `eta` is not expected to match experimental charged-hadron data exactly because the model has only one direct pion species and no resonance feed-down.
 - A raw inclusive `px-py` histogram is a weak anisotropy diagnostic because low-`pT` thermal particles dominate the density. Use `phi`, `v2`, or high-`pT` cuts if directional anisotropy needs to be diagnosed more sharply.
 - `Nch` in v1 means the number of generated particles in the event, not a realistic detector-level charged multiplicity.
@@ -295,8 +312,9 @@ The QA executable additionally validates:
 If you modify the project, preserve these contracts unless intentionally versioning them:
 
 - tree names: `events`, `particles`
+- participant tree name: `participants`
 - branch names in both trees
-- embedded histogram names listed above
+- embedded histogram and canvas names listed above
 - QA expectation that all objects exist
 - use of `Double_t` for tree floating fields
 

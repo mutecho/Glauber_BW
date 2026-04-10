@@ -57,8 +57,17 @@ struct ParticleRecord {
   double sourceY = 0.0;
 };
 
+struct ParticipantRecord {
+  int eventId = 0;
+  int nucleusId = 0;
+  double x = 0.0;
+  double y = 0.0;
+  double z = 0.0;
+};
+
 struct GeneratedEvent {
   EventInfo info;
+  std::vector<ParticipantRecord> participants;
   std::vector<ParticleRecord> particles;
 };
 
@@ -73,6 +82,7 @@ class BlastWaveGenerator {
     double x = 0.0;
     double y = 0.0;
     double z = 0.0;
+    int nucleusId = 0;
     bool participant = false;
   };
 
@@ -95,7 +105,7 @@ class BlastWaveGenerator {
   };
 
   [[nodiscard]] std::vector<Nucleon> sampleParticipants() ;
-  [[nodiscard]] Nucleon sampleSingleNucleon(double xShift);
+  [[nodiscard]] Nucleon sampleSingleNucleon(double xShift, int nucleusId);
   [[nodiscard]] std::pair<double, double> computeParticipantShape(
       const std::vector<Nucleon>& participants) const;
   [[nodiscard]] int sampleMultiplicity();

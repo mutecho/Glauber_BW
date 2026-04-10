@@ -2,20 +2,24 @@
 
 ## Latest Durable Handoff
 
-- Stage completed: project-state bootstrap using `analyze-requirement` plus `sync-project-knowledge` in `both` mode with `writeback_target: project-state`
-- Artifact produced: initial `.project-state/` coordination ledger with seven files
+- Stage completed: participant-geometry output enhancement plus fresh end-to-end validation
+- Artifact produced:
+  - generator now writes a `participants` tree
+  - generator now writes `participant_x-y`
+  - generator now writes `participant_x-y_canvas` with nucleus-A and nucleus-B circle outlines
+  - participant canvas keeps the ROOT stats box enabled
+  - QA now checks the new participant tree and participant visual objects
 - project_state_sync_status: `written`
-- verification_status carried forward: `unverified`
+- verification_status carried forward: `passed`
 
 ## Next Recommended Step
 
-- Run an authoritative baseline validation on the current checkout inside the O2Physics ROOT environment.
-- If build and smoke validation pass, update:
-  - `current-status.md`
+- Regenerate any long-lived sample outputs that should expose the new participant contract, especially `qa/test_b8_5000.root`, if downstream inspection will use those files.
+- If a larger validation sample is generated, update:
   - `tests.md`
   - `changelog.md`
-- If validation fails, record the failure mode in:
-  - `tests.md`
+  - `current-status.md`
+- If any downstream tool assumes the old two-tree format, document that migration point in:
   - `issues.md`
   - `handoff.md`
 
@@ -34,3 +38,4 @@
 
 - Do not recreate the bootstrap ledger structure unless the project intentionally changes the `.project-state/` convention.
 - Do not treat `.project-state/` as a higher-authority source than code, tests, or the human-written docs under `docs/`.
+- Do not forget that output files created before the participant-contract change will lack the new participant objects unless regenerated.

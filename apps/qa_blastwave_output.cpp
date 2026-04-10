@@ -1,5 +1,6 @@
 #include <TFile.h>
 #include <TH1F.h>
+#include <TH2.h>
 #include <TH2F.h>
 #include <TTree.h>
 
@@ -38,6 +39,14 @@ struct ParticleBranches {
   Double_t etaS = 0.0;
   Double_t sourceX = 0.0;
   Double_t sourceY = 0.0;
+};
+
+struct ParticipantBranches {
+  Int_t eventId = 0;
+  Int_t nucleusId = 0;
+  Double_t x = 0.0;
+  Double_t y = 0.0;
+  Double_t z = 0.0;
 };
 
 void printUsage(const char* programName) {
@@ -98,12 +107,23 @@ int main(int argc, char** argv) {
     }
 
     auto* eventsTree = dynamic_cast<TTree*>(inputFile.Get("events"));
+    auto* participantsTree = dynamic_cast<TTree*>(inputFile.Get("participants"));
     auto* particlesTree = dynamic_cast<TTree*>(inputFile.Get("particles"));
-    if (eventsTree == nullptr || particlesTree == nullptr) {
-      throw std::runtime_error("Required trees 'events' or 'particles' are missing.");
+    if (eventsTree == nullptr || participantsTree == nullptr || particlesTree == nullptr) {
+      throw std::runtime_error(
+          "Required trees 'events', 'participants', or 'particles' are missing.");
     }
 
-    const char* requiredObjects[] = {"Npart", "eps2", "psi2", "x-y", "px-py", "pT", "eta", "phi"};
+    const char* requiredObjects[] = {"Npart",
+                                     "eps2",
+                                     "psi2",
+                                     "participant_x-y",
+                                     "participant_x-y_canvas",
+                                     "x-y",
+                                     "px-py",
+                                     "pT",
+                                     "eta",
+                                     "phi"};
     for (const char* objectName : requiredObjects) {
       if (inputFile.Get(objectName) == nullptr) {
         throw std::runtime_error(std::string("Missing required QA object: ") + objectName);
@@ -111,7 +131,13 @@ int main(int argc, char** argv) {
     }
 
     EventBranches eventBranches;
+    ParticipantBranches participantBranches;
     ParticleBranches particleBranches;
+
+    auto* participantXYInput = dynamic_cast<TH2*>(inputFile.Get("participant_x-y"));
+    if (participantXYInput == nullptr) {
+      throw std::runtime_error("Input object 'participant_x-y' is not a TH2.");
+    }
 
     eventsTree->SetBranchAddress("event_id", &eventBranches.eventId);
     eventsTree->SetBranchAddress("b", &eventBranches.impactParameter);
@@ -119,6 +145,12 @@ int main(int argc, char** argv) {
     eventsTree->SetBranchAddress("eps2", &eventBranches.eps2);
     eventsTree->SetBranchAddress("psi2", &eventBranches.psi2);
     eventsTree->SetBranchAddress("Nch", &eventBranches.nCharged);
+
+    participantsTree->SetBranchAddress("event_id", &participantBranches.eventId);
+    participantsTree->SetBranchAddress("nucleus_id", &participantBranches.nucleusId);
+    participantsTree->SetBranchAddress("x", &participantBranches.x);
+    participantsTree->SetBranchAddress("y", &participantBranches.y);
+    participantsTree->SetBranchAddress("z", &participantBranches.z);
 
     particlesTree->SetBranchAddress("event_id", &particleBranches.eventId);
     particlesTree->SetBranchAddress("pid", &particleBranches.pid);
@@ -136,6 +168,14 @@ int main(int argc, char** argv) {
     particlesTree->SetBranchAddress("source_x", &particleBranches.sourceX);
     particlesTree->SetBranchAddress("source_y", &particleBranches.sourceY);
 
+    TH2F hParticipantXY("qa_participant_x-y",
+                        "QA participant nucleons;x [fm];y [fm]",
+                        participantXYInput->GetNbinsX(),
+                        participantXYInput->GetXaxis()->GetXmin(),
+                        participantXYInput->GetXaxis()->GetXmax(),
+                        participantXYInput->GetNbinsY(),
+                        participantXYInput->GetYaxis()->GetXmin(),
+                        participantXYInput->GetYaxis()->GetXmax());
     TH2F hXY("qa_x-y", "QA emission coordinates;x [fm];y [fm]", 120, -15.0, 15.0, 120, -15.0, 15.0);
     TH2F hPxPy("qa_px-py", "QA transverse momentum map;p_{x} [GeV];p_{y} [GeV]", 120, -3.0, 3.0,
                120, -3.0, 3.0);
@@ -144,10 +184,28 @@ int main(int argc, char** argv) {
     TH1F hEta("qa_eta", "QA pseudorapidity;#eta;Particles", 120, -6.0, 6.0);
     TH1F hPhi("qa_phi", "QA azimuth;#phi;Particles", 128, -3.2, 3.2);
 
+    std::unordered_map<int, int> participantCountsByEvent;
     std::unordered_map<int, int> particleCountsByEvent;
     double maxMassShellDeviation = 0.0;
     double maxAbsEtaS = 0.0;
     double maxEnergy = 0.0;
+
+    for (Long64_t iEntry = 0; iEntry < participantsTree->GetEntries(); ++iEntry) {
+      participantsTree->GetEntry(iEntry);
+
+      const double fields[] = {participantBranches.x, participantBranches.y, participantBranches.z};
+      for (double field : fields) {
+        if (!isFinite(field)) {
+          throw std::runtime_error("Detected NaN/Inf in participants tree.");
+        }
+      }
+      if (participantBranches.nucleusId != 0 && participantBranches.nucleusId != 1) {
+        throw std::runtime_error("participants.nucleus_id must be 0 or 1.");
+      }
+
+      ++participantCountsByEvent[participantBranches.eventId];
+      hParticipantXY.Fill(participantBranches.x, participantBranches.y);
+    }
 
     for (Long64_t iEntry = 0; iEntry < particlesTree->GetEntries(); ++iEntry) {
       particlesTree->GetEntry(iEntry);
@@ -206,6 +264,13 @@ int main(int argc, char** argv) {
           particleCountsByEvent.count(eventBranches.eventId) > 0
               ? particleCountsByEvent[eventBranches.eventId]
               : 0;
+      const int observedParticipantCount =
+          participantCountsByEvent.count(eventBranches.eventId) > 0
+              ? participantCountsByEvent[eventBranches.eventId]
+              : 0;
+      if (observedParticipantCount != eventBranches.nParticipants) {
+        throw std::runtime_error("Npart does not match participant multiplicity for an event.");
+      }
       if (observedParticleCount != eventBranches.nCharged) {
         throw std::runtime_error("Nch does not match particle multiplicity for an event.");
       }
@@ -229,6 +294,7 @@ int main(int argc, char** argv) {
     if (qaFile.IsZombie()) {
       throw std::runtime_error("Failed to create QA ROOT file: " + outputPath);
     }
+    hParticipantXY.Write();
     hXY.Write();
     hPxPy.Write();
     hPsi2.Write();

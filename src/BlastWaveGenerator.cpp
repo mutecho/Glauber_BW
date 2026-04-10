@@ -42,8 +42,19 @@ GeneratedEvent BlastWaveGenerator::generateEvent(int eventId) {
 
   GeneratedEvent event;
   event.info = info;
+  event.participants.reserve(participants.size());
   event.particles.reserve(
       static_cast<std::size_t>(std::max(0, info.nParticipants)) * 4U);
+
+  for (const Nucleon& participant : participants) {
+    ParticipantRecord participantRecord;
+    participantRecord.eventId = eventId;
+    participantRecord.nucleusId = participant.nucleusId;
+    participantRecord.x = participant.x;
+    participantRecord.y = participant.y;
+    participantRecord.z = participant.z;
+    event.participants.push_back(participantRecord);
+  }
 
   for (const Nucleon& participant : participants) {
     const int multiplicity = sampleMultiplicity();
@@ -89,8 +100,8 @@ std::vector<BlastWaveGenerator::Nucleon> BlastWaveGenerator::sampleParticipants(
 
   const double halfImpactParameter = 0.5 * config_.impactParameter;
   for (int iNucleon = 0; iNucleon < config_.nucleonsPerNucleus; ++iNucleon) {
-    nucleusA.push_back(sampleSingleNucleon(-halfImpactParameter));
-    nucleusB.push_back(sampleSingleNucleon(+halfImpactParameter));
+    nucleusA.push_back(sampleSingleNucleon(-halfImpactParameter, 0));
+    nucleusB.push_back(sampleSingleNucleon(+halfImpactParameter, 1));
   }
 
   const double collisionDistanceSquared = config_.sigmaNN / kPi;
@@ -121,7 +132,9 @@ std::vector<BlastWaveGenerator::Nucleon> BlastWaveGenerator::sampleParticipants(
   return participants;
 }
 
-BlastWaveGenerator::Nucleon BlastWaveGenerator::sampleSingleNucleon(double xShift) {
+BlastWaveGenerator::Nucleon BlastWaveGenerator::sampleSingleNucleon(
+    double xShift,
+    int nucleusId) {
   const double radialMax =
       config_.woodsSaxonRadius + 10.0 * config_.woodsSaxonDiffuseness;
   std::uniform_real_distribution<double> cosThetaDistribution(-1.0, 1.0);
@@ -147,6 +160,7 @@ BlastWaveGenerator::Nucleon BlastWaveGenerator::sampleSingleNucleon(double xShif
     nucleon.x = radius * sinTheta * std::cos(phi) + xShift;
     nucleon.y = radius * sinTheta * std::sin(phi);
     nucleon.z = radius * cosTheta;
+    nucleon.nucleusId = nucleusId;
     return nucleon;
   }
 }
