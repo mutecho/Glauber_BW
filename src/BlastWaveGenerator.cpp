@@ -92,6 +92,7 @@ GeneratedEvent BlastWaveGenerator::generateEvent(int eventId) {
   return event;
 }
 
+//输出一条part的vector（来自A和B核的都在此）
 std::vector<BlastWaveGenerator::Nucleon> BlastWaveGenerator::sampleParticipants() {
   std::vector<Nucleon> nucleusA;
   std::vector<Nucleon> nucleusB;
@@ -132,6 +133,7 @@ std::vector<BlastWaveGenerator::Nucleon> BlastWaveGenerator::sampleParticipants(
   return participants;
 }
 
+//使用Woods-Saxon抽样核子的r，并随机赋予球坐标角，得到xyz
 BlastWaveGenerator::Nucleon BlastWaveGenerator::sampleSingleNucleon(
     double xShift,
     int nucleusId) {
@@ -221,6 +223,7 @@ int BlastWaveGenerator::sampleMultiplicity() {
   return poissonDistribution(rng_);
 }
 
+// 随机移动均值0，标准差smearSigma的正态分布
 BlastWaveGenerator::SpatialPoint BlastWaveGenerator::smearSource(
     const Nucleon& participant) {
   if (config_.smearSigma <= 0.0) {
@@ -232,6 +235,7 @@ BlastWaveGenerator::SpatialPoint BlastWaveGenerator::smearSource(
           participant.y + smearDistribution(rng_)};
 }
 
+//抽样eta
 double BlastWaveGenerator::sampleEtaS() {
   if (config_.etaPlateauHalfWidth <= 0.0 && config_.sigmaEta <= 0.0) {
     return 0.0;

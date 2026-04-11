@@ -2,26 +2,21 @@
 
 ## Latest Durable Handoff
 
-- Stage completed: participant-geometry output enhancement plus fresh end-to-end validation
+- Stage completed: config-file CLI support and shipped example config
 - Artifact produced:
-  - generator now writes a `participants` tree
-  - generator now writes `participant_x-y`
-  - generator now writes `participant_x-y_canvas` with nucleus-A and nucleus-B circle outlines
-  - participant canvas keeps the ROOT stats box enabled
-  - QA now checks the new participant tree and participant visual objects
+  - generator now supports config-file entrypoints in addition to explicit flags
+  - config-file parsing now uses a shared option-application path with deterministic precedence
+  - repository now ships `qa/test_b8.cfg` as a runnable sample config
+  - human-facing and agent-facing docs now mention the shipped config and the config-file contract
 - project_state_sync_status: `written`
-- verification_status carried forward: `passed`
+- verification_status carried forward: `partially verified`
 
 ## Next Recommended Step
 
-- Regenerate any long-lived sample outputs that should expose the new participant contract, especially `qa/test_b8_5000.root`, if downstream inspection will use those files.
-- If a larger validation sample is generated, update:
-  - `tests.md`
-  - `changelog.md`
-  - `current-status.md`
-- If any downstream tool assumes the old two-tree format, document that migration point in:
-  - `issues.md`
-  - `handoff.md`
+- Run one authoritative end-to-end validation of the config-file CLI in the user's known-good ROOT environment:
+  - generate from `qa/test_b8.cfg`
+  - validate the resulting ROOT file with `qa_blastwave_output`
+  - if that succeeds, update `tests.md`, `current-status.md`, and `changelog.md` to move this task from `partially verified` to `verified`
 
 ## Suggested Validation Sequence
 
@@ -33,6 +28,9 @@
    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events --nevents 100 --b 8 --output /Users/allenzhou/Research_software/Blast_wave/qa/project_state_smoke.root'"`
 4. Run the independent QA reader:
    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /Users/allenzhou/Research_software/Blast_wave/qa/project_state_smoke.root --output /Users/allenzhou/Research_software/Blast_wave/qa/project_state_smoke_validation.root --expect-nevents 100'"`
+5. Repeat the same read-side validation for the new config-file path:
+   - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/qa/test_b8.cfg'"`
+   - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /Users/allenzhou/Research_software/Blast_wave/qa/test_b8_from_config.root --output /Users/allenzhou/Research_software/Blast_wave/qa/test_b8_from_config_validation.root --expect-nevents 100'"`
 
 ## What The Next Owner Should Not Redo
 

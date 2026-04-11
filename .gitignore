@@ -8,3 +8,4 @@ qa/
 *.bak
 *.swp
 .DS_Store
+agent_written/

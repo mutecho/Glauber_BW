@@ -72,6 +72,14 @@ Example generation:
 /bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events --nevents 5000 --b 8 --output /Users/allenzhou/Research_software/Blast_wave/qa/test_b8_5000.root'"
 ```
 
+Example generation from a config file:
+
+```bash
+/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/qa/test_b8.cfg --output /Users/allenzhou/Research_software/Blast_wave/qa/test_b8_override.root'"
+```
+
+The repository ships an example config at `qa/test_b8.cfg`.
+
 Example validation:
 
 ```bash
@@ -80,7 +88,51 @@ Example validation:
 
 ## CLI Contract
 
-`generate_blastwave_events` currently supports:
+`generate_blastwave_events` supports three equivalent entry styles:
+
+- `generate_blastwave_events [options]`
+- `generate_blastwave_events --config <path> [options]`
+- `generate_blastwave_events <config-path> [options]`
+
+Explicit CLI options override configuration file values. Configuration file
+values override the built-in `BlastWaveConfig` defaults.
+
+Configuration files use a lightweight `key = value` format:
+
+- blank lines are ignored
+- full-line `#` comments are ignored
+- supported keys are:
+  - `nevents`
+  - `b`
+  - `temperature`
+  - `tau0`
+  - `smear`
+  - `sigma-nn`
+  - `seed`
+  - `output`
+  - `vmax`
+  - `kappa2`
+  - `sigma-eta`
+  - `eta-plateau`
+  - `nbd-mu`
+  - `nbd-k`
+  - `r-ref`
+- relative `output` paths inside the config file are resolved relative to the
+  config file directory
+
+Minimal config example:
+
+```text
+# qa/test_b8.cfg
+nevents = 5000
+b = 8
+temperature = 0.2
+tau0 = 10.0
+smear = 0.5
+output = test_b8_from_config.root
+```
+
+The same parameters remain available as explicit CLI flags:
 
 - `--nevents <int>`: number of events
 - `--b <fm>`: impact parameter

@@ -40,3 +40,33 @@
   - direct ROOT inspection of `participant_x-y_canvas` reported:
     - `stats_object=TPaveStats`
     - `hist_stats_object=TPaveStats`
+
+## T-003 Config-File CLI Contract
+
+- Status: partially verified
+- Purpose: verify that `generate_blastwave_events` accepts repository-shipped config files, preserves explicit CLI compatibility, and enforces the new parser contract with actionable errors.
+- Execution shape:
+  - rebuild the current checkout
+  - inspect `--help`
+  - generate from the shipped sample config `qa/test_b8.cfg`
+  - exercise parser failure paths without depending on ROOT read-side validation
+- Existing evidence:
+  - build completed after the config-file CLI change
+  - `--help` reports:
+    - `generate_blastwave_events --config <path> [options]`
+    - `generate_blastwave_events <config-path> [options]`
+    - `explicit CLI options > configuration file values > built-in defaults`
+  - `./bin/generate_blastwave_events qa/test_b8.cfg` completed and reported:
+    - `Wrote 100 events to qa/test_b8_from_config.root`
+  - parser failure-path checks returned the expected errors for:
+    - missing config file
+    - invalid config line syntax
+    - unknown key
+    - duplicate key
+    - invalid numeric value
+    - simultaneous positional config path and `--config`
+- Current result:
+  - parser and entrypoint behavior: passed
+  - shipped sample config generation: passed
+  - independent QA reader validation for this change set: not yet reproduced in the current Codex ROOT read environment because the reader hit ROOT PCM/module loading errors even on pre-existing sample files
+- verification_status: `partially verified`

@@ -28,6 +28,32 @@ target_compile_options(blastwave_core
     -Wsign-conversion
 )
 
+add_library(blastwave_rootio
+  src/RootOutputSchema.cpp
+)
+
+target_include_directories(blastwave_rootio
+  PUBLIC
+    ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_options(blastwave_rootio
+  PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wshadow
+    -Wconversion
+    -Wsign-conversion
+)
+
+target_link_libraries(blastwave_rootio
+  PUBLIC
+    ROOT::Core
+    ROOT::RIO
+    ROOT::Tree
+)
+
 add_executable(generate_blastwave_events
   apps/generate_blastwave_events.cpp
 )
@@ -45,12 +71,10 @@ target_compile_options(generate_blastwave_events
 target_link_libraries(generate_blastwave_events
   PRIVATE
     blastwave_core
-    ROOT::Core
+    blastwave_rootio
     ROOT::Graf
     ROOT::Gpad
     ROOT::Hist
-    ROOT::RIO
-    ROOT::Tree
 )
 
 add_executable(qa_blastwave_output
@@ -69,10 +93,8 @@ target_compile_options(qa_blastwave_output
 
 target_link_libraries(qa_blastwave_output
   PRIVATE
-    ROOT::Core
+    blastwave_rootio
     ROOT::Hist
-    ROOT::RIO
-    ROOT::Tree
 )
 
 set_target_properties(generate_blastwave_events qa_blastwave_output

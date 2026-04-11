@@ -17,3 +17,15 @@
 - Extended the QA reader so it validates the participant tree, the participant histogram/canvas objects, and the consistency of `Npart` with the participant tree entry count.
 - Updated human-facing and agent-facing docs to describe the new participant contract.
 - Rebuilt the project and reran a fresh 10-event smoke validation in the O2Physics ROOT environment.
+
+## 2026-04-11 Config-File CLI And Example Config
+
+- Added config-file support to `generate_blastwave_events` while keeping explicit CLI flags compatible:
+  - `--config <path>`
+  - positional `<config-path>`
+- Adopted a lightweight `key = value` configuration contract with explicit precedence:
+  - CLI overrides config file
+  - config file overrides built-in defaults
+  - relative `output` paths inside config files resolve relative to the config file directory
+- Added a shipped example config at `qa/test_b8.cfg`.
+- Updated `docs/agent_guide.md` and `docs/项目说明.md` to document the new config-file interface and point to the example config.

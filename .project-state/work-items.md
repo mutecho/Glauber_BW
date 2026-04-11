@@ -26,3 +26,17 @@
   - update `tests.md` and `changelog.md` with the larger-sample evidence if that run is intended to be durable
 - Exit condition:
   - the project's standard reference sample files have the new participant objects and matching QA outputs
+
+## WI-003 Authoritative Validation For The Config-File CLI Path
+
+- Status: open
+- Goal: move the config-file CLI change from `partially verified` to `verified`.
+- Why it exists:
+  - parser behavior and generator-side execution were exercised successfully
+  - the read-side QA step was not authoritative in the current Codex session because ROOT PCM/module loading failed before normal QA could complete
+- Suggested owner action:
+  - run `generate_blastwave_events qa/test_b8.cfg` in the user's known-good ROOT environment
+  - run `qa_blastwave_output` on `qa/test_b8_from_config.root`
+  - if successful, update `.project-state/current-status.md`, `.project-state/tests.md`, and `.project-state/changelog.md`
+- Exit condition:
+  - the shipped sample config has one durable end-to-end generate-and-validate result recorded in `.project-state/`

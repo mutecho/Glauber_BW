@@ -22,3 +22,17 @@
   - downstream inspection of older sample files may fail if the new QA reader or new visual checks are applied without regenerating those files
 - Recommended resolution:
   - regenerate any long-lived sample files that should support the new participant checks and visuals
+
+## ISSUE-003 Codex ROOT Read-Side Validation Is Not Currently Authoritative
+
+- Type: environment gap
+- Status: open
+- Evidence:
+  - in this Codex session, `qa_blastwave_output` failed with ROOT PCM/module loading errors
+  - the same failure appeared even when the QA reader was pointed at pre-existing sample files such as `qa/test_b8.root`
+  - generator-side runs still completed and wrote output files, so the observed gap is specific to the read-side validation environment in this session
+- Impact:
+  - config-file CLI changes cannot yet be marked `verified` from this session alone
+  - the repository still needs one authoritative read-side validation in the user's known-good ROOT environment for the new config-file path
+- Recommended resolution:
+  - rerun generation from `qa/test_b8.cfg` and validate the resulting ROOT file with `qa_blastwave_output` in the user's known-good environment

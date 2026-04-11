@@ -1,3 +1,5 @@
+#include "blastwave/io/RootOutputSchema.h"
+
 #include <TFile.h>
 #include <TH1F.h>
 #include <TH2.h>
@@ -13,41 +15,6 @@
 #include <unordered_map>
 
 namespace {
-
-struct EventBranches {
-  Int_t eventId = 0;
-  Double_t impactParameter = 0.0;
-  Int_t nParticipants = 0;
-  Double_t eps2 = 0.0;
-  Double_t psi2 = 0.0;
-  Int_t nCharged = 0;
-};
-
-struct ParticleBranches {
-  Int_t eventId = 0;
-  Int_t pid = 0;
-  Int_t charge = 0;
-  Double_t mass = 0.0;
-  Double_t x = 0.0;
-  Double_t y = 0.0;
-  Double_t z = 0.0;
-  Double_t t = 0.0;
-  Double_t px = 0.0;
-  Double_t py = 0.0;
-  Double_t pz = 0.0;
-  Double_t energy = 0.0;
-  Double_t etaS = 0.0;
-  Double_t sourceX = 0.0;
-  Double_t sourceY = 0.0;
-};
-
-struct ParticipantBranches {
-  Int_t eventId = 0;
-  Int_t nucleusId = 0;
-  Double_t x = 0.0;
-  Double_t y = 0.0;
-  Double_t z = 0.0;
-};
 
 void printUsage(const char* programName) {
   std::cout
@@ -106,67 +73,46 @@ int main(int argc, char** argv) {
       throw std::runtime_error("Failed to open input ROOT file: " + inputPath);
     }
 
-    auto* eventsTree = dynamic_cast<TTree*>(inputFile.Get("events"));
-    auto* participantsTree = dynamic_cast<TTree*>(inputFile.Get("participants"));
-    auto* particlesTree = dynamic_cast<TTree*>(inputFile.Get("particles"));
+    auto* eventsTree =
+        dynamic_cast<TTree*>(inputFile.Get(blastwave::io::kEventsTreeName));
+    auto* participantsTree =
+        dynamic_cast<TTree*>(inputFile.Get(blastwave::io::kParticipantsTreeName));
+    auto* particlesTree =
+        dynamic_cast<TTree*>(inputFile.Get(blastwave::io::kParticlesTreeName));
     if (eventsTree == nullptr || participantsTree == nullptr || particlesTree == nullptr) {
       throw std::runtime_error(
           "Required trees 'events', 'participants', or 'particles' are missing.");
     }
 
-    const char* requiredObjects[] = {"Npart",
-                                     "eps2",
-                                     "psi2",
-                                     "participant_x-y",
-                                     "participant_x-y_canvas",
-                                     "x-y",
-                                     "px-py",
-                                     "pT",
-                                     "eta",
-                                     "phi"};
+    const char* requiredObjects[] = {blastwave::io::kNpartHistogramName,
+                                     blastwave::io::kEps2HistogramName,
+                                     blastwave::io::kPsi2HistogramName,
+                                     blastwave::io::kParticipantXYHistogramName,
+                                     blastwave::io::kParticipantXYCanvasName,
+                                     blastwave::io::kXYHistogramName,
+                                     blastwave::io::kPxPyHistogramName,
+                                     blastwave::io::kPtHistogramName,
+                                     blastwave::io::kEtaHistogramName,
+                                     blastwave::io::kPhiHistogramName};
     for (const char* objectName : requiredObjects) {
       if (inputFile.Get(objectName) == nullptr) {
         throw std::runtime_error(std::string("Missing required QA object: ") + objectName);
       }
     }
 
-    EventBranches eventBranches;
-    ParticipantBranches participantBranches;
-    ParticleBranches particleBranches;
+    blastwave::io::EventBranches eventBranches;
+    blastwave::io::ParticipantBranches participantBranches;
+    blastwave::io::ParticleBranches particleBranches;
 
-    auto* participantXYInput = dynamic_cast<TH2*>(inputFile.Get("participant_x-y"));
+    auto* participantXYInput = dynamic_cast<TH2*>(
+        inputFile.Get(blastwave::io::kParticipantXYHistogramName));
     if (participantXYInput == nullptr) {
       throw std::runtime_error("Input object 'participant_x-y' is not a TH2.");
     }
 
-    eventsTree->SetBranchAddress("event_id", &eventBranches.eventId);
-    eventsTree->SetBranchAddress("b", &eventBranches.impactParameter);
-    eventsTree->SetBranchAddress("Npart", &eventBranches.nParticipants);
-    eventsTree->SetBranchAddress("eps2", &eventBranches.eps2);
-    eventsTree->SetBranchAddress("psi2", &eventBranches.psi2);
-    eventsTree->SetBranchAddress("Nch", &eventBranches.nCharged);
-
-    participantsTree->SetBranchAddress("event_id", &participantBranches.eventId);
-    participantsTree->SetBranchAddress("nucleus_id", &participantBranches.nucleusId);
-    participantsTree->SetBranchAddress("x", &participantBranches.x);
-    participantsTree->SetBranchAddress("y", &participantBranches.y);
-    participantsTree->SetBranchAddress("z", &participantBranches.z);
-
-    particlesTree->SetBranchAddress("event_id", &particleBranches.eventId);
-    particlesTree->SetBranchAddress("pid", &particleBranches.pid);
-    particlesTree->SetBranchAddress("charge", &particleBranches.charge);
-    particlesTree->SetBranchAddress("mass", &particleBranches.mass);
-    particlesTree->SetBranchAddress("x", &particleBranches.x);
-    particlesTree->SetBranchAddress("y", &particleBranches.y);
-    particlesTree->SetBranchAddress("z", &particleBranches.z);
-    particlesTree->SetBranchAddress("t", &particleBranches.t);
-    particlesTree->SetBranchAddress("px", &particleBranches.px);
-    particlesTree->SetBranchAddress("py", &particleBranches.py);
-    particlesTree->SetBranchAddress("pz", &particleBranches.pz);
-    particlesTree->SetBranchAddress("E", &particleBranches.energy);
-    particlesTree->SetBranchAddress("eta_s", &particleBranches.etaS);
-    particlesTree->SetBranchAddress("source_x", &particleBranches.sourceX);
-    particlesTree->SetBranchAddress("source_y", &particleBranches.sourceY);
+    blastwave::io::bindEventBranches(*eventsTree, eventBranches);
+    blastwave::io::bindParticipantBranches(*participantsTree, participantBranches);
+    blastwave::io::bindParticleBranches(*particlesTree, particleBranches);
 
     TH2F hParticipantXY("qa_participant_x-y",
                         "QA participant nucleons;x [fm];y [fm]",
