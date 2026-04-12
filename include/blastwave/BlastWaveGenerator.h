@@ -36,6 +36,7 @@ struct EventInfo {
   int nParticipants = 0;
   double eps2 = 0.0;
   double psi2 = 0.0;
+  double centrality = 0.0;
   int nCharged = 0;
 };
 

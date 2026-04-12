@@ -11,6 +11,7 @@ constexpr char kImpactParameterBranchName[] = "b";
 constexpr char kNpartBranchName[] = "Npart";
 constexpr char kEps2BranchName[] = "eps2";
 constexpr char kPsi2BranchName[] = "psi2";
+constexpr char kCentralityBranchName[] = "centrality";
 constexpr char kNchBranchName[] = "Nch";
 constexpr char kNucleusIdBranchName[] = "nucleus_id";
 constexpr char kXBranchName[] = "x";
@@ -36,6 +37,7 @@ void declareEventBranches(TTree& tree, EventBranches& branches) {
   tree.Branch(kNpartBranchName, &branches.nParticipants, "Npart/I");
   tree.Branch(kEps2BranchName, &branches.eps2, "eps2/D");
   tree.Branch(kPsi2BranchName, &branches.psi2, "psi2/D");
+  tree.Branch(kCentralityBranchName, &branches.centrality, "centrality/D");
   tree.Branch(kNchBranchName, &branches.nCharged, "Nch/I");
 }
 
@@ -71,6 +73,7 @@ void bindEventBranches(TTree& tree, EventBranches& branches) {
   tree.SetBranchAddress(kNpartBranchName, &branches.nParticipants);
   tree.SetBranchAddress(kEps2BranchName, &branches.eps2);
   tree.SetBranchAddress(kPsi2BranchName, &branches.psi2);
+  tree.SetBranchAddress(kCentralityBranchName, &branches.centrality);
   tree.SetBranchAddress(kNchBranchName, &branches.nCharged);
 }
 

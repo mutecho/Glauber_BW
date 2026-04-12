@@ -1,3 +1,4 @@
+#include "blastwave/BlastWaveGenerator.h"
 #include "blastwave/io/RootOutputSchema.h"
 
 #include <TFile.h>
@@ -6,6 +7,7 @@
 #include <TH2F.h>
 #include <TTree.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <exception>
@@ -33,6 +35,15 @@ double computePseudorapidity(double px, double py, double pz) {
 
 bool isFinite(double value) {
   return std::isfinite(value);
+}
+
+double clamp(double value, double lower, double upper) {
+  return std::max(lower, std::min(value, upper));
+}
+
+double computeExpectedCentrality(double impactParameter) {
+  const double woodsSaxonRadius = blastwave::BlastWaveConfig{}.woodsSaxonRadius;
+  return clamp(100.0 * impactParameter / (2.0 * woodsSaxonRadius), 0.0, 100.0);
 }
 
 }  // namespace
@@ -87,6 +98,7 @@ int main(int argc, char** argv) {
     const char* requiredObjects[] = {blastwave::io::kNpartHistogramName,
                                      blastwave::io::kEps2HistogramName,
                                      blastwave::io::kPsi2HistogramName,
+                                     blastwave::io::kCentralityHistogramName,
                                      blastwave::io::kParticipantXYHistogramName,
                                      blastwave::io::kParticipantXYCanvasName,
                                      blastwave::io::kXYHistogramName,
@@ -108,6 +120,11 @@ int main(int argc, char** argv) {
         inputFile.Get(blastwave::io::kParticipantXYHistogramName));
     if (participantXYInput == nullptr) {
       throw std::runtime_error("Input object 'participant_x-y' is not a TH2.");
+    }
+    auto* centralityInput = dynamic_cast<TH1*>(
+        inputFile.Get(blastwave::io::kCentralityHistogramName));
+    if (centralityInput == nullptr) {
+      throw std::runtime_error("Input object 'cent' is not a TH1.");
     }
 
     blastwave::io::bindEventBranches(*eventsTree, eventBranches);
@@ -196,6 +213,8 @@ int main(int argc, char** argv) {
 
     double meanNpart = 0.0;
     double meanEps2 = 0.0;
+    bool sawFirstCentrality = false;
+    double firstCentrality = 0.0;
     int previousEventId = -1;
 
     for (Long64_t iEntry = 0; iEntry < eventsTree->GetEntries(); ++iEntry) {
@@ -220,6 +239,24 @@ int main(int argc, char** argv) {
       if (observedParticleCount != eventBranches.nCharged) {
         throw std::runtime_error("Nch does not match particle multiplicity for an event.");
       }
+      if (!isFinite(eventBranches.centrality) || eventBranches.centrality < 0.0 ||
+          eventBranches.centrality > 100.0) {
+        throw std::runtime_error("centrality must stay within [0, 100].");
+      }
+
+      const double expectedCentrality =
+          computeExpectedCentrality(eventBranches.impactParameter);
+      if (std::abs(eventBranches.centrality - expectedCentrality) > 1.0e-9) {
+        throw std::runtime_error(
+            "centrality does not match the expected impact-parameter mapping.");
+      }
+      if (!sawFirstCentrality) {
+        firstCentrality = eventBranches.centrality;
+        sawFirstCentrality = true;
+      } else if (std::abs(eventBranches.centrality - firstCentrality) > 1.0e-9) {
+        throw std::runtime_error(
+            "centrality should remain constant for a fixed-impact-parameter run.");
+      }
 
       meanNpart += eventBranches.nParticipants;
       meanEps2 += eventBranches.eps2;
@@ -234,6 +271,9 @@ int main(int argc, char** argv) {
     if (eventCount > 0.0) {
       meanNpart /= eventCount;
       meanEps2 /= eventCount;
+    }
+    if (std::abs(centralityInput->GetEntries() - eventCount) > 1.0e-9) {
+      throw std::runtime_error("cent histogram entry count does not match events tree.");
     }
 
     TFile qaFile(outputPath.c_str(), "RECREATE");

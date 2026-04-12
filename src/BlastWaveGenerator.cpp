@@ -21,6 +21,10 @@ bool isFinite(double value) {
   return std::isfinite(value);
 }
 
+double computeCentralityPercent(double impactParameter, double woodsSaxonRadius) {
+  return clamp(100.0 * impactParameter / (2.0 * woodsSaxonRadius), 0.0, 100.0);
+}
+
 }  // namespace
 
 BlastWaveGenerator::BlastWaveGenerator(BlastWaveConfig config)
@@ -39,6 +43,8 @@ GeneratedEvent BlastWaveGenerator::generateEvent(int eventId) {
   const auto [eps2, psi2] = computeParticipantShape(participants);
   info.eps2 = eps2;
   info.psi2 = psi2;
+  info.centrality =
+      computeCentralityPercent(config_.impactParameter, config_.woodsSaxonRadius);
 
   GeneratedEvent event;
   event.info = info;

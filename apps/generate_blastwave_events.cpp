@@ -338,6 +338,7 @@ blastwave::io::EventBranches toEventBranches(const blastwave::EventInfo& info) {
   branches.nParticipants = static_cast<Int_t>(info.nParticipants);
   branches.eps2 = info.eps2;
   branches.psi2 = info.psi2;
+  branches.centrality = info.centrality;
   branches.nCharged = static_cast<Int_t>(info.nCharged);
   return branches;
 }
@@ -426,6 +427,8 @@ int main(int argc, char **argv) {
     TH1F hPsi2(blastwave::io::kPsi2HistogramName,
                "Participant-plane angle;#Psi_{2} [rad];Events", 128, -1.7,
                1.7);
+    TH1F hCentrality(blastwave::io::kCentralityHistogramName,
+                     "Centrality;centrality [%];Events", 11, 0.0, 110.0);
     TH2F hParticipantXY(blastwave::io::kParticipantXYHistogramName,
                         "Participant nucleons;x [fm];y [fm]", 200,
                         -participantDisplayExtent, participantDisplayExtent,
@@ -452,6 +455,7 @@ int main(int argc, char **argv) {
       hNpart.Fill(eventBranches.nParticipants);
       hEps2.Fill(eventBranches.eps2);
       hPsi2.Fill(eventBranches.psi2);
+      hCentrality.Fill(eventBranches.centrality);
 
       for (const blastwave::ParticipantRecord &participant :
            event.participants) {
@@ -525,6 +529,7 @@ int main(int argc, char **argv) {
     hNpart.Write();
     hEps2.Write();
     hPsi2.Write();
+    hCentrality.Write();
     hParticipantXY.Write();
     hXY.Write();
     hPxPy.Write();

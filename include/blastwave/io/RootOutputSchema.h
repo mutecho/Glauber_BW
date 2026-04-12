@@ -16,6 +16,7 @@ inline constexpr char kParticlesTreeName[] = "particles";
 inline constexpr char kNpartHistogramName[] = "Npart";
 inline constexpr char kEps2HistogramName[] = "eps2";
 inline constexpr char kPsi2HistogramName[] = "psi2";
+inline constexpr char kCentralityHistogramName[] = "cent";
 inline constexpr char kParticipantXYHistogramName[] = "participant_x-y";
 inline constexpr char kParticipantXYCanvasName[] = "participant_x-y_canvas";
 inline constexpr char kXYHistogramName[] = "x-y";
@@ -30,6 +31,7 @@ struct EventBranches {
   Int_t nParticipants = 0;
   Double_t eps2 = 0.0;
   Double_t psi2 = 0.0;
+  Double_t centrality = 0.0;
   Int_t nCharged = 0;
 };
 
