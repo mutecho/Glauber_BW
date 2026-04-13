@@ -1,6 +1,3 @@
-#include "blastwave/BlastWaveGenerator.h"
-#include "blastwave/io/RootOutputSchema.h"
-
 #include <TFile.h>
 #include <TH1F.h>
 #include <TH2.h>
@@ -16,39 +13,41 @@
 #include <string>
 #include <unordered_map>
 
+#include "blastwave/BlastWaveGenerator.h"
+#include "blastwave/io/RootOutputSchema.h"
+
 namespace {
 
-void printUsage(const char* programName) {
-  std::cout
-      << "Usage: " << programName << " --input <file.root> [--output <qa.root>] "
-      << "[--expect-nevents <int>]\n";
-}
-
-double computePseudorapidity(double px, double py, double pz) {
-  const double momentumMagnitude = std::sqrt(px * px + py * py + pz * pz);
-  const double denominator = momentumMagnitude - pz;
-  if (denominator <= 1.0e-9) {
-    return (pz >= 0.0) ? 10.0 : -10.0;
+  void printUsage(const char *programName) {
+    std::cout << "Usage: " << programName << " --input <file.root> [--output <qa.root>] "
+              << "[--expect-nevents <int>]\n";
   }
-  return 0.5 * std::log((momentumMagnitude + pz) / denominator);
-}
 
-bool isFinite(double value) {
-  return std::isfinite(value);
-}
+  double computePseudorapidity(double px, double py, double pz) {
+    const double momentumMagnitude = std::sqrt(px * px + py * py + pz * pz);
+    const double denominator = momentumMagnitude - pz;
+    if (denominator <= 1.0e-9) {
+      return (pz >= 0.0) ? 10.0 : -10.0;
+    }
+    return 0.5 * std::log((momentumMagnitude + pz) / denominator);
+  }
 
-double clamp(double value, double lower, double upper) {
-  return std::max(lower, std::min(value, upper));
-}
+  bool isFinite(double value) {
+    return std::isfinite(value);
+  }
 
-double computeExpectedCentrality(double impactParameter) {
-  const double woodsSaxonRadius = blastwave::BlastWaveConfig{}.woodsSaxonRadius;
-  return clamp(100.0 * impactParameter / (2.0 * woodsSaxonRadius), 0.0, 100.0);
-}
+  double clamp(double value, double lower, double upper) {
+    return std::max(lower, std::min(value, upper));
+  }
+
+  double computeExpectedCentrality(double impactParameter) {
+    const double woodsSaxonRadius = blastwave::BlastWaveConfig{}.woodsSaxonRadius;
+    return clamp(100.0 * impactParameter / (2.0 * woodsSaxonRadius), 0.0, 100.0);
+  }
 
 }  // namespace
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   try {
     std::string inputPath;
     std::string outputPath = "qa_validation.root";
@@ -84,18 +83,14 @@ int main(int argc, char** argv) {
       throw std::runtime_error("Failed to open input ROOT file: " + inputPath);
     }
 
-    auto* eventsTree =
-        dynamic_cast<TTree*>(inputFile.Get(blastwave::io::kEventsTreeName));
-    auto* participantsTree =
-        dynamic_cast<TTree*>(inputFile.Get(blastwave::io::kParticipantsTreeName));
-    auto* particlesTree =
-        dynamic_cast<TTree*>(inputFile.Get(blastwave::io::kParticlesTreeName));
+    auto *eventsTree = dynamic_cast<TTree *>(inputFile.Get(blastwave::io::kEventsTreeName));
+    auto *participantsTree = dynamic_cast<TTree *>(inputFile.Get(blastwave::io::kParticipantsTreeName));
+    auto *particlesTree = dynamic_cast<TTree *>(inputFile.Get(blastwave::io::kParticlesTreeName));
     if (eventsTree == nullptr || participantsTree == nullptr || particlesTree == nullptr) {
-      throw std::runtime_error(
-          "Required trees 'events', 'participants', or 'particles' are missing.");
+      throw std::runtime_error("Required trees 'events', 'participants', or 'particles' are missing.");
     }
 
-    const char* requiredObjects[] = {blastwave::io::kNpartHistogramName,
+    const char *requiredObjects[] = {blastwave::io::kNpartHistogramName,
                                      blastwave::io::kEps2HistogramName,
                                      blastwave::io::kPsi2HistogramName,
                                      blastwave::io::kCentralityHistogramName,
@@ -106,7 +101,7 @@ int main(int argc, char** argv) {
                                      blastwave::io::kPtHistogramName,
                                      blastwave::io::kEtaHistogramName,
                                      blastwave::io::kPhiHistogramName};
-    for (const char* objectName : requiredObjects) {
+    for (const char *objectName : requiredObjects) {
       if (inputFile.Get(objectName) == nullptr) {
         throw std::runtime_error(std::string("Missing required QA object: ") + objectName);
       }
@@ -116,13 +111,11 @@ int main(int argc, char** argv) {
     blastwave::io::ParticipantBranches participantBranches;
     blastwave::io::ParticleBranches particleBranches;
 
-    auto* participantXYInput = dynamic_cast<TH2*>(
-        inputFile.Get(blastwave::io::kParticipantXYHistogramName));
+    auto *participantXYInput = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kParticipantXYHistogramName));
     if (participantXYInput == nullptr) {
       throw std::runtime_error("Input object 'participant_x-y' is not a TH2.");
     }
-    auto* centralityInput = dynamic_cast<TH1*>(
-        inputFile.Get(blastwave::io::kCentralityHistogramName));
+    auto *centralityInput = dynamic_cast<TH1 *>(inputFile.Get(blastwave::io::kCentralityHistogramName));
     if (centralityInput == nullptr) {
       throw std::runtime_error("Input object 'cent' is not a TH1.");
     }
@@ -140,8 +133,7 @@ int main(int argc, char** argv) {
                         participantXYInput->GetYaxis()->GetXmin(),
                         participantXYInput->GetYaxis()->GetXmax());
     TH2F hXY("qa_x-y", "QA emission coordinates;x [fm];y [fm]", 120, -15.0, 15.0, 120, -15.0, 15.0);
-    TH2F hPxPy("qa_px-py", "QA transverse momentum map;p_{x} [GeV];p_{y} [GeV]", 120, -3.0, 3.0,
-               120, -3.0, 3.0);
+    TH2F hPxPy("qa_px-py", "QA transverse momentum map;p_{x} [GeV];p_{y} [GeV]", 120, -3.0, 3.0, 120, -3.0, 3.0);
     TH1F hPsi2("qa_psi2", "QA participant-plane angle;#Psi_{2} [rad];Events", 128, -1.7, 1.7);
     TH1F hPt("qa_pT", "QA transverse momentum;p_{T} [GeV];Particles", 120, 0.0, 3.0);
     TH1F hEta("qa_eta", "QA pseudorapidity;#eta;Particles", 120, -6.0, 6.0);
@@ -173,11 +165,18 @@ int main(int argc, char** argv) {
     for (Long64_t iEntry = 0; iEntry < particlesTree->GetEntries(); ++iEntry) {
       particlesTree->GetEntry(iEntry);
 
-      const double fields[] = {
-          particleBranches.mass, particleBranches.x,   particleBranches.y,
-          particleBranches.z,    particleBranches.t,   particleBranches.px,
-          particleBranches.py,   particleBranches.pz,  particleBranches.energy,
-          particleBranches.etaS, particleBranches.sourceX, particleBranches.sourceY};
+      const double fields[] = {particleBranches.mass,
+                               particleBranches.x,
+                               particleBranches.y,
+                               particleBranches.z,
+                               particleBranches.t,
+                               particleBranches.px,
+                               particleBranches.py,
+                               particleBranches.pz,
+                               particleBranches.energy,
+                               particleBranches.etaS,
+                               particleBranches.sourceX,
+                               particleBranches.sourceY};
       for (double field : fields) {
         if (!isFinite(field)) {
           throw std::runtime_error("Detected NaN/Inf in particle tree.");
@@ -185,11 +184,10 @@ int main(int argc, char** argv) {
       }
 
       const double massShellDeviation =
-          std::abs(particleBranches.energy * particleBranches.energy -
-                   (particleBranches.px * particleBranches.px +
-                    particleBranches.py * particleBranches.py +
-                    particleBranches.pz * particleBranches.pz) -
-                   particleBranches.mass * particleBranches.mass);
+          std::abs(particleBranches.energy * particleBranches.energy
+                   - (particleBranches.px * particleBranches.px + particleBranches.py * particleBranches.py
+                      + particleBranches.pz * particleBranches.pz)
+                   - particleBranches.mass * particleBranches.mass);
       maxMassShellDeviation = std::max(maxMassShellDeviation, massShellDeviation);
       maxAbsEtaS = std::max(maxAbsEtaS, std::abs(static_cast<double>(particleBranches.etaS)));
       maxEnergy = std::max(maxEnergy, static_cast<double>(particleBranches.energy));
@@ -198,17 +196,14 @@ int main(int argc, char** argv) {
       hXY.Fill(particleBranches.x, particleBranches.y);
       hPxPy.Fill(particleBranches.px, particleBranches.py);
       hPt.Fill(std::hypot(particleBranches.px, particleBranches.py));
-      hEta.Fill(
-          computePseudorapidity(particleBranches.px, particleBranches.py, particleBranches.pz));
+      hEta.Fill(computePseudorapidity(particleBranches.px, particleBranches.py, particleBranches.pz));
       hPhi.Fill(std::atan2(particleBranches.py, particleBranches.px));
     }
 
     if (maxMassShellDeviation > 1.0e-4) {
-      throw std::runtime_error(
-          "Mass-shell validation exceeded 1e-4 GeV^2. max deviation = " +
-          std::to_string(maxMassShellDeviation) +
-          ", max |eta_s| = " + std::to_string(maxAbsEtaS) +
-          ", max E = " + std::to_string(maxEnergy));
+      throw std::runtime_error("Mass-shell validation exceeded 1e-4 GeV^2. max deviation = "
+                               + std::to_string(maxMassShellDeviation) + ", max |eta_s| = " + std::to_string(maxAbsEtaS)
+                               + ", max E = " + std::to_string(maxEnergy));
     }
 
     double meanNpart = 0.0;
@@ -226,36 +221,29 @@ int main(int argc, char** argv) {
       previousEventId = eventBranches.eventId;
 
       const int observedParticleCount =
-          particleCountsByEvent.count(eventBranches.eventId) > 0
-              ? particleCountsByEvent[eventBranches.eventId]
-              : 0;
-      const int observedParticipantCount =
-          participantCountsByEvent.count(eventBranches.eventId) > 0
-              ? participantCountsByEvent[eventBranches.eventId]
-              : 0;
+          particleCountsByEvent.count(eventBranches.eventId) > 0 ? particleCountsByEvent[eventBranches.eventId] : 0;
+      const int observedParticipantCount = participantCountsByEvent.count(eventBranches.eventId) > 0
+                                               ? participantCountsByEvent[eventBranches.eventId]
+                                               : 0;
       if (observedParticipantCount != eventBranches.nParticipants) {
         throw std::runtime_error("Npart does not match participant multiplicity for an event.");
       }
       if (observedParticleCount != eventBranches.nCharged) {
         throw std::runtime_error("Nch does not match particle multiplicity for an event.");
       }
-      if (!isFinite(eventBranches.centrality) || eventBranches.centrality < 0.0 ||
-          eventBranches.centrality > 100.0) {
+      if (!isFinite(eventBranches.centrality) || eventBranches.centrality < 0.0 || eventBranches.centrality > 100.0) {
         throw std::runtime_error("centrality must stay within [0, 100].");
       }
 
-      const double expectedCentrality =
-          computeExpectedCentrality(eventBranches.impactParameter);
+      const double expectedCentrality = computeExpectedCentrality(eventBranches.impactParameter);
       if (std::abs(eventBranches.centrality - expectedCentrality) > 1.0e-9) {
-        throw std::runtime_error(
-            "centrality does not match the expected impact-parameter mapping.");
+        throw std::runtime_error("centrality does not match the expected impact-parameter mapping.");
       }
       if (!sawFirstCentrality) {
         firstCentrality = eventBranches.centrality;
         sawFirstCentrality = true;
       } else if (std::abs(eventBranches.centrality - firstCentrality) > 1.0e-9) {
-        throw std::runtime_error(
-            "centrality should remain constant for a fixed-impact-parameter run.");
+        throw std::runtime_error("centrality should remain constant for a fixed-impact-parameter run.");
       }
 
       meanNpart += eventBranches.nParticipants;
@@ -290,15 +278,11 @@ int main(int argc, char** argv) {
     qaFile.Close();
 
     std::cout << "validation_passed"
-              << " events=" << eventsTree->GetEntries()
-              << " particles=" << particlesTree->GetEntries()
-              << " mean_Npart=" << meanNpart
-              << " mean_eps2=" << meanEps2
-              << " max_abs_eta_s=" << maxAbsEtaS
-              << " max_E=" << maxEnergy
-              << " max_mass_shell_deviation=" << maxMassShellDeviation << '\n';
+              << " events=" << eventsTree->GetEntries() << " particles=" << particlesTree->GetEntries()
+              << " mean_Npart=" << meanNpart << " mean_eps2=" << meanEps2 << " max_abs_eta_s=" << maxAbsEtaS
+              << " max_E=" << maxEnergy << " max_mass_shell_deviation=" << maxMassShellDeviation << '\n';
     return 0;
-  } catch (const std::exception& error) {
+  } catch (const std::exception &error) {
     std::cerr << "qa_blastwave_output failed: " << error.what() << '\n';
     return 1;
   }
