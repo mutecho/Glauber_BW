@@ -2,7 +2,7 @@
 
 ## 2026-04-10 Project-State Bootstrap
 
-- Bootstrapped the `.project-state/` coordination ledger on explicit user request.
+- Bootstrapped the project coordination ledger on explicit user request.
 - Synthesized the initial project snapshot from human-written docs in `docs/`, repository structure, git status, and the presence of historical QA artifacts under `qa/`.
 - Recorded the baseline verification state as `unverified` because no authoritative build or smoke validation was executed in this task.
 
@@ -27,5 +27,22 @@
   - CLI overrides config file
   - config file overrides built-in defaults
   - relative `output` paths inside config files resolve relative to the config file directory
-- Added a shipped example config at `qa/test_b8.cfg`.
+- Added a tracked example config for the repository workflow.
 - Updated `docs/agent_guide.md` and `docs/项目说明.md` to document the new config-file interface and point to the example config.
+
+## 2026-04-13 Centrality Output Contract
+
+- Extended the event-level output contract with `events.centrality`.
+- Added the `cent` histogram to the generated ROOT QA objects.
+- Extended the independent QA reader so it checks:
+  - `centrality` remains within `[0, 100]`
+  - `centrality` matches the current fixed-`b` mapping
+  - fixed-`b` runs keep one constant centrality value across all events
+- Recorded a passed 10-event generate+QA smoke validation for the centrality-output extension in `project-state/tests.md`.
+
+## 2026-04-13 Project-State Resync To Current Baseline
+
+- Added the missing `project-state/guide.md` file to complete the minimum required bootstrap set.
+- Synchronized the coordination ledger to the canonical `project-state/` path spelling.
+- Corrected the tracked example-config location in the ledger from `qa/test_b8.cfg` to `config/test_b8.cfg`.
+- Closed the old read-side ROOT environment blocker using the later passed smoke-QA evidence and shifted the remaining open gap to config-path documentation drift plus missing durable config-path QA evidence.

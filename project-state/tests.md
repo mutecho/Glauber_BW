@@ -26,7 +26,7 @@
   - QA run: passed
   - QA summary: `validation_passed events=10 particles=3668 mean_Npart=185.5 mean_eps2=0.237373 max_abs_eta_s=6.41806 max_E=222.582 max_mass_shell_deviation=9.16636e-12`
   - output contract includes `events.centrality` and `cent`
-- verification_status: `passed`
+- verification_status: `verified`
 
 ## T-002 Participant Output Contract
 
@@ -52,7 +52,7 @@
 - Execution shape:
   - rebuild the current checkout
   - inspect `--help`
-  - generate from the shipped sample config `qa/test_b8.cfg`
+  - generate from the tracked sample config path
   - exercise parser failure paths without depending on ROOT read-side validation
 - Existing evidence:
   - build completed after the config-file CLI change
@@ -60,8 +60,10 @@
     - `generate_blastwave_events --config <path> [options]`
     - `generate_blastwave_events <config-path> [options]`
     - `explicit CLI options > configuration file values > built-in defaults`
-  - `./bin/generate_blastwave_events qa/test_b8.cfg` completed and reported:
-    - `Wrote 100 events to qa/test_b8_from_config.root`
+  - the current checkout tracks:
+    - `config/test_b8.cfg`
+    - `config/run.sh`
+  - earlier ledger entries recorded a historical generator run through the config-file path, but those notes used the now-stale path spelling `qa/test_b8.cfg`
   - parser failure-path checks returned the expected errors for:
     - missing config file
     - invalid config line syntax
@@ -71,6 +73,7 @@
     - simultaneous positional config path and `--config`
 - Current result:
   - parser and entrypoint behavior: passed
-  - shipped sample config generation: passed
-  - independent QA reader validation for this change set: not yet reproduced in the current Codex ROOT read environment because the reader hit ROOT PCM/module loading errors even on pre-existing sample files
+  - tracked sample config presence: passed at `config/test_b8.cfg`
+  - canonical documentation of the tracked path: not yet complete because higher-authority docs still point to `qa/test_b8.cfg`
+  - durable generate+QA evidence for the current tracked config path: not yet recorded in `project-state/`
 - verification_status: `partially verified`
