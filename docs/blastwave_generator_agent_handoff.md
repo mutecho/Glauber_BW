@@ -6,10 +6,10 @@
 ## Source Evidence
 - Primary requirement artifact: [/Users/allenzhou/Research_software/Blast_wave/docs/C++ Blast-Wave Event Generator Plan.md](/Users/allenzhou/Research_software/Blast_wave/docs/C++%20Blast-Wave%20Event%20Generator%20Plan.md)
 - Reference-only implementation context:
-  - [/Users/allenzhou/Research_software/Blast_wave/qiye/toy_glauber.C](/Users/allenzhou/Research_software/Blast_wave/qiye/toy_glauber.C)
-  - [/Users/allenzhou/Research_software/Blast_wave/qiye/toy_glauber2.C](/Users/allenzhou/Research_software/Blast_wave/qiye/toy_glauber2.C)
-  - [/Users/allenzhou/Research_software/Blast_wave/qiye/toy_glauber_flow.C](/Users/allenzhou/Research_software/Blast_wave/qiye/toy_glauber_flow.C)
-  - [/Users/allenzhou/Research_software/Blast_wave/qiye/analyze_toy3D.C](/Users/allenzhou/Research_software/Blast_wave/qiye/analyze_toy3D.C)
+  - [/Users/allenzhou/Research_software/Blast_wave/reference/legacy-root-macros/toy_glauber.C](/Users/allenzhou/Research_software/Blast_wave/reference/legacy-root-macros/toy_glauber.C)
+  - [/Users/allenzhou/Research_software/Blast_wave/reference/legacy-root-macros/toy_glauber2.C](/Users/allenzhou/Research_software/Blast_wave/reference/legacy-root-macros/toy_glauber2.C)
+  - [/Users/allenzhou/Research_software/Blast_wave/reference/legacy-root-macros/toy_glauber_flow.C](/Users/allenzhou/Research_software/Blast_wave/reference/legacy-root-macros/toy_glauber_flow.C)
+  - [/Users/allenzhou/Research_software/Blast_wave/reference/legacy-root-macros/analyze_toy3D.C](/Users/allenzhou/Research_software/Blast_wave/reference/legacy-root-macros/analyze_toy3D.C)
 
 ## Assessment Summary
 - The plan is directionally correct and already has a good scope boundary: independent C++ generator core, fixed-`b` first version, ROOT as I/O plus QA only, and no femto/pair-analysis scope.
@@ -23,7 +23,7 @@
 - With the assumptions and defaults below, the task is specific enough for bounded implementation.
 
 ## Problem Definition
-Implement a new first-version Blast-Wave event generator as independent C++ code in this repository. The generator must produce per-event and per-particle ROOT output suitable for downstream QA and later femto analysis, without copying code from the `qiye` reference macros and without reproducing their incorrect momentum-shift flow treatment.
+Implement a new first-version Blast-Wave event generator as independent C++ code in this repository. The generator must produce per-event and per-particle ROOT output suitable for downstream QA and later femto analysis, without copying code from the `reference/legacy-root-macros/` reference macros and without reproducing their incorrect momentum-shift flow treatment.
 
 ## Goals
 - Build an independent generator core that does not depend on ROOT headers for its internal physics logic.
@@ -39,11 +39,11 @@ Implement a new first-version Blast-Wave event generator as independent C++ code
 - No resonance decay.
 - No hadronic rescattering.
 - No femtoscopy function construction or pair analysis.
-- No reuse of `qiye` code by copy-paste or direct linking.
+- No reuse of `reference/legacy-root-macros/` code by copy-paste or direct linking.
 - No external YAML/JSON configuration in v1.
 
 ## Confirmed Facts From The Requirement
-- The target implementation must be independent from the `qiye` directory and only inherit its physical intent and lessons learned.
+- The target implementation must be independent from the `reference/legacy-root-macros/` directory and only inherit its physical intent and lessons learned.
 - The required core data contracts are `BlastWaveConfig`, `EventInfo`, `ParticleRecord`, and a `generateEvent(const BlastWaveConfig&)`-style API.
 - The geometry stage must sample two nuclei, determine participants with `sigmaNN`, and compute participant-plane quantities `eps2` and `psi2`.
 - The emission stage must use participant hotspots, Gaussian transverse smearing, fixed `tau0`, Gaussian `eta_s`, and proper boost-based flow treatment.
@@ -82,7 +82,7 @@ Implement a new first-version Blast-Wave event generator as independent C++ code
 - The exact local-rest-frame thermal sampler is an implementation choice, provided it preserves on-shell kinematics and the acceptance criteria below.
 
 ## Constraints
-- Do not copy functions or files from `qiye`.
+- Do not copy functions or files from `reference/legacy-root-macros/`.
 - ROOT must remain an output and QA dependency, not a hard requirement for the generator-core physics classes.
 - The executable must remain simple enough to run as a standard ROOT-linked C++ program.
 - The implementation must avoid the old incorrect pattern of adding a flow offset directly to `px` and `py`.

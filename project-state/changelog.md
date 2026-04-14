@@ -59,3 +59,10 @@
 - Updated the higher-authority docs under `docs/` and the tracked example config so they describe the new thermal sampler contract and consistently use `config/test_b8.cfg`.
 - Closed the previously open config-file CLI documentation/validation gap with an authoritative default-MJ generate+QA record and an explicit gamma-mode compatibility smoke.
 - Recorded the remaining environment caveat more precisely: sandboxed `alienv` ROOT smoke commands on this machine are not authoritative, but the same commands pass outside the sandbox.
+
+## 2026-04-14 Repository Layout Cleanup
+
+- Moved the historical reference ROOT macros from the top-level `qiye/` directory to `reference/legacy-root-macros/` so the directory name reflects responsibility instead of origin.
+- Moved the tracked helper launcher from `config/run.sh` to `scripts/run_example_config.sh` so executable helpers no longer share a directory with static config files.
+- Added a top-level `README.md` that documents the current repository structure and clarifies which directories are tracked sources versus ignored local artifacts.
+- Updated higher-authority docs and the project-state ledger so they point to `scripts/run_example_config.sh` and `reference/legacy-root-macros/`.

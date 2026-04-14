@@ -18,8 +18,10 @@
   它负责解析 CLI 与配置文件、驱动生成器，并把结果写成 ROOT 文件。
 - 独立 QA 读取端位于 [apps/qa_blastwave_output.cpp](/Users/allenzhou/Research_software/Blast_wave/apps/qa_blastwave_output.cpp)。
   它负责重新读取 ROOT 文件并检查树结构、participant 契约、质量壳、`centrality` 映射和固定 `b` 下的中心度一致性。
-- 运行辅助文件位于 [config/test_b8.cfg](/Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg) 和 [config/run.sh](/Users/allenzhou/Research_software/Blast_wave/config/run.sh)。
-  当前仓库中受版本控制的示例配置文件在 `config/` 目录，而不是旧台账里曾写过的 `qa/` 目录。
+- 受版本控制的配置文件位于 [config/test_b8.cfg](/Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg) 和 [config/b8.cfg](/Users/allenzhou/Research_software/Blast_wave/config/b8.cfg)。
+  运行辅助脚本位于 [scripts/run_example_config.sh](/Users/allenzhou/Research_software/Blast_wave/scripts/run_example_config.sh)，从 `config/` 中读取示例配置。
+- 历史 ROOT 参考宏位于 [reference/legacy-root-macros/README.md](/Users/allenzhou/Research_software/Blast_wave/reference/legacy-root-macros/README.md)。
+  这些宏只用于理解旧思路，不参与当前构建与运行入口。
 
 ## 使用方法
 

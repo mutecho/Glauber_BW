@@ -69,7 +69,8 @@
     - `--mj-grid-points <int>`
   - the current checkout tracks:
     - `config/test_b8.cfg`
-    - `config/run.sh`
+    - `config/b8.cfg`
+    - `scripts/run_example_config.sh`
   - the higher-authority docs now use the canonical tracked path `config/test_b8.cfg`
   - parser failure-path checks returned the expected errors for:
     - invalid thermal sampler mode

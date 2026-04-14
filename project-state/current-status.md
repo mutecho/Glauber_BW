@@ -4,8 +4,8 @@
 
 - Date: 2026-04-14
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
-- Branch state: `master` with uncommitted Maxwell-Juttner, docs, and `project-state/` sync updates in the working tree.
-- Active coordination task: record the Maxwell-Juttner thermal-sampler switch, close the config-file validation/doc-path gap, and carry forward the remaining environment caveats.
+- Branch state: `master` with local repository-layout cleanup updates in the working tree.
+- Active coordination task: normalize top-level structure so tracked configs, helper scripts, and historical reference macros no longer share ambiguous landing zones.
 
 ## Confirmed Baseline
 
@@ -35,7 +35,8 @@
   - `mj-grid-points`
 - The build now registers a ROOT-free core regression test target:
   - `test_maxwell_juttner_sampler`
-- The currently tracked example config is `config/test_b8.cfg`, and the repository also tracks a convenience launcher at `config/run.sh`.
+- The currently tracked example configs are `config/test_b8.cfg` and `config/b8.cfg`, while the convenience launcher now lives at `scripts/run_example_config.sh`.
+- Historical reference ROOT macros now live under `reference/legacy-root-macros/` instead of a top-level personal-name directory.
 - The `qa/` directory contains historical sample ROOT outputs from multiple schema revisions; they are useful artifacts, but not all of them represent the latest full output contract.
 
 ## Evidence Used
@@ -56,7 +57,9 @@
   - `tests/MaxwellJuttnerMomentumSamplerTest.cpp`
 - Tracked runtime/config artifacts:
   - `config/test_b8.cfg`
-  - `config/run.sh`
+  - `config/b8.cfg`
+  - `scripts/run_example_config.sh`
+  - `reference/legacy-root-macros/README.md`
 - Existing durable validation ledger entries:
   - `project-state/tests.md` (`T-001`, `T-002`, `T-003`, `T-004`)
 - Current commit baseline:

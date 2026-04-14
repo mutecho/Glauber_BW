@@ -44,7 +44,7 @@
 - Status: resolved on 2026-04-14
 - Evidence:
   - the tracked sample config in the current checkout is `config/test_b8.cfg`
-  - `config/run.sh` also invokes `config/test_b8.cfg`
+  - `scripts/run_example_config.sh` also invokes `config/test_b8.cfg`
   - higher-authority docs under `docs/` now also refer to `config/test_b8.cfg`
   - a durable config-file generate+QA record was added on 2026-04-14 using that canonical path
 - Impact:

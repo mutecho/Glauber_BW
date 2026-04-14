@@ -42,12 +42,18 @@ Not implemented in v1:
   Main build definition.
 - `CMakePresets.json`
   Default configure/build preset with `compile_commands.json` enabled.
+- `config/`
+  Tracked example configuration files only.
+- `scripts/`
+  Local helper launchers that wrap common run commands.
 - `docs/`
   Planning and handoff documents.
+- `reference/legacy-root-macros/`
+  Historical reference macros kept for comparison only. Do not copy code from here.
 - `qa/`
   Local generated sample files and QA output files.
-- `qiye/`
-  Reference macros kept for comparison only. Do not copy code from here.
+- `project-state/`
+  Repository-local engineering coordination ledger.
 
 ## Build And Run
 

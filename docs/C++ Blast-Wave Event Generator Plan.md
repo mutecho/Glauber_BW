@@ -1,7 +1,7 @@
 # C++ Blast-Wave Event Generator Plan
 
 ## Summary
-- 新实现使用独立的 C++ 代码，不复制 `qiye` 目录中的参考实现，只借鉴其“Glauber 几何 + 逐粒子输出”的目标形态。
+- 新实现使用独立的 C++ 代码，不复制 `reference/legacy-root-macros/` 目录中的参考实现，只借鉴其“Glauber 几何 + 逐粒子输出”的目标形态。
 - 第一版目标是固定 impact parameter 的事件生成器，默认 `b = 8 fm`，保留事件级 Glauber participant 波动。
 - 运行形态采用“普通 C++ 生成器核心 + ROOT 链接可执行程序”，ROOT 只负责 I/O 和基础 QA。
 - 当前阶段只关注事件生成，不实现 femtoscopy 相关函数或 pair analysis。
@@ -62,5 +62,5 @@
 ## Assumptions
 - 第一版只生成单一直接 pion 物种，默认 `pi+` 或配置成单一 pion species；不做 resonance decay。
 - 纵向动力学保持简单 Bjorken/Gaussian 近似，不引入 hadronic rescattering。
-- 不复用 `qiye` 中的文件和函数，只吸收其物理意图与问题教训。
+- 不复用 `reference/legacy-root-macros/` 中的文件和函数，只吸收其物理意图与问题教训。
 - 计划文档的目标落点为 `docs/blastwave_generator_plan.md`，后续若退出 Plan Mode，再按此内容写入仓库。
