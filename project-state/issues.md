@@ -41,16 +41,26 @@
 ## ISSUE-004 Higher-Authority Docs Still Point To The Old Config Example Path
 
 - Type: documentation drift
-- Status: open
+- Status: resolved on 2026-04-14
 - Evidence:
   - the tracked sample config in the current checkout is `config/test_b8.cfg`
   - `config/run.sh` also invokes `config/test_b8.cfg`
-  - higher-authority docs under `docs/` still refer to `qa/test_b8.cfg`
-  - earlier `project-state/` entries also carried the stale `qa/test_b8.cfg` path before this sync task corrected them
+  - higher-authority docs under `docs/` now also refer to `config/test_b8.cfg`
+  - a durable config-file generate+QA record was added on 2026-04-14 using that canonical path
 - Impact:
-  - users following the docs can try to run a non-canonical or nonexistent path
-  - the config-file CLI change cannot yet be treated as fully documented and reproducibly validated from the checkout alone
+  - no current blocking impact remains from the earlier path drift
 - Recommended resolution:
-  - choose `config/test_b8.cfg` as the canonical path unless the file is intentionally moved again
-  - update the higher-authority docs to match that path
-  - record one durable generate+QA validation run using the canonical tracked config path
+  - preserve `config/test_b8.cfg` as the canonical tracked example path unless the file is intentionally moved again
+
+## ISSUE-005 Sandboxed `alienv` ROOT Runs Are Not Authoritative In Codex
+
+- Type: environment gap
+- Status: open
+- Evidence:
+  - sandboxed 2026-04-14 `alienv` ROOT smoke commands emitted PCM/module loading errors and produced a non-authoritative QA result
+  - the same generate and QA commands passed immediately after rerunning outside the sandbox with escalation
+- Impact:
+  - Codex-hosted ROOT smoke and QA results can be misleading when run inside the sandbox on this machine
+  - authoritative ROOT validation currently requires an outside-sandbox rerun
+- Recommended resolution:
+  - keep using outside-sandbox `alienv` ROOT commands for authoritative validation in Codex sessions until the sandbox/PCM interaction is fixed

@@ -20,6 +20,7 @@
 - Why it exists:
   - the generator and QA contract now require participant-level objects
   - the newest schema also includes `events.centrality` and `cent`
+  - the default thermal momentum baseline is now `maxwell-juttner`, so older Gamma-era samples are no longer representative of the default runtime configuration
   - older sample files remain useful historical artifacts but no longer match the newest file schema
 - Suggested owner action:
   - regenerate representative files such as `qa/test_b8_5000.root`
@@ -30,17 +31,27 @@
 
 ## WI-003 Authoritative Validation For The Config-File CLI Path
 
-- Status: open
+- Status: done on 2026-04-14
 - Goal: move the config-file CLI change from `partially verified` to `verified`.
 - Why it exists:
-  - parser behavior and generator-side execution were exercised successfully
-  - the tracked example config path is now `config/test_b8.cfg`
-  - higher-authority docs still point to the old path `qa/test_b8.cfg`
-  - the ledger does not yet contain one durable generate+QA record tied to the current tracked config path
+  - parser behavior and generator-side execution had already been exercised successfully
+  - the tracked example config path had been normalized to `config/test_b8.cfg`
+  - higher-authority docs and one durable generate+QA record were still missing at the time this work item was opened
 - Suggested owner action:
-  - update `docs/项目说明.md` and `docs/agent_guide.md` to use `config/test_b8.cfg`
-  - run `generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --output /Users/allenzhou/Research_software/Blast_wave/qa/test_b8_cfg_smoke.root`
-  - run `qa_blastwave_output` on `qa/test_b8_cfg_smoke.root`
-  - if successful, update `project-state/current-status.md`, `project-state/tests.md`, and `project-state/changelog.md`
+  - completed on 2026-04-14 by updating `docs/项目说明.md` and `docs/agent_guide.md`
+  - completed on 2026-04-14 by recording an authoritative default-MJ config-file generate+QA run in `project-state/tests.md`
 - Exit condition:
-  - the canonical tracked sample config has one durable end-to-end generate-and-validate result recorded in `project-state/`
+  - satisfied: the canonical tracked sample config now has one durable end-to-end generate-and-validate result recorded in `project-state/`
+
+## WI-004 Authoritative ROOT Smoke Path For Codex Sessions
+
+- Status: open
+- Goal: preserve one clear authoritative procedure for ROOT smoke and QA runs in Codex sessions on this machine.
+- Why it exists:
+  - sandboxed `alienv` ROOT runs on 2026-04-14 emitted PCM/module loading errors
+  - the same commands passed immediately after rerunning outside the sandbox with escalation
+- Suggested owner action:
+  - either document the outside-sandbox invocation pattern wherever recurring validation is expected
+  - or add a small wrapper/workflow that makes the authoritative execution path explicit
+- Exit condition:
+  - future Codex-run ROOT smoke validations have one documented authoritative execution path

@@ -20,20 +20,104 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+#include <unistd.h>
 
 #include "blastwave/BlastWaveGenerator.h"
 #include "blastwave/io/RootOutputSchema.h"
 
 namespace {
 
+  enum class ProgressMode {
+    Auto,
+    Enabled,
+    Disabled
+  };
+
   struct RunOptions {
     blastwave::BlastWaveConfig config;
     std::string outputPath = "blastwave.root";
+    ProgressMode progressMode = ProgressMode::Auto;
   };
 
   struct DeferredOption {
     std::string name;
     std::string value;
+  };
+
+  bool shouldEnableProgress(ProgressMode progressMode) {
+    switch (progressMode) {
+      case ProgressMode::Auto:
+        return ::isatty(STDERR_FILENO) != 0;
+      case ProgressMode::Enabled:
+        return true;
+      case ProgressMode::Disabled:
+        return false;
+    }
+
+    return false;
+  }
+
+  // Keep progress reporting in the CLI layer so the physics core stays
+  // side-effect free and the redraw cost is capped at integer-percent updates.
+  class ProgressReporter {
+   public:
+    ProgressReporter(int totalEvents, ProgressMode progressMode)
+        : totalEvents_(totalEvents), enabled_(totalEvents > 0 && shouldEnableProgress(progressMode)) {}
+
+    ~ProgressReporter() {
+      if (drawn_ && !lineClosed_) {
+        std::cerr << '\n' << std::flush;
+      }
+    }
+
+    void update(int completedEvents) {
+      if (!enabled_) {
+        return;
+      }
+
+      const int clampedCompletedEvents = std::clamp(completedEvents, 0, totalEvents_);
+      const int percent = totalEvents_ > 0 ? (100 * clampedCompletedEvents) / totalEvents_ : 0;
+      if (percent == lastPercent_) {
+        return;
+      }
+
+      std::string bar(static_cast<std::size_t>(kBarWidth), '-');
+      if (percent >= 100) {
+        std::fill(bar.begin(), bar.end(), '=');
+      } else {
+        const int headIndex = std::min((percent * kBarWidth) / 100, kBarWidth - 1);
+        for (int index = 0; index < headIndex; ++index) {
+          bar[static_cast<std::size_t>(index)] = '=';
+        }
+        bar[static_cast<std::size_t>(headIndex)] = '>';
+      }
+
+      std::cerr << '\r' << '[' << bar << "] " << percent << '%' << std::flush;
+      drawn_ = true;
+      lineClosed_ = false;
+      lastPercent_ = percent;
+    }
+
+    void finish() {
+      if (!enabled_) {
+        return;
+      }
+
+      update(totalEvents_);
+      if (drawn_ && !lineClosed_) {
+        std::cerr << '\n' << std::flush;
+        lineClosed_ = true;
+      }
+    }
+
+   private:
+    static constexpr int kBarWidth = 20;
+
+    int totalEvents_ = 0;
+    int lastPercent_ = -1;
+    bool enabled_ = false;
+    bool drawn_ = false;
+    bool lineClosed_ = false;
   };
 
   void printUsage(const char *programName) {
@@ -50,10 +134,11 @@ namespace {
               << "Minimal config example:\n"
               << "  nevents = 5000\n"
               << "  b = 8\n"
+              << "  progress = true\n"
               << "  output = qa/test_b8_5000.root\n"
               << "Configuration keys:\n"
               << "  nevents, b, temperature, thermal-sampler, mj-pmax, mj-grid-points,\n"
-              << "  tau0, smear, sigma-nn, seed, output,\n"
+              << "  tau0, smear, sigma-nn, seed, output, progress,\n"
               << "  vmax, kappa2, sigma-eta, eta-plateau, nbd-mu, nbd-k, r-ref\n"
               << "Primary options:\n"
               << "  --nevents <int>\n"
@@ -67,6 +152,8 @@ namespace {
               << "  --sigma-nn <fm^2>   default 7.0 fm^2 (70 mb)\n"
               << "  --seed <uint64>\n"
               << "  --output <path>\n"
+              << "  --progress\n"
+              << "  --no-progress\n"
               << "QA-facing tuning knobs:\n"
               << "  --vmax <value>\n"
               << "  --kappa2 <value>\n"
@@ -149,6 +236,17 @@ namespace {
     }
   }
 
+  bool parseBool(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
+    if (rawValue == "true") {
+      return true;
+    }
+    if (rawValue == "false") {
+      return false;
+    }
+
+    throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'true' or 'false'.");
+  }
+
   blastwave::ThermalSamplerMode parseThermalSamplerMode(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
     if (rawValue == "maxwell-juttner") {
       return blastwave::ThermalSamplerMode::MaxwellJuttner;
@@ -196,6 +294,8 @@ namespace {
       runOptions.config.seed = parseUnsignedInteger(rawValue, optionName, sourceDescription);
     } else if (optionName == "output") {
       runOptions.outputPath = resolveOutputPath(rawValue, baseDirectory);
+    } else if (optionName == "progress") {
+      runOptions.progressMode = parseBool(rawValue, optionName, sourceDescription) ? ProgressMode::Enabled : ProgressMode::Disabled;
     } else if (optionName == "vmax") {
       runOptions.config.vMax = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "kappa2") {
@@ -256,6 +356,8 @@ namespace {
     std::vector<DeferredOption> cliOverrides;
     std::string flagConfigPath;
     std::string positionalConfigPath;
+    ProgressMode cliProgressMode = ProgressMode::Auto;
+    bool hasCliProgressOverride = false;
 
     showHelp = false;
 
@@ -271,6 +373,18 @@ namespace {
           throw std::invalid_argument("Only one --config path may be provided.");
         }
         flagConfigPath = takeValue(iArg, argc, argv, argument);
+        continue;
+      }
+
+      if (argument == "--progress") {
+        cliProgressMode = ProgressMode::Enabled;
+        hasCliProgressOverride = true;
+        continue;
+      }
+
+      if (argument == "--no-progress") {
+        cliProgressMode = ProgressMode::Disabled;
+        hasCliProgressOverride = true;
         continue;
       }
 
@@ -296,6 +410,10 @@ namespace {
 
     for (const DeferredOption &overrideOption : cliOverrides) {
       applyOption(runOptions, overrideOption.name, overrideOption.value, "command line option '--" + overrideOption.name + "'", std::filesystem::path());
+    }
+
+    if (hasCliProgressOverride) {
+      runOptions.progressMode = cliProgressMode;
     }
 
     return runOptions;
@@ -365,6 +483,7 @@ int main(int argc, char **argv) {
     const blastwave::BlastWaveConfig &config = runOptions.config;
     const std::string &outputPath = runOptions.outputPath;
     blastwave::BlastWaveGenerator generator(config);
+    ProgressReporter progressReporter(config.nEvents, runOptions.progressMode);
 
     gROOT->SetBatch(true);
     gStyle->SetOptStat(1110);
@@ -405,6 +524,7 @@ int main(int argc, char **argv) {
     TH1F hEta(blastwave::io::kEtaHistogramName, "Particle pseudorapidity;#eta;Particles", 120, -6.0, 6.0);
     TH1F hPhi(blastwave::io::kPhiHistogramName, "Particle azimuth;#phi;Particles", 128, -3.2, 3.2);
 
+    progressReporter.update(0);
     for (int eventId = 0; eventId < config.nEvents; ++eventId) {
       const blastwave::GeneratedEvent event = generator.generateEvent(eventId);
 
@@ -434,6 +554,8 @@ int main(int argc, char **argv) {
         hEta.Fill(computePseudorapidity(particle.px, particle.py, particle.pz));
         hPhi.Fill(std::atan2(particle.py, particle.px));
       }
+
+      progressReporter.update(eventId + 1);
     }
 
     TCanvas participantCanvas(blastwave::io::kParticipantXYCanvasName, "Participant nucleons with nucleus outlines", 720, 680);
@@ -493,6 +615,7 @@ int main(int argc, char **argv) {
     participantCanvas.Write();
     outputFile.Close();
 
+    progressReporter.finish();
     std::cout << "Wrote " << config.nEvents << " events to " << outputPath << '\n';
     return 0;
   } catch (const std::exception &error) {

@@ -2,10 +2,10 @@
 
 ## Snapshot
 
-- Date: 2026-04-13
+- Date: 2026-04-14
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
-- Branch state: `master` is aligned with `upstream/master`; the task-start working tree was clean.
-- Active coordination task: resync `project-state/` to the post-centrality-output baseline and carry forward the remaining config-file validation/doc-path follow-up.
+- Branch state: `master` with uncommitted Maxwell-Juttner, docs, and `project-state/` sync updates in the working tree.
+- Active coordination task: record the Maxwell-Juttner thermal-sampler switch, close the config-file validation/doc-path gap, and carry forward the remaining environment caveats.
 
 ## Confirmed Baseline
 
@@ -26,6 +26,15 @@
   - `generate_blastwave_events <config-path> [options]`
   - explicit CLI options override config-file values, which override built-in defaults
   - relative `output` paths resolve relative to the config file directory
+- The thermal momentum contract now includes two explicit modes:
+  - default `maxwell-juttner` lookup-table sampling in the local rest frame
+  - legacy `gamma` sampling as an explicit compatibility mode
+- The public config/CLI surface now exposes:
+  - `thermal-sampler`
+  - `mj-pmax`
+  - `mj-grid-points`
+- The build now registers a ROOT-free core regression test target:
+  - `test_maxwell_juttner_sampler`
 - The currently tracked example config is `config/test_b8.cfg`, and the repository also tracks a convenience launcher at `config/run.sh`.
 - The `qa/` directory contains historical sample ROOT outputs from multiple schema revisions; they are useful artifacts, but not all of them represent the latest full output contract.
 
@@ -37,16 +46,19 @@
   - `docs/blastwave_generator_agent_handoff.md`
 - Current code and schema sources:
   - `include/blastwave/BlastWaveGenerator.h`
+  - `include/blastwave/MaxwellJuttnerMomentumSampler.h`
   - `include/blastwave/io/RootOutputSchema.h`
   - `src/BlastWaveGenerator.cpp`
+  - `src/MaxwellJuttnerMomentumSampler.cpp`
   - `src/RootOutputSchema.cpp`
   - `apps/generate_blastwave_events.cpp`
   - `apps/qa_blastwave_output.cpp`
+  - `tests/MaxwellJuttnerMomentumSamplerTest.cpp`
 - Tracked runtime/config artifacts:
   - `config/test_b8.cfg`
   - `config/run.sh`
 - Existing durable validation ledger entries:
-  - `project-state/tests.md` (`T-001`, `T-002`, `T-003`)
+  - `project-state/tests.md` (`T-001`, `T-002`, `T-003`, `T-004`)
 - Current commit baseline:
   - `ff10639 add cent based on b-param`
   - `8ba4af9 reoeganize struct & support config file as input`
@@ -54,20 +66,21 @@
 
 ## Current Gaps And Blockers
 
-- Higher-authority docs under `docs/` still refer to the old config example path `qa/test_b8.cfg`, while the tracked file in the current checkout is `config/test_b8.cfg`.
-- The config-file CLI contract remains only partially verified:
-  - parser and entrypoint behavior were exercised historically
-  - the repository now has a tracked sample config path
-  - but there is not yet a durable generate-and-validate QA record tied to the current tracked config path
 - Historical sample ROOT outputs in `qa/` span multiple contract generations:
   - older files may miss `participants`, `participant_x-y`, or `participant_x-y_canvas`
   - files generated before the centrality extension may also miss `events.centrality` and `cent`
+  - files generated before the Maxwell-Juttner switch may also reflect the older Gamma-only thermal default
+- ROOT smoke commands launched inside the Codex sandbox are still not authoritative on this machine:
+  - the 2026-04-14 sandboxed `alienv` ROOT runs emitted PCM/module errors
+  - the same commands passed immediately after rerunning outside the sandbox with escalation
 - The ledger path has already been normalized to `project-state/`; future updates should not reintroduce `.project-state/` references.
 
 ## Verification Status
 
-- verification_status: `partially verified`
+- verification_status: `verified`
 - Rationale:
-  - the explicit-CLI smoke path and the current centrality contract have a passed QA record on 2026-04-13
-  - the participant output contract also has a passed QA record
-  - the remaining verification gap is narrower now: it is the durable end-to-end record for the current tracked config-file sample path, plus the stale human-facing path references that can misdirect operators
+  - the project was reconfigured and rebuilt on 2026-04-14 after the Maxwell-Juttner change set landed
+  - the new ROOT-free core test target passed through `ctest`
+  - `generate_blastwave_events --help` and the new parser failure paths for thermal-sampler options were exercised successfully
+  - the canonical `config/test_b8.cfg` path now has one durable generate+QA record under the default Maxwell-Juttner mode
+  - an explicit `--thermal-sampler gamma` compatibility smoke also passed the independent QA reader

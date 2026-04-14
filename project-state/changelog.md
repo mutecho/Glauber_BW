@@ -46,3 +46,16 @@
 - Synchronized the coordination ledger to the canonical `project-state/` path spelling.
 - Corrected the tracked example-config location in the ledger from `qa/test_b8.cfg` to `config/test_b8.cfg`.
 - Closed the old read-side ROOT environment blocker using the later passed smoke-QA evidence and shifted the remaining open gap to config-path documentation drift plus missing durable config-path QA evidence.
+
+## 2026-04-14 Maxwell-Juttner Thermal Sampler Switch
+
+- Added a ROOT-free `MaxwellJuttnerMomentumSampler` and switched the default thermal momentum mode to `maxwell-juttner`, while preserving `gamma` as an explicit compatibility path.
+- Extended the public generator/config contract with:
+  - `ThermalSamplerMode`
+  - `thermal-sampler`
+  - `mj-pmax`
+  - `mj-grid-points`
+- Added a ROOT-free core regression target `test_maxwell_juttner_sampler` and registered it in CTest.
+- Updated the higher-authority docs under `docs/` and the tracked example config so they describe the new thermal sampler contract and consistently use `config/test_b8.cfg`.
+- Closed the previously open config-file CLI documentation/validation gap with an authoritative default-MJ generate+QA record and an explicit gamma-mode compatibility smoke.
+- Recorded the remaining environment caveat more precisely: sandboxed `alienv` ROOT smoke commands on this machine are not authoritative, but the same commands pass outside the sandbox.

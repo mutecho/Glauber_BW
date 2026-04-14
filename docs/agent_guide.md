@@ -64,7 +64,14 @@ Build products:
 
 - executable: `bin/generate_blastwave_events`
 - executable: `bin/qa_blastwave_output`
+- executable: `bin/test_maxwell_juttner_sampler`
 - compilation database: `build/compile_commands.json`
+
+ROOT-free core regression test:
+
+```bash
+cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-failure
+```
 
 Example generation:
 
@@ -113,6 +120,7 @@ Configuration files use a lightweight `key = value` format:
   - `sigma-nn`
   - `seed`
   - `output`
+  - `progress`
   - `vmax`
   - `kappa2`
   - `sigma-eta`
@@ -131,6 +139,7 @@ nevents = 5000
 b = 8
 temperature = 0.2
 thermal-sampler = maxwell-juttner
+progress = true
 # mj-pmax = 8.0
 # mj-grid-points = 4096
 tau0 = 10.0
@@ -151,6 +160,8 @@ The same parameters remain available as explicit CLI flags:
 - `--sigma-nn <fm^2>`: inelastic nucleon-nucleon cross section, default `7.0`
 - `--seed <uint64>`: RNG seed
 - `--output <path>`: ROOT output path
+- `--progress`: force-enable the progress bar
+- `--no-progress`: force-disable the progress bar
 - `--vmax <value>`: maximum transverse flow scale
 - `--kappa2 <value>`: elliptic flow response coefficient
 - `--sigma-eta <value>`: Gaussian tail width of source `eta_s`
@@ -158,6 +169,9 @@ The same parameters remain available as explicit CLI flags:
 - `--nbd-mu <value>`: mean multiplicity parameter per hotspot
 - `--nbd-k <value>`: NBD shape parameter
 - `--r-ref <fm>`: reference transverse size entering the flow profile
+
+If `progress` is not set in the config file and neither CLI flag is present, the
+generator only shows the progress bar when `stderr` is attached to a TTY.
 
 `qa_blastwave_output` supports:
 

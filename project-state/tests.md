@@ -19,6 +19,9 @@
   - fresh commands executed on 2026-04-13 for the centrality-output extension:
     - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events --nevents 10 --output /tmp/blastwave_centrality_smoke.root'"`
     - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_centrality_smoke.root --output /tmp/blastwave_centrality_smoke_validation.root --expect-nevents 10'"`
+  - fresh commands executed on 2026-04-14 for the Maxwell-Juttner switch:
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc 'cmake --preset default -S /Users/allenzhou/Research_software/Blast_wave'"`
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc 'cmake --build /Users/allenzhou/Research_software/Blast_wave/build'"`
 - Current result:
   - configure: passed
   - build: passed
@@ -47,33 +50,67 @@
 
 ## T-003 Config-File CLI Contract
 
-- Status: partially verified
+- Status: passed
 - Purpose: verify that `generate_blastwave_events` accepts repository-shipped config files, preserves explicit CLI compatibility, and enforces the new parser contract with actionable errors.
 - Execution shape:
   - rebuild the current checkout
   - inspect `--help`
   - generate from the tracked sample config path
-  - exercise parser failure paths without depending on ROOT read-side validation
+  - exercise parser failure paths
+  - validate the generated ROOT output with the independent QA reader
 - Existing evidence:
-  - build completed after the config-file CLI change
+  - build completed after the Maxwell-Juttner CLI/config change
   - `--help` reports:
     - `generate_blastwave_events --config <path> [options]`
     - `generate_blastwave_events <config-path> [options]`
     - `explicit CLI options > configuration file values > built-in defaults`
+    - `--thermal-sampler <maxwell-juttner|gamma>`
+    - `--mj-pmax <GeV>`
+    - `--mj-grid-points <int>`
   - the current checkout tracks:
     - `config/test_b8.cfg`
     - `config/run.sh`
-  - earlier ledger entries recorded a historical generator run through the config-file path, but those notes used the now-stale path spelling `qa/test_b8.cfg`
+  - the higher-authority docs now use the canonical tracked path `config/test_b8.cfg`
   - parser failure-path checks returned the expected errors for:
-    - missing config file
-    - invalid config line syntax
-    - unknown key
-    - duplicate key
-    - invalid numeric value
-    - simultaneous positional config path and `--config`
+    - invalid thermal sampler mode
+    - `mj-pmax <= 0`
+    - `mj-grid-points < 2`
+  - fresh authoritative generate+QA commands executed on 2026-04-14:
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --output /tmp/blastwave_mj_default_smoke.root'"`
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_mj_default_smoke.root --output /tmp/blastwave_mj_default_smoke_validation.root --expect-nevents 5000'"`
 - Current result:
   - parser and entrypoint behavior: passed
   - tracked sample config presence: passed at `config/test_b8.cfg`
-  - canonical documentation of the tracked path: not yet complete because higher-authority docs still point to `qa/test_b8.cfg`
-  - durable generate+QA evidence for the current tracked config path: not yet recorded in `project-state/`
-- verification_status: `partially verified`
+  - canonical documentation of the tracked path: passed
+  - durable generate+QA evidence for the current tracked config path: passed
+  - QA summary: `validation_passed events=5000 particles=1802202 mean_Npart=180.622 mean_eps2=0.263087 max_abs_eta_s=8.39197 max_E=3259.31 max_mass_shell_deviation=1.27587e-09`
+  - note: the sandboxed `alienv` ROOT attempt on 2026-04-14 was not authoritative because it emitted PCM/module errors; the recorded commands above are the outside-sandbox reruns that passed
+- verification_status: `verified`
+
+## T-004 Thermal Sampler Switch Validation
+
+- Status: passed
+- Purpose: verify that the new default Maxwell-Juttner momentum sampler is numerically stable, that the new runtime knobs are wired through the build, and that legacy `gamma` mode remains compatible with the existing ROOT output contract.
+- Execution shape:
+  - rebuild the current checkout
+  - run the ROOT-free core sampler regression test through `ctest`
+  - exercise the new `--help` surface
+  - run one explicit `gamma` generate+QA compatibility smoke
+- Existing evidence:
+  - fresh `ctest --output-on-failure` executed on 2026-04-14 reported:
+    - `1/1 Test #1: test_maxwell_juttner_sampler ... Passed`
+  - the core test covers:
+    - two `(m, T)` points, including `(0.13957, 0.2)`
+    - CDF monotonicity and finite-table checks
+    - histogram-vs-theory shape checks for `p^2 exp(-sqrt(p^2 + m^2) / T)`
+    - `4096/8 -> 8192/10` stability comparisons in `⟨p⟩` and `⟨E⟩`
+    - `temperature <= 0` behavior for both `MaxwellJuttner` and `Gamma`
+  - fresh authoritative gamma compatibility commands executed on 2026-04-14:
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 100 --thermal-sampler gamma --output /tmp/blastwave_gamma_smoke.root'"`
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_gamma_smoke.root --output /tmp/blastwave_gamma_smoke_validation.root --expect-nevents 100'"`
+- Current result:
+  - core regression test: passed
+  - `--help` exposure of thermal-sampler knobs: passed
+  - gamma compatibility smoke: passed
+  - gamma QA summary: `validation_passed events=100 particles=36509 mean_Npart=181.99 mean_eps2=0.265514 max_abs_eta_s=7.21087 max_E=755.096 max_mass_shell_deviation=9.99424e-11`
+- verification_status: `verified`
