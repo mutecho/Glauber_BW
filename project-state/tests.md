@@ -22,6 +22,9 @@
   - fresh commands executed on 2026-04-14 for the Maxwell-Juttner switch:
     - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc 'cmake --preset default -S /Users/allenzhou/Research_software/Blast_wave'"`
     - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc 'cmake --build /Users/allenzhou/Research_software/Blast_wave/build'"`
+  - fresh commands executed on 2026-04-14 after the source-structure cleanup:
+    - `cmake --build /Users/allenzhou/Research_software/Blast_wave/build`
+    - `cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-failure`
 - Current result:
   - configure: passed
   - build: passed

@@ -13,7 +13,11 @@ find_package(ROOT CONFIG REQUIRED COMPONENTS Core Graf Gpad Hist RIO Tree)
 
 add_library(blastwave_core
   src/BlastWaveGenerator.cpp
+  src/BlastWaveGeneratorGeometry.cpp
+  src/BlastWaveGeneratorSampling.cpp
+  src/BlastWaveGeneratorValidation.cpp
   src/MaxwellJuttnerMomentumSampler.cpp
+  src/PhysicsUtils.cpp
 )
 
 target_include_directories(blastwave_core
@@ -58,7 +62,15 @@ target_link_libraries(blastwave_rootio
 )
 
 add_executable(generate_blastwave_events
+  apps/generate_blastwave/ProgressReporter.cpp
+  apps/generate_blastwave/RootEventFileWriter.cpp
+  apps/generate_blastwave/RunOptions.cpp
   apps/generate_blastwave_events.cpp
+)
+
+target_include_directories(generate_blastwave_events
+  PRIVATE
+    ${PROJECT_SOURCE_DIR}/apps
 )
 
 target_compile_options(generate_blastwave_events
@@ -96,6 +108,7 @@ target_compile_options(qa_blastwave_output
 
 target_link_libraries(qa_blastwave_output
   PRIVATE
+    blastwave_core
     blastwave_rootio
     ROOT::Hist
 )

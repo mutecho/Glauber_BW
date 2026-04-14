@@ -66,3 +66,10 @@
 - Moved the tracked helper launcher from `config/run.sh` to `scripts/run_example_config.sh` so executable helpers no longer share a directory with static config files.
 - Added a top-level `README.md` that documents the current repository structure and clarifies which directories are tracked sources versus ignored local artifacts.
 - Updated higher-authority docs and the project-state ledger so they point to `scripts/run_example_config.sh` and `reference/legacy-root-macros/`.
+
+## 2026-04-14 Source Responsibility Cleanup
+
+- Split the oversized generator implementation into dedicated geometry, sampling, validation, and orchestration translation units.
+- Split the generation app so CLI/config parsing, progress reporting, and ROOT output writing no longer live in the same source file as `main`.
+- Added `include/blastwave/PhysicsUtils.h` plus `src/PhysicsUtils.cpp` so producer and QA code share derived-observable helpers instead of duplicating them.
+- Tightened the repository-local `AGENTS.md` policy so future “整理代码/文件结构” requests explicitly include source-file responsibility cleanup rather than only top-level directory cleanup.

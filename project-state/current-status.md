@@ -4,8 +4,8 @@
 
 - Date: 2026-04-14
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
-- Branch state: `master` with local repository-layout cleanup updates in the working tree.
-- Active coordination task: normalize top-level structure so tracked configs, helper scripts, and historical reference macros no longer share ambiguous landing zones.
+- Branch state: `master` with local source-structure cleanup updates in the working tree.
+- Active coordination task: split oversized source files so CLI parsing, app-level ROOT output, shared physics helpers, and generator-core responsibilities no longer live in the same translation units.
 
 ## Confirmed Baseline
 
@@ -35,6 +35,16 @@
   - `mj-grid-points`
 - The build now registers a ROOT-free core regression test target:
   - `test_maxwell_juttner_sampler`
+- The generator-side implementation is now structurally split along responsibility boundaries:
+  - `src/BlastWaveGenerator.cpp` keeps event orchestration
+  - `src/BlastWaveGeneratorGeometry.cpp` owns Glauber geometry sampling
+  - `src/BlastWaveGeneratorSampling.cpp` owns thermal, multiplicity, and flow sampling
+  - `src/BlastWaveGeneratorValidation.cpp` owns generator-side validation
+  - `src/PhysicsUtils.cpp` owns shared derived-observable helpers used by producer and QA code
+- The generator app entry is now structurally split along app-layer boundaries:
+  - `apps/generate_blastwave_events.cpp` keeps only top-level orchestration
+  - `apps/generate_blastwave/RunOptions.cpp` owns CLI/config parsing and progress reporting
+  - `apps/generate_blastwave/RootEventFileWriter.cpp` owns ROOT trees and embedded QA payload writing
 - The currently tracked example configs are `config/test_b8.cfg` and `config/b8.cfg`, while the convenience launcher now lives at `scripts/run_example_config.sh`.
 - Historical reference ROOT macros now live under `reference/legacy-root-macros/` instead of a top-level personal-name directory.
 - The `qa/` directory contains historical sample ROOT outputs from multiple schema revisions; they are useful artifacts, but not all of them represent the latest full output contract.
@@ -47,12 +57,19 @@
   - `docs/blastwave_generator_agent_handoff.md`
 - Current code and schema sources:
   - `include/blastwave/BlastWaveGenerator.h`
+  - `include/blastwave/PhysicsUtils.h`
   - `include/blastwave/MaxwellJuttnerMomentumSampler.h`
   - `include/blastwave/io/RootOutputSchema.h`
   - `src/BlastWaveGenerator.cpp`
+  - `src/BlastWaveGeneratorGeometry.cpp`
+  - `src/BlastWaveGeneratorSampling.cpp`
+  - `src/BlastWaveGeneratorValidation.cpp`
+  - `src/PhysicsUtils.cpp`
   - `src/MaxwellJuttnerMomentumSampler.cpp`
   - `src/RootOutputSchema.cpp`
   - `apps/generate_blastwave_events.cpp`
+  - `apps/generate_blastwave/RunOptions.cpp`
+  - `apps/generate_blastwave/RootEventFileWriter.cpp`
   - `apps/qa_blastwave_output.cpp`
   - `tests/MaxwellJuttnerMomentumSamplerTest.cpp`
 - Tracked runtime/config artifacts:
@@ -82,8 +99,8 @@
 
 - verification_status: `verified`
 - Rationale:
-  - the project was reconfigured and rebuilt on 2026-04-14 after the Maxwell-Juttner change set landed
-  - the new ROOT-free core test target passed through `ctest`
+  - the project was reconfigured and rebuilt on 2026-04-14 after the source-structure cleanup
+  - the ROOT-free core test target passed through `ctest` after the refactor
   - `generate_blastwave_events --help` and the new parser failure paths for thermal-sampler options were exercised successfully
   - the canonical `config/test_b8.cfg` path now has one durable generate+QA record under the default Maxwell-Juttner mode
   - an explicit `--thermal-sampler gamma` compatibility smoke also passed the independent QA reader

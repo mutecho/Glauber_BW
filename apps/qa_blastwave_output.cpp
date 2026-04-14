@@ -14,6 +14,7 @@
 #include <unordered_map>
 
 #include "blastwave/BlastWaveGenerator.h"
+#include "blastwave/PhysicsUtils.h"
 #include "blastwave/io/RootOutputSchema.h"
 
 namespace {
@@ -23,26 +24,13 @@ namespace {
               << "[--expect-nevents <int>]\n";
   }
 
-  double computePseudorapidity(double px, double py, double pz) {
-    const double momentumMagnitude = std::sqrt(px * px + py * py + pz * pz);
-    const double denominator = momentumMagnitude - pz;
-    if (denominator <= 1.0e-9) {
-      return (pz >= 0.0) ? 10.0 : -10.0;
-    }
-    return 0.5 * std::log((momentumMagnitude + pz) / denominator);
-  }
-
   bool isFinite(double value) {
     return std::isfinite(value);
   }
 
-  double clamp(double value, double lower, double upper) {
-    return std::max(lower, std::min(value, upper));
-  }
-
   double computeExpectedCentrality(double impactParameter) {
     const double woodsSaxonRadius = blastwave::BlastWaveConfig{}.woodsSaxonRadius;
-    return clamp(100.0 * impactParameter / (2.0 * woodsSaxonRadius), 0.0, 100.0);
+    return blastwave::computeCentralityPercent(impactParameter, woodsSaxonRadius);
   }
 
 }  // namespace
@@ -195,7 +183,7 @@ int main(int argc, char **argv) {
       hXY.Fill(particleBranches.x, particleBranches.y);
       hPxPy.Fill(particleBranches.px, particleBranches.py);
       hPt.Fill(std::hypot(particleBranches.px, particleBranches.py));
-      hEta.Fill(computePseudorapidity(particleBranches.px, particleBranches.py, particleBranches.pz));
+      hEta.Fill(blastwave::computePseudorapidity(particleBranches.px, particleBranches.py, particleBranches.pz));
       hPhi.Fill(std::atan2(particleBranches.py, particleBranches.px));
     }
 
