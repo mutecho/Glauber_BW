@@ -185,8 +185,7 @@ int main(int argc, char **argv) {
 
       const double massShellDeviation =
           std::abs(particleBranches.energy * particleBranches.energy
-                   - (particleBranches.px * particleBranches.px + particleBranches.py * particleBranches.py
-                      + particleBranches.pz * particleBranches.pz)
+                   - (particleBranches.px * particleBranches.px + particleBranches.py * particleBranches.py + particleBranches.pz * particleBranches.pz)
                    - particleBranches.mass * particleBranches.mass);
       maxMassShellDeviation = std::max(maxMassShellDeviation, massShellDeviation);
       maxAbsEtaS = std::max(maxAbsEtaS, std::abs(static_cast<double>(particleBranches.etaS)));
@@ -201,9 +200,8 @@ int main(int argc, char **argv) {
     }
 
     if (maxMassShellDeviation > 1.0e-4) {
-      throw std::runtime_error("Mass-shell validation exceeded 1e-4 GeV^2. max deviation = "
-                               + std::to_string(maxMassShellDeviation) + ", max |eta_s| = " + std::to_string(maxAbsEtaS)
-                               + ", max E = " + std::to_string(maxEnergy));
+      throw std::runtime_error("Mass-shell validation exceeded 1e-4 GeV^2. max deviation = " + std::to_string(maxMassShellDeviation)
+                               + ", max |eta_s| = " + std::to_string(maxAbsEtaS) + ", max E = " + std::to_string(maxEnergy));
     }
 
     double meanNpart = 0.0;
@@ -220,11 +218,8 @@ int main(int argc, char **argv) {
       }
       previousEventId = eventBranches.eventId;
 
-      const int observedParticleCount =
-          particleCountsByEvent.count(eventBranches.eventId) > 0 ? particleCountsByEvent[eventBranches.eventId] : 0;
-      const int observedParticipantCount = participantCountsByEvent.count(eventBranches.eventId) > 0
-                                               ? participantCountsByEvent[eventBranches.eventId]
-                                               : 0;
+      const int observedParticleCount = particleCountsByEvent.count(eventBranches.eventId) > 0 ? particleCountsByEvent[eventBranches.eventId] : 0;
+      const int observedParticipantCount = participantCountsByEvent.count(eventBranches.eventId) > 0 ? participantCountsByEvent[eventBranches.eventId] : 0;
       if (observedParticipantCount != eventBranches.nParticipants) {
         throw std::runtime_error("Npart does not match participant multiplicity for an event.");
       }
@@ -278,9 +273,8 @@ int main(int argc, char **argv) {
     qaFile.Close();
 
     std::cout << "validation_passed"
-              << " events=" << eventsTree->GetEntries() << " particles=" << particlesTree->GetEntries()
-              << " mean_Npart=" << meanNpart << " mean_eps2=" << meanEps2 << " max_abs_eta_s=" << maxAbsEtaS
-              << " max_E=" << maxEnergy << " max_mass_shell_deviation=" << maxMassShellDeviation << '\n';
+              << " events=" << eventsTree->GetEntries() << " particles=" << particlesTree->GetEntries() << " mean_Npart=" << meanNpart << " mean_eps2=" << meanEps2
+              << " max_abs_eta_s=" << maxAbsEtaS << " max_E=" << maxEnergy << " max_mass_shell_deviation=" << maxMassShellDeviation << '\n';
     return 0;
   } catch (const std::exception &error) {
     std::cerr << "qa_blastwave_output failed: " << error.what() << '\n';

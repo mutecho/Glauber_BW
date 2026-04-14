@@ -7,10 +7,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+enable_testing()
+
 find_package(ROOT CONFIG REQUIRED COMPONENTS Core Graf Gpad Hist RIO Tree)
 
 add_library(blastwave_core
   src/BlastWaveGenerator.cpp
+  src/MaxwellJuttnerMomentumSampler.cpp
 )
 
 target_include_directories(blastwave_core
@@ -97,7 +100,31 @@ target_link_libraries(qa_blastwave_output
     ROOT::Hist
 )
 
-set_target_properties(generate_blastwave_events qa_blastwave_output
+add_executable(test_maxwell_juttner_sampler
+  tests/MaxwellJuttnerMomentumSamplerTest.cpp
+)
+
+target_compile_options(test_maxwell_juttner_sampler
+  PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wshadow
+    -Wconversion
+    -Wsign-conversion
+)
+
+target_link_libraries(test_maxwell_juttner_sampler
+  PRIVATE
+    blastwave_core
+)
+
+add_test(
+  NAME test_maxwell_juttner_sampler
+  COMMAND $<TARGET_FILE:test_maxwell_juttner_sampler>
+)
+
+set_target_properties(generate_blastwave_events qa_blastwave_output test_maxwell_juttner_sampler
   PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin
 )

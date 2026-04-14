@@ -52,12 +52,16 @@ namespace {
               << "  b = 8\n"
               << "  output = qa/test_b8_5000.root\n"
               << "Configuration keys:\n"
-              << "  nevents, b, temperature, tau0, smear, sigma-nn, seed, output,\n"
+              << "  nevents, b, temperature, thermal-sampler, mj-pmax, mj-grid-points,\n"
+              << "  tau0, smear, sigma-nn, seed, output,\n"
               << "  vmax, kappa2, sigma-eta, eta-plateau, nbd-mu, nbd-k, r-ref\n"
               << "Primary options:\n"
               << "  --nevents <int>\n"
               << "  --b <fm>\n"
               << "  --temperature <GeV>\n"
+              << "  --thermal-sampler <maxwell-juttner|gamma>\n"
+              << "  --mj-pmax <GeV>\n"
+              << "  --mj-grid-points <int>\n"
               << "  --tau0 <fm/c>\n"
               << "  --smear <fm>\n"
               << "  --sigma-nn <fm^2>   default 7.0 fm^2 (70 mb)\n"
@@ -111,8 +115,7 @@ namespace {
       }
       return parsedValue;
     } catch (const std::exception &) {
-      throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from "
-                                  + sourceDescription);
+      throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription);
     }
   }
 
@@ -125,17 +128,13 @@ namespace {
       }
       return parsedValue;
     } catch (const std::exception &) {
-      throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from "
-                                  + sourceDescription);
+      throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription);
     }
   }
 
-  std::uint64_t parseUnsignedInteger(const std::string &rawValue,
-                                     const std::string &optionName,
-                                     const std::string &sourceDescription) {
+  std::uint64_t parseUnsignedInteger(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
     if (!rawValue.empty() && rawValue.front() == '-') {
-      throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from "
-                                  + sourceDescription);
+      throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription);
     }
 
     std::size_t processedChars = 0;
@@ -146,9 +145,19 @@ namespace {
       }
       return static_cast<std::uint64_t>(parsedValue);
     } catch (const std::exception &) {
-      throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from "
-                                  + sourceDescription);
+      throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription);
     }
+  }
+
+  blastwave::ThermalSamplerMode parseThermalSamplerMode(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
+    if (rawValue == "maxwell-juttner") {
+      return blastwave::ThermalSamplerMode::MaxwellJuttner;
+    }
+    if (rawValue == "gamma") {
+      return blastwave::ThermalSamplerMode::Gamma;
+    }
+
+    throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'maxwell-juttner' or 'gamma'.");
   }
 
   std::string resolveOutputPath(const std::string &rawValue, const std::filesystem::path &baseDirectory) {
@@ -163,17 +172,20 @@ namespace {
     return (baseDirectory / outputPath).lexically_normal().string();
   }
 
-  void applyOption(RunOptions &runOptions,
-                   const std::string &optionName,
-                   const std::string &rawValue,
-                   const std::string &sourceDescription,
-                   const std::filesystem::path &baseDirectory) {
+  void applyOption(
+      RunOptions &runOptions, const std::string &optionName, const std::string &rawValue, const std::string &sourceDescription, const std::filesystem::path &baseDirectory) {
     if (optionName == "nevents") {
       runOptions.config.nEvents = parseInt(rawValue, optionName, sourceDescription);
     } else if (optionName == "b") {
       runOptions.config.impactParameter = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "temperature") {
       runOptions.config.temperature = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "thermal-sampler") {
+      runOptions.config.thermalSamplerMode = parseThermalSamplerMode(rawValue, optionName, sourceDescription);
+    } else if (optionName == "mj-pmax") {
+      runOptions.config.mjPMax = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "mj-grid-points") {
+      runOptions.config.mjGridPoints = parseInt(rawValue, optionName, sourceDescription);
     } else if (optionName == "tau0") {
       runOptions.config.tau0 = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "smear") {
@@ -223,26 +235,19 @@ namespace {
 
       const std::size_t separator = trimmedLine.find('=');
       if (separator == std::string::npos) {
-        throw std::invalid_argument("Invalid configuration line " + std::to_string(lineNumber) + " in "
-                                    + configPathString + ": expected key=value");
+        throw std::invalid_argument("Invalid configuration line " + std::to_string(lineNumber) + " in " + configPathString + ": expected key=value");
       }
 
       const std::string key = trim(trimmedLine.substr(0, separator));
       const std::string value = trim(trimmedLine.substr(separator + 1));
       if (key.empty()) {
-        throw std::invalid_argument("Empty configuration key on line " + std::to_string(lineNumber) + " in "
-                                    + configPathString);
+        throw std::invalid_argument("Empty configuration key on line " + std::to_string(lineNumber) + " in " + configPathString);
       }
       if (!seenKeys.insert(key).second) {
-        throw std::invalid_argument("Duplicate configuration key '" + key + "' on line " + std::to_string(lineNumber)
-                                    + " in " + configPathString);
+        throw std::invalid_argument("Duplicate configuration key '" + key + "' on line " + std::to_string(lineNumber) + " in " + configPathString);
       }
 
-      applyOption(runOptions,
-                  key,
-                  value,
-                  "configuration file '" + configPathString + "' line " + std::to_string(lineNumber),
-                  configPath.parent_path());
+      applyOption(runOptions, key, value, "configuration file '" + configPathString + "' line " + std::to_string(lineNumber), configPath.parent_path());
     }
   }
 
@@ -290,11 +295,7 @@ namespace {
     }
 
     for (const DeferredOption &overrideOption : cliOverrides) {
-      applyOption(runOptions,
-                  overrideOption.name,
-                  overrideOption.value,
-                  "command line option '--" + overrideOption.name + "'",
-                  std::filesystem::path());
+      applyOption(runOptions, overrideOption.name, overrideOption.value, "command line option '--" + overrideOption.name + "'", std::filesystem::path());
     }
 
     return runOptions;
@@ -346,8 +347,7 @@ namespace {
     branches.sourceY = particle.sourceY;
     // Preserve the current on-disk contract: the serialized energy is derived
     // from the branch mass and momentum components at write time.
-    branches.energy = std::sqrt(branches.mass * branches.mass + branches.px * branches.px + branches.py * branches.py
-                                + branches.pz * branches.pz);
+    branches.energy = std::sqrt(branches.mass * branches.mass + branches.px * branches.px + branches.py * branches.py + branches.pz * branches.pz);
     return branches;
   }
 
@@ -400,14 +400,7 @@ int main(int argc, char **argv) {
                         -participantDisplayExtent,
                         participantDisplayExtent);
     TH2F hXY(blastwave::io::kXYHistogramName, "Emission coordinates;x [fm];y [fm]", 120, -15.0, 15.0, 120, -15.0, 15.0);
-    TH2F hPxPy(blastwave::io::kPxPyHistogramName,
-               "Transverse momentum map;p_{x} [GeV];p_{y} [GeV]",
-               120,
-               -3.0,
-               3.0,
-               120,
-               -3.0,
-               3.0);
+    TH2F hPxPy(blastwave::io::kPxPyHistogramName, "Transverse momentum map;p_{x} [GeV];p_{y} [GeV]", 120, -3.0, 3.0, 120, -3.0, 3.0);
     TH1F hPt(blastwave::io::kPtHistogramName, "Transverse momentum;p_{T} [GeV];Particles", 120, 0.0, 3.0);
     TH1F hEta(blastwave::io::kEtaHistogramName, "Particle pseudorapidity;#eta;Particles", 120, -6.0, 6.0);
     TH1F hPhi(blastwave::io::kPhiHistogramName, "Particle azimuth;#phi;Particles", 128, -3.2, 3.2);
@@ -443,8 +436,7 @@ int main(int argc, char **argv) {
       }
     }
 
-    TCanvas participantCanvas(
-        blastwave::io::kParticipantXYCanvasName, "Participant nucleons with nucleus outlines", 720, 680);
+    TCanvas participantCanvas(blastwave::io::kParticipantXYCanvasName, "Participant nucleons with nucleus outlines", 720, 680);
     participantCanvas.SetRightMargin(0.14F);
     hParticipantXY.SetStats(true);
     hParticipantXY.Draw("COLZ");

@@ -1,10 +1,18 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <random>
 #include <vector>
 
+#include "blastwave/MaxwellJuttnerMomentumSampler.h"
+
 namespace blastwave {
+
+  enum class ThermalSamplerMode {
+    MaxwellJuttner,
+    Gamma
+  };
 
   struct BlastWaveConfig {
     int nEvents = 100;
@@ -28,6 +36,9 @@ namespace blastwave {
     double woodsSaxonRadius = 6.62;        // fm
     double woodsSaxonDiffuseness = 0.546;  // fm
     double mass = 0.13957;                 // GeV
+    ThermalSamplerMode thermalSamplerMode = ThermalSamplerMode::MaxwellJuttner;
+    double mjPMax = 8.0;   // GeV
+    int mjGridPoints = 4096;
   };
 
   struct EventInfo {
@@ -121,6 +132,7 @@ namespace blastwave {
     void validateConfig() const;
 
     BlastWaveConfig config_;
+    std::optional<MaxwellJuttnerMomentumSampler> mjSampler_;
     std::mt19937_64 rng_;
     std::uniform_real_distribution<double> unitUniform_{0.0, 1.0};
   };

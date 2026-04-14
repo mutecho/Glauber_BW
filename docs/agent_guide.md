@@ -75,10 +75,10 @@ Example generation:
 Example generation from a config file:
 
 ```bash
-/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/qa/test_b8.cfg --output /Users/allenzhou/Research_software/Blast_wave/qa/test_b8_override.root'"
+/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --output /Users/allenzhou/Research_software/Blast_wave/qa/test_b8_override.root'"
 ```
 
-The repository ships an example config at `qa/test_b8.cfg`.
+The repository ships an example config at `config/test_b8.cfg`.
 
 Example validation:
 
@@ -105,6 +105,9 @@ Configuration files use a lightweight `key = value` format:
   - `nevents`
   - `b`
   - `temperature`
+  - `thermal-sampler`
+  - `mj-pmax`
+  - `mj-grid-points`
   - `tau0`
   - `smear`
   - `sigma-nn`
@@ -123,10 +126,13 @@ Configuration files use a lightweight `key = value` format:
 Minimal config example:
 
 ```text
-# qa/test_b8.cfg
+# config/test_b8.cfg
 nevents = 5000
 b = 8
 temperature = 0.2
+thermal-sampler = maxwell-juttner
+# mj-pmax = 8.0
+# mj-grid-points = 4096
 tau0 = 10.0
 smear = 0.5
 output = test_b8_from_config.root
@@ -137,6 +143,9 @@ The same parameters remain available as explicit CLI flags:
 - `--nevents <int>`: number of events
 - `--b <fm>`: impact parameter
 - `--temperature <GeV>`: thermal momentum scale
+- `--thermal-sampler <maxwell-juttner|gamma>`: local-rest-frame momentum-magnitude sampler
+- `--mj-pmax <GeV>`: upper momentum cutoff of the Maxwell-Juttner lookup table
+- `--mj-grid-points <int>`: grid size of the Maxwell-Juttner lookup table
 - `--tau0 <fm/c>`: fixed proper time
 - `--smear <fm>`: transverse Gaussian hotspot smearing
 - `--sigma-nn <fm^2>`: inelastic nucleon-nucleon cross section, default `7.0`
@@ -312,11 +321,13 @@ This change was introduced because the original pure Gaussian source produced a 
 
 ### 6. Thermal Momentum In The Local Rest Frame
 
-- Sample the momentum magnitude from a Gamma distribution with shape `3` and scale `T`.
-- Sample direction isotropically.
-- Put the particle on shell with the configured mass.
+- Default mode: pretabulate a Maxwell-Juttner momentum CDF on a uniform `p` grid over `[0, mjPMax]` using
+  `w(p) = p^2 exp(-sqrt(p^2 + m^2) / T)`, then invert it with `lower_bound` plus linear interpolation.
+- Compatibility mode: keep the legacy Gamma sampler with shape `3` and scale `T`.
+- After the magnitude is chosen, sample direction isotropically and put the particle on shell with the configured mass.
+- If `temperature <= 0`, the generator returns zero three-momentum and `E = m` without building the Maxwell-Juttner table.
 
-This is a lightweight thermal-like sampler, not a full Cooper-Frye implementation.
+This keeps the core ROOT-free while upgrading the default thermal spectrum beyond the earlier Gamma-only approximation.
 
 ### 7. Flow Field
 
@@ -374,5 +385,5 @@ If you modify the project, preserve these contracts unless intentionally version
 
 - add species support and resonance decay
 - add better anisotropy observables such as `phi - psi2` and `v2(pT)`
-- replace the simplified thermal sampler with a more formal source-function or Cooper-Frye sampling
+- add adaptive Maxwell-Juttner table sizing or a more formal source-function / Cooper-Frye sampling
 - support minimum-bias impact-parameter sampling and centrality slicing

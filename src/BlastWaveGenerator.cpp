@@ -28,8 +28,11 @@ namespace blastwave {
 
   }  // namespace
 
-  BlastWaveGenerator::BlastWaveGenerator(BlastWaveConfig config) : config_(std::move(config)), rng_(config_.seed) {
+  BlastWaveGenerator::BlastWaveGenerator(BlastWaveConfig config) : config_(std::move(config)), mjSampler_(), rng_(config_.seed) {
     validateConfig();
+    if (config_.temperature > 0.0 && config_.thermalSamplerMode == ThermalSamplerMode::MaxwellJuttner) {
+      mjSampler_.emplace(config_.mass, config_.temperature, config_.mjPMax, static_cast<std::size_t>(config_.mjGridPoints));
+    }
   }
 
   GeneratedEvent BlastWaveGenerator::generateEvent(int eventId) {
@@ -261,11 +264,26 @@ namespace blastwave {
       return {0.0, 0.0, 0.0, config_.mass};
     }
 
-    std::gamma_distribution<double> momentumMagnitudeDistribution(3.0, config_.temperature);
     std::uniform_real_distribution<double> cosThetaDistribution(-1.0, 1.0);
     std::uniform_real_distribution<double> phiDistribution(0.0, kTwoPi);
 
-    const double momentumMagnitude = momentumMagnitudeDistribution(rng_);
+    // Thermal mode only chooses the local-rest-frame |p|. Direction sampling
+    // and on-shell reconstruction stay shared across MJ and legacy Gamma paths.
+    double momentumMagnitude = 0.0;
+    switch (config_.thermalSamplerMode) {
+      case ThermalSamplerMode::MaxwellJuttner:
+        if (!mjSampler_) {
+          throw std::runtime_error("Maxwell-Juttner sampler table is not initialized.");
+        }
+        momentumMagnitude = mjSampler_->sample(unitUniform_(rng_));
+        break;
+      case ThermalSamplerMode::Gamma: {
+        std::gamma_distribution<double> momentumMagnitudeDistribution(3.0, config_.temperature);
+        momentumMagnitude = momentumMagnitudeDistribution(rng_);
+        break;
+      }
+    }
+
     const double cosTheta = cosThetaDistribution(rng_);
     const double sinTheta = std::sqrt(std::max(0.0, 1.0 - cosTheta * cosTheta));
     const double phi = phiDistribution(rng_);
@@ -342,6 +360,12 @@ namespace blastwave {
     }
     if (config_.nucleonsPerNucleus <= 0) {
       throw std::invalid_argument("nucleonsPerNucleus must be positive.");
+    }
+    if (config_.mjPMax <= 0.0) {
+      throw std::invalid_argument("mjPMax must be positive.");
+    }
+    if (config_.mjGridPoints < 2) {
+      throw std::invalid_argument("mjGridPoints must be at least 2.");
     }
     if (config_.tau0 <= 0.0) {
       throw std::invalid_argument("tau0 must be positive.");
