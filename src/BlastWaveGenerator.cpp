@@ -13,6 +13,7 @@ namespace blastwave {
     constexpr double kTwoPi = 2.0 * kPi;
     constexpr double kFiniteTolerance = 1.0e-5;
 
+    // 带范围限制的取值
     double clamp(double value, double lower, double upper) {
       return std::max(lower, std::min(value, upper));
     }
@@ -143,8 +144,7 @@ namespace blastwave {
 
     while (true) {
       const double radius = radialMax * unitUniform_(rng_);
-      const double density =
-          1.0 / (1.0 + std::exp((radius - config_.woodsSaxonRadius) / config_.woodsSaxonDiffuseness));
+      const double density = 1.0 / (1.0 + std::exp((radius - config_.woodsSaxonRadius) / config_.woodsSaxonDiffuseness));
       const double acceptance = density * (radius * radius) / (radialMax * radialMax);
       if (unitUniform_(rng_) > acceptance) {
         continue;
@@ -163,8 +163,7 @@ namespace blastwave {
     }
   }
 
-  std::pair<double, double> BlastWaveGenerator::computeParticipantShape(
-      const std::vector<Nucleon> &participants) const {
+  std::pair<double, double> BlastWaveGenerator::computeParticipantShape(const std::vector<Nucleon> &participants) const {
     if (participants.size() < 2U) {
       return {0.0, 0.0};
     }
@@ -233,8 +232,7 @@ namespace blastwave {
       return 0.0;
     }
     if (config_.etaPlateauHalfWidth > 0.0 && config_.sigmaEta <= 0.0) {
-      std::uniform_real_distribution<double> plateauDistribution(-config_.etaPlateauHalfWidth,
-                                                                 config_.etaPlateauHalfWidth);
+      std::uniform_real_distribution<double> plateauDistribution(-config_.etaPlateauHalfWidth, config_.etaPlateauHalfWidth);
       return plateauDistribution(rng_);
     }
     if (config_.etaPlateauHalfWidth <= 0.0) {
@@ -249,8 +247,7 @@ namespace blastwave {
     const double tailArea = config_.sigmaEta * std::sqrt(kPi / 2.0);
     const double plateauProbability = plateauArea / (plateauArea + tailArea);
     if (unitUniform_(rng_) < plateauProbability) {
-      std::uniform_real_distribution<double> plateauDistribution(-config_.etaPlateauHalfWidth,
-                                                                 config_.etaPlateauHalfWidth);
+      std::uniform_real_distribution<double> plateauDistribution(-config_.etaPlateauHalfWidth, config_.etaPlateauHalfWidth);
       return plateauDistribution(rng_);
     }
 
@@ -280,10 +277,7 @@ namespace blastwave {
     return {px, py, pz, energy};
   }
 
-  BlastWaveGenerator::FlowVelocity BlastWaveGenerator::sampleFlowVelocity(const SpatialPoint &emissionPoint,
-                                                                          double etaS,
-                                                                          double eps2,
-                                                                          double psi2) const {
+  BlastWaveGenerator::FlowVelocity BlastWaveGenerator::sampleFlowVelocity(const SpatialPoint &emissionPoint, double etaS, double eps2, double psi2) const {
     const double radius = std::hypot(emissionPoint.x, emissionPoint.y);
     const double phi = std::atan2(emissionPoint.y, emissionPoint.x);
     const double modulation = 1.0 + 2.0 * config_.kappa2 * eps2 * std::cos(2.0 * (phi - psi2));
@@ -304,8 +298,7 @@ namespace blastwave {
     return {ux / u0, uy / u0, uz / u0};
   }
 
-  BlastWaveGenerator::FourMomentum BlastWaveGenerator::lorentzBoost(const FourMomentum &localMomentum,
-                                                                    const FlowVelocity &beta) const {
+  BlastWaveGenerator::FourMomentum BlastWaveGenerator::lorentzBoost(const FourMomentum &localMomentum, const FlowVelocity &beta) const {
     const double betaSquared = beta.bx * beta.bx + beta.by * beta.by + beta.bz * beta.bz;
     if (betaSquared <= std::numeric_limits<double>::epsilon()) {
       return localMomentum;
@@ -327,18 +320,8 @@ namespace blastwave {
   }
 
   void BlastWaveGenerator::validateParticle(const ParticleRecord &particle) const {
-    const double fields[] = {particle.mass,
-                             particle.x,
-                             particle.y,
-                             particle.z,
-                             particle.t,
-                             particle.px,
-                             particle.py,
-                             particle.pz,
-                             particle.energy,
-                             particle.etaS,
-                             particle.sourceX,
-                             particle.sourceY};
+    const double fields[] = {
+        particle.mass, particle.x, particle.y, particle.z, particle.t, particle.px, particle.py, particle.pz, particle.energy, particle.etaS, particle.sourceX, particle.sourceY};
 
     for (double field : fields) {
       if (!isFinite(field)) {
@@ -346,9 +329,8 @@ namespace blastwave {
       }
     }
 
-    const double massShell = particle.energy * particle.energy
-                             - (particle.px * particle.px + particle.py * particle.py + particle.pz * particle.pz)
-                             - particle.mass * particle.mass;
+    const double massShell =
+        particle.energy * particle.energy - (particle.px * particle.px + particle.py * particle.py + particle.pz * particle.pz) - particle.mass * particle.mass;
     if (std::abs(massShell) > kFiniteTolerance) {
       throw std::runtime_error("Generator produced an invalid on-shell particle.");
     }
