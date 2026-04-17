@@ -36,6 +36,7 @@ target_compile_options(blastwave_core
 )
 
 add_library(blastwave_rootio
+  src/OutputPathUtils.cpp
   src/RootOutputSchema.cpp
 )
 
@@ -137,7 +138,31 @@ add_test(
   COMMAND $<TARGET_FILE:test_maxwell_juttner_sampler>
 )
 
-set_target_properties(generate_blastwave_events qa_blastwave_output test_maxwell_juttner_sampler
+add_executable(test_output_path_utils
+  tests/OutputPathUtilsTest.cpp
+)
+
+target_compile_options(test_output_path_utils
+  PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wshadow
+    -Wconversion
+    -Wsign-conversion
+)
+
+target_link_libraries(test_output_path_utils
+  PRIVATE
+    blastwave_rootio
+)
+
+add_test(
+  NAME test_output_path_utils
+  COMMAND $<TARGET_FILE:test_output_path_utils>
+)
+
+set_target_properties(generate_blastwave_events qa_blastwave_output test_maxwell_juttner_sampler test_output_path_utils
   PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin
 )

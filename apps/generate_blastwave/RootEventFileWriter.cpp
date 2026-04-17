@@ -12,11 +12,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <utility>
 
 #include "blastwave/PhysicsUtils.h"
+#include "blastwave/io/OutputPathUtils.h"
 #include "blastwave/io/RootOutputSchema.h"
 
 namespace {
@@ -69,6 +71,12 @@ namespace {
     return branches;
   }
 
+  // Prepare the target path before ROOT constructs the output file object.
+  const char *prepareRootOutputPath(const std::string &outputPath) {
+    blastwave::io::ensureOutputDirectoryExists(outputPath, std::cout);
+    return outputPath.c_str();
+  }
+
 }  // namespace
 
 namespace blastwave::app {
@@ -77,7 +85,7 @@ namespace blastwave::app {
     Impl(const blastwave::BlastWaveConfig &configValue, const std::string &outputPathValue)
         : config(configValue),
           outputPath(outputPathValue),
-          outputFile(outputPath.c_str(), "RECREATE"),
+          outputFile(prepareRootOutputPath(outputPathValue), "RECREATE"),
           eventsTree(blastwave::io::kEventsTreeName, "Blast-wave event summary"),
           participantsTree(blastwave::io::kParticipantsTreeName, "Participant nucleon records"),
           particlesTree(blastwave::io::kParticlesTreeName, "Blast-wave particle records"),

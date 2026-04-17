@@ -15,6 +15,7 @@
 
 #include "blastwave/BlastWaveGenerator.h"
 #include "blastwave/PhysicsUtils.h"
+#include "blastwave/io/OutputPathUtils.h"
 #include "blastwave/io/RootOutputSchema.h"
 
 namespace {
@@ -247,6 +248,9 @@ int main(int argc, char **argv) {
       throw std::runtime_error("cent histogram entry count does not match events tree.");
     }
 
+    // Make QA output behavior match the generator: create missing parent
+    // directories instead of failing inside ROOT file construction.
+    blastwave::io::ensureOutputDirectoryExists(outputPath, std::cout);
     TFile qaFile(outputPath.c_str(), "RECREATE");
     if (qaFile.IsZombie()) {
       throw std::runtime_error("Failed to create QA ROOT file: " + outputPath);
