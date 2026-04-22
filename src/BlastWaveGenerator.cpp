@@ -1,6 +1,7 @@
 #include "blastwave/BlastWaveGenerator.h"
 
 #include <algorithm>
+#include <cmath>
 #include <utility>
 
 #include "blastwave/PhysicsUtils.h"
@@ -34,6 +35,8 @@ namespace blastwave {
     event.flowEllipse = flowEllipse;
     event.participants.reserve(participants.size());
     event.particles.reserve(static_cast<std::size_t>(std::max(0, info.nParticipants)) * 4U);
+    double q2x = 0.0;
+    double q2y = 0.0;
 
     // Preserve an explicit participant record surface so downstream QA can
     // validate geometry independent of the particle emission loop.
@@ -76,11 +79,17 @@ namespace blastwave {
         particle.sourceY = participant.y;
 
         validateParticle(particle);
+        // Accumulate the final-state second-harmonic Q-vector while the boosted
+        // momentum is still in hand so the event summary stays ROOT-free.
+        const double phi = computeAzimuth(particle.px, particle.py);
+        q2x += std::cos(2.0 * phi);
+        q2y += std::sin(2.0 * phi);
         event.particles.push_back(particle);
       }
     }
 
     event.info.nCharged = static_cast<int>(event.particles.size());
+    event.info.v2 = computeSecondHarmonicEventV2(q2x, q2y, event.info.nCharged);
     return event;
   }
 

@@ -20,14 +20,15 @@
 - Why it exists:
   - the generator and QA contract now require participant-level objects
   - the newest schema also includes `events.centrality` and `cent`
+  - the newest schema also includes `events.v2` and `v2`
   - the default thermal momentum baseline is now `maxwell-juttner`, so older Gamma-era samples are no longer representative of the default runtime configuration
-  - older sample files remain useful historical artifacts but no longer match the newest file schema
+- older sample files remain useful historical artifacts but no longer match the newest file schema
 - Suggested owner action:
   - regenerate representative files such as `qa/test_b8_5000.root`
   - rerun the QA reader on the regenerated files
   - update `tests.md` and `changelog.md` with the larger-sample evidence if that run is intended to be durable
 - Exit condition:
-  - the project's standard reference sample files have the current participant and centrality objects plus matching QA outputs
+  - the project's standard reference sample files have the current participant, centrality, and event-`v2` objects plus matching QA outputs
 
 ## WI-003 Authoritative Validation For The Config-File CLI Path
 

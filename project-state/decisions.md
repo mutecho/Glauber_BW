@@ -55,3 +55,25 @@
   - future flow-field work should extend `FlowFieldModel` rather than reimplementing covariance math inside the generator or QA code
   - docs, help text, and sample configs must all use the `rho*` / `flow-power` vocabulary
   - default ROOT consumers keep the same mandatory contract, while debug-aware workflows may opt into the extra tree and normalized-participant histogram
+
+## DEC-004 Add Event-Level Final-State `v2` To The Mandatory ROOT Contract
+
+- Status: accepted
+- Date: 2026-04-22
+- Context:
+  - the project already exposed initial-state geometry observables such as `eps2` and `psi2`, but it still lacked one compact event-level final-state anisotropy observable in the default output
+  - the user explicitly requested an event `v2` plus a corresponding summary histogram
+  - the generator and independent QA reader needed one shared definition so the new branch and histogram could be validated deterministically
+- Decision:
+  - extend the mandatory `events` tree with a `v2` branch
+  - extend the mandatory embedded QA objects with a `v2` histogram
+  - define `events.v2` with the historical eventwise second-harmonic Q-vector magnitude:
+    - `Q2x = sum_i cos(2 * phi_i)`
+    - `Q2y = sum_i sin(2 * phi_i)`
+    - `v2 = sqrt(Q2x^2 + Q2y^2) / Nch`
+  - compute the observable from the written final-state particle azimuths rather than from the initial-state `psi2`
+  - keep the implementation shared between producer and QA in `PhysicsUtils`
+- Consequences:
+  - downstream readers can treat `events.v2` as a stable default final-state anisotropy summary
+  - `v2` is now distinct by contract from initial-state `eps2` and from any future `mean(cos(2 * (phi - psi2)))` or `v2(pT)` outputs
+  - older sample files may legitimately miss `events.v2` and `v2`, so long-lived QA artifacts should be regenerated when the repository wants fully current reference files

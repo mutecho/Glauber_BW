@@ -187,7 +187,31 @@ add_test(
   COMMAND $<TARGET_FILE:test_flow_field_model>
 )
 
-set_target_properties(generate_blastwave_events qa_blastwave_output test_maxwell_juttner_sampler test_output_path_utils test_flow_field_model
+add_executable(test_physics_utils
+  tests/PhysicsUtilsTest.cpp
+)
+
+target_compile_options(test_physics_utils
+  PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wshadow
+    -Wconversion
+    -Wsign-conversion
+)
+
+target_link_libraries(test_physics_utils
+  PRIVATE
+    blastwave_core
+)
+
+add_test(
+  NAME test_physics_utils
+  COMMAND $<TARGET_FILE:test_physics_utils>
+)
+
+set_target_properties(generate_blastwave_events qa_blastwave_output test_maxwell_juttner_sampler test_output_path_utils test_flow_field_model test_physics_utils
   PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin
 )

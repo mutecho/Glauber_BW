@@ -100,3 +100,19 @@
 - Recorded fresh authoritative outside-sandbox O2Physics validation for both:
   - the default `config/test_b8.cfg` path
   - a `--debug-flow-ellipse` smoke run
+
+## 2026-04-22 Event-Level `v2` Output Contract
+
+- Extended the mandatory event summary payload with `events.v2`.
+- Added the `v2` summary histogram to the generated ROOT QA objects.
+- Defined the event-level observable as the historical second-harmonic Q-vector magnitude:
+  - `Q2x = sum cos(2 * phi)`
+  - `Q2y = sum sin(2 * phi)`
+  - `v2 = sqrt(Q2x^2 + Q2y^2) / Nch`
+- Moved the azimuth and event-`v2` math into `PhysicsUtils` so the generator and QA reader share one implementation.
+- Added a ROOT-free `test_physics_utils` regression target to lock the helper conventions.
+- Extended the QA reader so it checks:
+  - `events.v2` matches the particle-tree reconstruction
+  - the `v2` histogram entry count and mean match the event payload
+- Fixed a pre-existing `computePseudorapidity` edge case so exactly beam-aligned negative-z momenta now return the documented finite fallback instead of `-inf`.
+- Recorded a fresh authoritative outside-sandbox O2Physics generate+QA smoke for the new contract.

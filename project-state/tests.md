@@ -156,3 +156,27 @@
   - debug QA summary: `validation_passed events=100 particles=35786 mean_Npart=179.54 mean_eps2=0.258217 max_abs_eta_s=7.34076 max_E=1141.24 max_mass_shell_deviation=1.87173e-10`
   - implementation note: the first debug authoritative run exposed a `RootEventFileWriter` lifetime bug in the optional debug `TTree/TH2`; detaching and resetting those objects before writer teardown fixed the crash and the rerun passed
 - verification_status: `verified`
+
+## T-006 Event-Level `v2` Output Contract
+
+- Status: passed
+- Purpose: verify that the mandatory output contract now includes event-level final-state `v2` in the `events` tree plus a matching summary `v2` histogram, and that QA can recompute the observable from the particle tree.
+- Execution shape:
+  - rebuild the checkout after the schema change
+  - run `ctest --output-on-failure`
+  - run one authoritative generate+QA smoke in the O2Physics ROOT environment
+- Existing evidence:
+  - local build/test commands executed on 2026-04-22:
+    - `cmake -S /Users/allenzhou/Research_software/Blast_wave -B /Users/allenzhou/Research_software/Blast_wave/build`
+    - `cmake --build /Users/allenzhou/Research_software/Blast_wave/build --target test_physics_utils test_flow_field_model test_maxwell_juttner_sampler test_output_path_utils generate_blastwave_events qa_blastwave_output -j4`
+    - `cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-failure`
+  - authoritative outside-sandbox O2Physics commands executed on 2026-04-22:
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events --nevents 20 --output /tmp/blastwave_event_v2_smoke.root'"`
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_event_v2_smoke.root --output /tmp/blastwave_event_v2_smoke_validation.root --expect-nevents 20'"`
+- Current result:
+  - ROOT-free tests: passed
+  - new `test_physics_utils` regression target: passed
+  - event-level `v2` generate+QA smoke: passed
+  - QA summary: `validation_passed events=20 particles=7051 mean_Npart=181.6 mean_eps2=0.228879 mean_v2=0.0645756 max_abs_eta_s=7.2615 max_E=568.599 max_mass_shell_deviation=6.21324e-11`
+  - implementation note: the validation loop also exposed a pre-existing `computePseudorapidity` edge-case bug for exactly beam-aligned negative-z momenta; the helper now returns the documented finite fallback there as well
+- verification_status: `verified`

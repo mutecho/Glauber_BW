@@ -13,11 +13,11 @@
 - 热动量大小的预计算查表组件位于 [include/blastwave/MaxwellJuttnerMomentumSampler.h](/Users/allenzhou/Research_software/Blast_wave/include/blastwave/MaxwellJuttnerMomentumSampler.h) 和 [src/MaxwellJuttnerMomentumSampler.cpp](/Users/allenzhou/Research_software/Blast_wave/src/MaxwellJuttnerMomentumSampler.cpp)。
   当前默认模式是 `maxwell-juttner`，显式 `gamma` 兼容模式仍然保留。
 - ROOT 输出契约位于 [include/blastwave/io/RootOutputSchema.h](/Users/allenzhou/Research_software/Blast_wave/include/blastwave/io/RootOutputSchema.h) 和 [src/RootOutputSchema.cpp](/Users/allenzhou/Research_software/Blast_wave/src/RootOutputSchema.cpp)。
-  当前公开输出包含 `events`、`participants`、`particles` 三棵树，以及 `Npart`、`eps2`、`psi2`、`cent`、`participant_x-y`、`participant_x-y_canvas` 等对象。
+  当前公开输出包含 `events`、`participants`、`particles` 三棵树，以及 `Npart`、`eps2`、`psi2`、`v2`、`cent`、`participant_x-y`、`participant_x-y_canvas` 等对象。
 - 生成端入口位于 [apps/generate_blastwave_events.cpp](/Users/allenzhou/Research_software/Blast_wave/apps/generate_blastwave_events.cpp)。
   它负责解析 CLI 与配置文件、驱动生成器，并把结果写成 ROOT 文件。
 - 独立 QA 读取端位于 [apps/qa_blastwave_output.cpp](/Users/allenzhou/Research_software/Blast_wave/apps/qa_blastwave_output.cpp)。
-  它负责重新读取 ROOT 文件并检查树结构、participant 契约、质量壳、`centrality` 映射和固定 `b` 下的中心度一致性。
+  它负责重新读取 ROOT 文件并检查树结构、participant 契约、质量壳、事件级 `v2`、`centrality` 映射和固定 `b` 下的中心度一致性。
 - 受版本控制的配置文件位于 [config/test_b8.cfg](/Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg) 和 [config/b8.cfg](/Users/allenzhou/Research_software/Blast_wave/config/b8.cfg)。
   运行辅助脚本位于 [scripts/run_example_config.sh](/Users/allenzhou/Research_software/Blast_wave/scripts/run_example_config.sh)，从 `config/` 中读取示例配置。
 - 历史 ROOT 参考宏位于 [reference/legacy-root-macros/README.md](/Users/allenzhou/Research_software/Blast_wave/reference/legacy-root-macros/README.md)。
@@ -72,7 +72,7 @@ cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-fail
 
 ## 当前协调重点
 
-- 当前基线已经包含 `events.centrality` 分支和 `cent` 直方图，并把默认热动量模式切换为 `maxwell-juttner`。
+- 当前基线已经包含 `events.centrality`、`events.v2` 分支，以及 `cent`、`v2` 汇总直方图，并把默认热动量模式切换为 `maxwell-juttner`。
 - `project-state/` 是当前采用的协调台账路径；不要再使用旧写法 `.project-state/`。
 - `config/test_b8.cfg` 现在已经是高权威文档、运行脚本和耐久验证记录一致使用的规范示例路径。
 - 在 Codex 里跑 ROOT smoke 时，需要注意沙箱内的 `alienv`/ROOT PCM 访问仍然不可靠；若出现模块/PCM 报错，应改用沙箱外命令重跑，那个结果才是权威验证。

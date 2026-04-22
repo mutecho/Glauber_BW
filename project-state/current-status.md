@@ -4,8 +4,8 @@
 
 - Date: 2026-04-22
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
-- Branch state: `master` with local covariance-ellipse flow replacement updates in the working tree.
-- Active coordination task: replace the default lab-radial flow model with the covariance-ellipse normal-flow model, migrate the public flow knobs to `rho0/rho2/flow-power`, and keep debug flow diagnostics optional.
+- Branch state: `master` with local covariance-ellipse flow and event-`v2` output updates in the working tree.
+- Active coordination task: keep the covariance-ellipse flow baseline verified while extending the mandatory output contract with event-level final-state `v2`.
 
 ## Confirmed Baseline
 
@@ -14,10 +14,13 @@
 - The current on-disk ROOT contract includes:
   - `events`, `participants`, and `particles` trees
   - `events.centrality` derived from the configured fixed `b`
-  - QA objects `Npart`, `eps2`, `psi2`, `cent`, `participant_x-y`, `participant_x-y_canvas`, `x-y`, `px-py`, `pT`, `eta`, and `phi`
+  - `events.v2` derived from the final-state second-harmonic Q-vector magnitude
+  - QA objects `Npart`, `eps2`, `psi2`, `v2`, `cent`, `participant_x-y`, `participant_x-y_canvas`, `x-y`, `px-py`, `pT`, `eta`, and `phi`
 - The QA reader now validates:
   - participant tree presence and multiplicity consistency
   - participant histogram/canvas presence
+  - `events.v2` against the particle-level second-harmonic Q-vector
+  - `v2` histogram entry count and mean against the `events.v2` payload
   - `centrality` staying within `[0, 100]`
   - consistency between `events.centrality` and the current fixed-`b` mapping
   - fixed-`b` runs keeping one constant centrality value across the events tree
@@ -47,7 +50,7 @@
 - `GeneratedEvent` now carries the event-level `FlowEllipseInfo` alongside `EventInfo`, participants, and particles so optional debug serialization does not have to reimplement the covariance math.
 - The on-disk ROOT contract still keeps the default mandatory payload at:
   - `events`, `participants`, and `particles`
-  - `Npart`, `eps2`, `psi2`, `cent`, `participant_x-y`, `participant_x-y_canvas`, `x-y`, `px-py`, `pT`, `eta`, and `phi`
+  - `Npart`, `eps2`, `psi2`, `v2`, `cent`, `participant_x-y`, `participant_x-y_canvas`, `x-y`, `px-py`, `pT`, `eta`, and `phi`
 - When `debug-flow-ellipse` is enabled, the ROOT writer now additionally emits:
   - `flow_ellipse_debug`
   - `flow_ellipse_participant_norm_x-y`
@@ -58,6 +61,7 @@
   - `test_maxwell_juttner_sampler`
 - The build now also registers:
   - `test_flow_field_model`
+  - `test_physics_utils`
 - The generator-side implementation is now structurally split along responsibility boundaries:
   - `src/BlastWaveGenerator.cpp` keeps event orchestration
   - `src/BlastWaveGeneratorGeometry.cpp` owns Glauber geometry sampling
@@ -98,13 +102,14 @@
   - `apps/qa_blastwave_output.cpp`
   - `tests/FlowFieldModelTest.cpp`
   - `tests/MaxwellJuttnerMomentumSamplerTest.cpp`
+  - `tests/PhysicsUtilsTest.cpp`
 - Tracked runtime/config artifacts:
   - `config/test_b8.cfg`
   - `config/b8.cfg`
   - `scripts/run_example_config.sh`
   - `reference/legacy-root-macros/README.md`
 - Existing durable validation ledger entries:
-  - `project-state/tests.md` (`T-001`, `T-002`, `T-003`, `T-004`)
+  - `project-state/tests.md` (`T-001`, `T-002`, `T-003`, `T-004`, `T-005`, `T-006`)
 - Current commit baseline:
   - `ff10639 add cent based on b-param`
   - `8ba4af9 reoeganize struct & support config file as input`
@@ -115,6 +120,7 @@
 - Historical sample ROOT outputs in `qa/` span multiple contract generations:
   - older files may miss `participants`, `participant_x-y`, or `participant_x-y_canvas`
   - files generated before the centrality extension may also miss `events.centrality` and `cent`
+  - files generated before the event-`v2` extension may also miss `events.v2` and `v2`
   - files generated before the Maxwell-Juttner switch may also reflect the older Gamma-only thermal default
 - ROOT smoke commands launched inside the Codex sandbox are still not authoritative on this machine:
   - the 2026-04-14 sandboxed `alienv` ROOT runs emitted PCM/module errors
@@ -125,12 +131,15 @@
 
 - verification_status: `verified`
 - Rationale:
-  - the project was reconfigured and rebuilt on 2026-04-22 inside the authoritative O2Physics ROOT environment after the covariance-ellipse flow replacement
+  - the project was reconfigured, rebuilt, and regression-tested on 2026-04-22 after the event-`v2` extension
   - `ctest --output-on-failure` passed with:
     - `test_maxwell_juttner_sampler`
     - `test_output_path_utils`
     - `test_flow_field_model`
-  - `generate_blastwave_events --help` now advertises only `rho0`, `rho2`, `flow-power`, and `debug-flow-ellipse` for the flow surface
-  - legacy `--vmax`, `--kappa2`, and `--r-ref` failure paths were exercised successfully with migration guidance
-  - the canonical `config/test_b8.cfg` path passed an authoritative default generate+QA smoke on 2026-04-22
-  - an authoritative `--debug-flow-ellipse` generate+QA smoke also passed on 2026-04-22 after fixing a writer-lifetime crash in the optional debug payload
+    - `test_physics_utils`
+  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-22 for:
+    - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events --nevents 20 --output /tmp/blastwave_event_v2_smoke.root`
+    - `/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_event_v2_smoke.root --output /tmp/blastwave_event_v2_smoke_validation.root --expect-nevents 20`
+  - the QA summary for that smoke was:
+    - `validation_passed events=20 particles=7051 mean_Npart=181.6 mean_eps2=0.228879 mean_v2=0.0645756 max_abs_eta_s=7.2615 max_E=568.599 max_mass_shell_deviation=6.21324e-11`
+  - validation also exposed and fixed a pre-existing bug in `computePseudorapidity` where exactly beam-aligned negative-z momenta fell through to `-inf` instead of the documented finite fallback

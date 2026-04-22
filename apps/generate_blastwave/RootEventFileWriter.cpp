@@ -36,6 +36,7 @@ namespace {
     branches.nParticipants = static_cast<Int_t>(info.nParticipants);
     branches.eps2 = info.eps2;
     branches.psi2 = info.psi2;
+    branches.v2 = info.v2;
     branches.centrality = info.centrality;
     branches.nCharged = static_cast<Int_t>(info.nCharged);
     return branches;
@@ -114,6 +115,7 @@ namespace blastwave::app {
           hNpart(blastwave::io::kNpartHistogramName, "Participant multiplicity;Npart;Events", 400, -0.5, 399.5),
           hEps2(blastwave::io::kEps2HistogramName, "Participant eccentricity;#epsilon_{2};Events", 100, 0.0, 1.0),
           hPsi2(blastwave::io::kPsi2HistogramName, "Participant-plane angle;#Psi_{2} [rad];Events", 128, -1.7, 1.7),
+          hV2(blastwave::io::kV2HistogramName, "Event-by-event final-state v_{2};v_{2};Events", 120, 0.0, 1.0),
           hCentrality(blastwave::io::kCentralityHistogramName, "Centrality;centrality [%];Events", 11, 0.0, 110.0),
           hParticipantXY(blastwave::io::kParticipantXYHistogramName,
                          "Participant nucleons;x [fm];y [fm]",
@@ -164,6 +166,7 @@ namespace blastwave::app {
       hNpart.Fill(eventBranches.nParticipants);
       hEps2.Fill(eventBranches.eps2);
       hPsi2.Fill(eventBranches.psi2);
+      hV2.Fill(eventBranches.v2);
       hCentrality.Fill(eventBranches.centrality);
 
       if (flowEllipseDebugTree != nullptr) {
@@ -198,7 +201,7 @@ namespace blastwave::app {
         hPxPy.Fill(particle.px, particle.py);
         hPt.Fill(std::hypot(particle.px, particle.py));
         hEta.Fill(blastwave::computePseudorapidity(particle.px, particle.py, particle.pz));
-        hPhi.Fill(std::atan2(particle.py, particle.px));
+        hPhi.Fill(blastwave::computeAzimuth(particle.px, particle.py));
       }
     }
 
@@ -248,6 +251,7 @@ namespace blastwave::app {
       hNpart.Write();
       hEps2.Write();
       hPsi2.Write();
+      hV2.Write();
       hCentrality.Write();
       hParticipantXY.Write();
       if (hFlowEllipseParticipantNormXY != nullptr) {
@@ -284,6 +288,7 @@ namespace blastwave::app {
     TH1F hNpart;
     TH1F hEps2;
     TH1F hPsi2;
+    TH1F hV2;
     TH1F hCentrality;
     TH2F hParticipantXY;
     std::unique_ptr<TH2F> hFlowEllipseParticipantNormXY;

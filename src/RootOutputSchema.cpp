@@ -11,6 +11,7 @@ namespace blastwave::io {
     constexpr char kNpartBranchName[] = "Npart";
     constexpr char kEps2BranchName[] = "eps2";
     constexpr char kPsi2BranchName[] = "psi2";
+    constexpr char kV2BranchName[] = "v2";
     constexpr char kCentralityBranchName[] = "centrality";
     constexpr char kNchBranchName[] = "Nch";
     constexpr char kNucleusIdBranchName[] = "nucleus_id";
@@ -51,6 +52,7 @@ namespace blastwave::io {
     tree.Branch(kNpartBranchName, &branches.nParticipants, "Npart/I");
     tree.Branch(kEps2BranchName, &branches.eps2, "eps2/D");
     tree.Branch(kPsi2BranchName, &branches.psi2, "psi2/D");
+    tree.Branch(kV2BranchName, &branches.v2, "v2/D");
     tree.Branch(kCentralityBranchName, &branches.centrality, "centrality/D");
     tree.Branch(kNchBranchName, &branches.nCharged, "Nch/I");
   }
@@ -107,6 +109,7 @@ namespace blastwave::io {
     tree.SetBranchAddress(kNpartBranchName, &branches.nParticipants);
     tree.SetBranchAddress(kEps2BranchName, &branches.eps2);
     tree.SetBranchAddress(kPsi2BranchName, &branches.psi2);
+    tree.SetBranchAddress(kV2BranchName, &branches.v2);
     tree.SetBranchAddress(kCentralityBranchName, &branches.centrality);
     tree.SetBranchAddress(kNchBranchName, &branches.nCharged);
   }
