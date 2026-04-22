@@ -146,14 +146,8 @@ namespace blastwave::app {
       if (config.debugFlowEllipse) {
         flowEllipseDebugTree = std::make_unique<TTree>(blastwave::io::kFlowEllipseDebugTreeName, "Flow ellipse debug records");
         blastwave::io::declareFlowEllipseDebugBranches(*flowEllipseDebugTree, flowEllipseDebugBranches);
-        hFlowEllipseParticipantNormXY = std::make_unique<TH2F>(blastwave::io::kFlowEllipseParticipantNormXYHistogramName,
-                                                               "Flow ellipse normalized participant map;x' / R_{major};y' / R_{minor}",
-                                                               240,
-                                                               -6.0,
-                                                               6.0,
-                                                               240,
-                                                               -6.0,
-                                                               6.0);
+        hFlowEllipseParticipantNormXY = std::make_unique<TH2F>(
+            blastwave::io::kFlowEllipseParticipantNormXYHistogramName, "Flow ellipse normalized participant map;x' / R_{major};y' / R_{minor}", 240, -6.0, 6.0, 240, -6.0, 6.0);
       }
     }
 
@@ -299,8 +293,8 @@ namespace blastwave::app {
     TH1F hPhi;
   };
 
-  RootEventFileWriter::RootEventFileWriter(const blastwave::BlastWaveConfig &config, const std::string &outputPath)
-      : impl_(std::make_unique<Impl>(config, outputPath)) {}
+  RootEventFileWriter::RootEventFileWriter(const blastwave::BlastWaveConfig &config, const std::string &outputPath) : impl_(std::make_unique<Impl>(config, outputPath)) {
+  }
 
   RootEventFileWriter::~RootEventFileWriter() = default;
   RootEventFileWriter::RootEventFileWriter(RootEventFileWriter &&) noexcept = default;

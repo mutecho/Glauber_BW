@@ -67,9 +67,7 @@ namespace blastwave {
     }
 
     const double covarianceDiscriminant =
-        std::sqrt(std::max(0.0,
-                           (ellipse.sigmaX2 - ellipse.sigmaY2) * (ellipse.sigmaX2 - ellipse.sigmaY2)
-                               + 4.0 * ellipse.sigmaXY * ellipse.sigmaXY));
+        std::sqrt(std::max(0.0, (ellipse.sigmaX2 - ellipse.sigmaY2) * (ellipse.sigmaX2 - ellipse.sigmaY2) + 4.0 * ellipse.sigmaXY * ellipse.sigmaXY));
     ellipse.lambdaMajor = 0.5 * (trace + covarianceDiscriminant);
     ellipse.lambdaMinor = 0.5 * (trace - covarianceDiscriminant);
     ellipse.radiusMajor = ellipse.lambdaMajor > 0.0 ? std::sqrt(ellipse.lambdaMajor) : 0.0;
@@ -114,11 +112,9 @@ namespace blastwave {
     const double xPrime = dx * ellipse.majorAxisX + dy * ellipse.majorAxisY;
     const double yPrime = dx * ellipse.minorAxisX + dy * ellipse.minorAxisY;
 
-    sample.rTilde = std::sqrt(xPrime * xPrime / (ellipse.radiusMajor * ellipse.radiusMajor)
-                              + yPrime * yPrime / (ellipse.radiusMinor * ellipse.radiusMinor));
+    sample.rTilde = std::sqrt(xPrime * xPrime / (ellipse.radiusMajor * ellipse.radiusMajor) + yPrime * yPrime / (ellipse.radiusMinor * ellipse.radiusMinor));
     sample.phiB = std::atan2(yPrime / (ellipse.radiusMinor * ellipse.radiusMinor), xPrime / (ellipse.radiusMajor * ellipse.radiusMajor));
-    sample.rhoRaw =
-        std::pow(sample.rTilde, parameters.flowPower) * (parameters.rho0 + parameters.rho2 * ellipse.eps2 * std::cos(2.0 * sample.phiB));
+    sample.rhoRaw = std::pow(sample.rTilde, parameters.flowPower) * (parameters.rho0 + parameters.rho2 * ellipse.eps2 * std::cos(2.0 * sample.phiB));
     sample.betaT = std::min(kBetaTMax, std::tanh(std::max(0.0, sample.rhoRaw)));
 
     const double betaMajor = sample.betaT * std::cos(sample.phiB);

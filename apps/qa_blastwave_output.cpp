@@ -397,8 +397,7 @@ int main(int argc, char **argv) {
 
     std::cout << "validation_passed"
               << " events=" << eventsTree->GetEntries() << " particles=" << particlesTree->GetEntries() << " mean_Npart=" << meanNpart << " mean_eps2=" << meanEps2
-              << " mean_v2=" << meanV2
-              << " max_abs_eta_s=" << maxAbsEtaS << " max_E=" << maxEnergy << " max_mass_shell_deviation=" << maxMassShellDeviation << '\n';
+              << " mean_v2=" << meanV2 << " max_abs_eta_s=" << maxAbsEtaS << " max_E=" << maxEnergy << " max_mass_shell_deviation=" << maxMassShellDeviation << '\n';
     return 0;
   } catch (const std::exception &error) {
     std::cerr << "qa_blastwave_output failed: " << error.what() << '\n';

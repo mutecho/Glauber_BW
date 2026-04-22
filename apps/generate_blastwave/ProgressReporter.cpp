@@ -1,9 +1,10 @@
-#include "generate_blastwave/RunOptions.h"
+#include <unistd.h>
 
 #include <algorithm>
 #include <iostream>
 #include <string>
-#include <unistd.h>
+
+#include "generate_blastwave/RunOptions.h"
 
 namespace {
 
@@ -24,8 +25,8 @@ namespace {
 
 namespace blastwave::app {
 
-  ProgressReporter::ProgressReporter(int totalEvents, ProgressMode progressMode)
-      : totalEvents_(totalEvents), enabled_(totalEvents > 0 && shouldEnableProgress(progressMode)) {}
+  ProgressReporter::ProgressReporter(int totalEvents, ProgressMode progressMode) : totalEvents_(totalEvents), enabled_(totalEvents > 0 && shouldEnableProgress(progressMode)) {
+  }
 
   ProgressReporter::~ProgressReporter() {
     if (drawn_ && !lineClosed_) {

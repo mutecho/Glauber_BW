@@ -106,9 +106,7 @@ namespace blastwave {
 
   // Evaluate the default flow field from the event covariance ellipse so the
   // transverse direction follows the ellipse normal rather than the lab origin.
-  BlastWaveGenerator::FlowVelocity BlastWaveGenerator::sampleFlowVelocity(const SpatialPoint &emissionPoint,
-                                                                          double etaS,
-                                                                          const FlowEllipseInfo &flowEllipse) const {
+  BlastWaveGenerator::FlowVelocity BlastWaveGenerator::sampleFlowVelocity(const SpatialPoint &emissionPoint, double etaS, const FlowEllipseInfo &flowEllipse) const {
     const FlowFieldParameters parameters{config_.rho0, config_.rho2, config_.flowPower};
     const FlowFieldSample sample = evaluateFlowField(flowEllipse, emissionPoint.x, emissionPoint.y, parameters);
     const double coshEta = std::cosh(etaS);

@@ -13,12 +13,24 @@ namespace blastwave {
 
     [[nodiscard]] double sample(double unitUniform) const;
 
-    [[nodiscard]] double mass() const noexcept { return mass_; }
-    [[nodiscard]] double temperature() const noexcept { return temperature_; }
-    [[nodiscard]] double pMax() const noexcept { return pMax_; }
-    [[nodiscard]] std::size_t gridPoints() const noexcept { return momentumGrid_.size(); }
-    [[nodiscard]] const std::vector<double> &momentumGrid() const noexcept { return momentumGrid_; }
-    [[nodiscard]] const std::vector<double> &cdf() const noexcept { return cdf_; }
+    [[nodiscard]] double mass() const noexcept {
+      return mass_;
+    }
+    [[nodiscard]] double temperature() const noexcept {
+      return temperature_;
+    }
+    [[nodiscard]] double pMax() const noexcept {
+      return pMax_;
+    }
+    [[nodiscard]] std::size_t gridPoints() const noexcept {
+      return momentumGrid_.size();
+    }
+    [[nodiscard]] const std::vector<double> &momentumGrid() const noexcept {
+      return momentumGrid_;
+    }
+    [[nodiscard]] const std::vector<double> &cdf() const noexcept {
+      return cdf_;
+    }
 
    private:
     [[nodiscard]] static double thermalWeight(double momentum, double mass, double temperature);

@@ -1,7 +1,7 @@
-#include "blastwave/BlastWaveGenerator.h"
-
 #include <cmath>
 #include <stdexcept>
+
+#include "blastwave/BlastWaveGenerator.h"
 
 namespace {
 

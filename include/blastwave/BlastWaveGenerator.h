@@ -10,10 +10,7 @@
 
 namespace blastwave {
 
-  enum class ThermalSamplerMode {
-    MaxwellJuttner,
-    Gamma
-  };
+  enum class ThermalSamplerMode { MaxwellJuttner, Gamma };
 
   struct BlastWaveConfig {
     int nEvents = 100;
@@ -39,7 +36,7 @@ namespace blastwave {
     double woodsSaxonDiffuseness = 0.546;  // fm
     double mass = 0.13957;                 // GeV
     ThermalSamplerMode thermalSamplerMode = ThermalSamplerMode::MaxwellJuttner;
-    double mjPMax = 8.0;   // GeV
+    double mjPMax = 8.0;  // GeV
     int mjGridPoints = 4096;
   };
 

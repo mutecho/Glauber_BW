@@ -6,11 +6,7 @@
 
 namespace blastwave::app {
 
-  enum class ProgressMode {
-    Auto,
-    Enabled,
-    Disabled
-  };
+  enum class ProgressMode { Auto, Enabled, Disabled };
 
   struct RunOptions {
     blastwave::BlastWaveConfig config;

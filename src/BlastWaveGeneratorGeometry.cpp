@@ -1,8 +1,7 @@
-#include "blastwave/BlastWaveGenerator.h"
-
 #include <algorithm>
 #include <cmath>
 
+#include "blastwave/BlastWaveGenerator.h"
 #include "blastwave/FlowFieldModel.h"
 
 namespace {

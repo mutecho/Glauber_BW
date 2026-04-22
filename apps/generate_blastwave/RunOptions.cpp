@@ -21,16 +21,13 @@ namespace {
   // deterministic invalid_argument diagnostics across config and CLI.
   [[noreturn]] void throwDeprecatedFlowOptionError(const std::string &optionName, const std::string &sourceDescription) {
     if (optionName == "vmax") {
-      throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription
-                                  + ". Migration: vmax -> rho0 = atanh(vmax).");
+      throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription + ". Migration: vmax -> rho0 = atanh(vmax).");
     }
     if (optionName == "kappa2") {
-      throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription
-                                  + ". Migration: kappa2 -> re-tuned rho2.");
+      throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription + ". Migration: kappa2 -> re-tuned rho2.");
     }
 
-    throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription
-                                + ". Migration: r-ref -> absorbed by event-ellipse semi-axes.");
+    throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription + ". Migration: r-ref -> absorbed by event-ellipse semi-axes.");
   }
 
   std::string takeValue(int &index, int argc, char **argv, const std::string &optionName) {
@@ -106,9 +103,7 @@ namespace {
     throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'true' or 'false'.");
   }
 
-  blastwave::ThermalSamplerMode parseThermalSamplerMode(const std::string &rawValue,
-                                                        const std::string &optionName,
-                                                        const std::string &sourceDescription) {
+  blastwave::ThermalSamplerMode parseThermalSamplerMode(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
     if (rawValue == "maxwell-juttner") {
       return blastwave::ThermalSamplerMode::MaxwellJuttner;
     }
@@ -116,8 +111,7 @@ namespace {
       return blastwave::ThermalSamplerMode::Gamma;
     }
 
-    throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription
-                                + ". Expected 'maxwell-juttner' or 'gamma'.");
+    throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'maxwell-juttner' or 'gamma'.");
   }
 
   std::string resolveOutputPath(const std::string &rawValue, const std::filesystem::path &baseDirectory) {
@@ -162,8 +156,7 @@ namespace {
     } else if (optionName == "output") {
       runOptions.outputPath = resolveOutputPath(rawValue, baseDirectory);
     } else if (optionName == "progress") {
-      runOptions.progressMode = parseBool(rawValue, optionName, sourceDescription) ? blastwave::app::ProgressMode::Enabled
-                                                                                   : blastwave::app::ProgressMode::Disabled;
+      runOptions.progressMode = parseBool(rawValue, optionName, sourceDescription) ? blastwave::app::ProgressMode::Enabled : blastwave::app::ProgressMode::Disabled;
     } else if (optionName == "rho0") {
       runOptions.config.rho0 = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "rho2") {
@@ -221,11 +214,7 @@ namespace {
         throw std::invalid_argument("Duplicate configuration key '" + key + "' on line " + std::to_string(lineNumber) + " in " + configPathString);
       }
 
-      applyOption(runOptions,
-                  key,
-                  value,
-                  "configuration file '" + configPathString + "' line " + std::to_string(lineNumber),
-                  configPath.parent_path());
+      applyOption(runOptions, key, value, "configuration file '" + configPathString + "' line " + std::to_string(lineNumber), configPath.parent_path());
     }
   }
 
@@ -355,11 +344,7 @@ namespace blastwave::app {
     }
 
     for (const DeferredOption &overrideOption : cliOverrides) {
-      applyOption(runOptions,
-                  overrideOption.name,
-                  overrideOption.value,
-                  "command line option '--" + overrideOption.name + "'",
-                  std::filesystem::path());
+      applyOption(runOptions, overrideOption.name, overrideOption.value, "command line option '--" + overrideOption.name + "'", std::filesystem::path());
     }
 
     if (hasCliProgressOverride) {
