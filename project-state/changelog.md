@@ -73,3 +73,30 @@
 - Split the generation app so CLI/config parsing, progress reporting, and ROOT output writing no longer live in the same source file as `main`.
 - Added `include/blastwave/PhysicsUtils.h` plus `src/PhysicsUtils.cpp` so producer and QA code share derived-observable helpers instead of duplicating them.
 - Tightened the repository-local `AGENTS.md` policy so future “整理代码/文件结构” requests explicitly include source-file responsibility cleanup rather than only top-level directory cleanup.
+
+## 2026-04-22 Covariance-Ellipse Default Flow Replacement
+
+- Replaced the default lab-radial flow model with a ROOT-free covariance-ellipse flow module:
+  - added `include/blastwave/FlowFieldModel.h`
+  - added `src/FlowFieldModel.cpp`
+  - added `tests/FlowFieldModelTest.cpp`
+- Migrated the public flow surface from `vMax/referenceRadius/kappa2` to:
+  - `rho0`
+  - `rho2`
+  - `flowPower`
+  - `debugFlowEllipse`
+- Switched CLI/config parsing and repository-shipped example configs to:
+  - `rho0`
+  - `rho2`
+  - `flow-power`
+  - `debug-flow-ellipse`
+- Made legacy flow keys fail fast with migration guidance instead of silently mapping them.
+- Extended the optional ROOT debug payload with:
+  - `flow_ellipse_debug`
+  - `flow_ellipse_participant_norm_x-y`
+- Extended the QA reader so it validates those debug objects only when present.
+- Fixed a real writer teardown crash in the optional debug path by detaching and resetting the debug `TTree/TH2` before `RootEventFileWriter` destruction.
+- Updated higher-authority docs and the project-state ledger to reflect the new default flow model, public parameter contract, and debug/QA behavior.
+- Recorded fresh authoritative outside-sandbox O2Physics validation for both:
+  - the default `config/test_b8.cfg` path
+  - a `--debug-flow-ellipse` smoke run

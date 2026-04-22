@@ -12,12 +12,14 @@ namespace blastwave::io {
   inline constexpr char kEventsTreeName[] = "events";
   inline constexpr char kParticipantsTreeName[] = "participants";
   inline constexpr char kParticlesTreeName[] = "particles";
+  inline constexpr char kFlowEllipseDebugTreeName[] = "flow_ellipse_debug";
 
   inline constexpr char kNpartHistogramName[] = "Npart";
   inline constexpr char kEps2HistogramName[] = "eps2";
   inline constexpr char kPsi2HistogramName[] = "psi2";
   inline constexpr char kCentralityHistogramName[] = "cent";
   inline constexpr char kParticipantXYHistogramName[] = "participant_x-y";
+  inline constexpr char kFlowEllipseParticipantNormXYHistogramName[] = "flow_ellipse_participant_norm_x-y";
   inline constexpr char kParticipantXYCanvasName[] = "participant_x-y_canvas";
   inline constexpr char kXYHistogramName[] = "x-y";
   inline constexpr char kPxPyHistogramName[] = "px-py";
@@ -61,12 +63,34 @@ namespace blastwave::io {
     Double_t z = 0.0;
   };
 
+  struct FlowEllipseDebugBranches {
+    Int_t eventId = 0;
+    Bool_t valid = false;
+    Double_t centerX = 0.0;
+    Double_t centerY = 0.0;
+    Double_t sigmaX2 = 0.0;
+    Double_t sigmaY2 = 0.0;
+    Double_t sigmaXY = 0.0;
+    Double_t lambdaMajor = 0.0;
+    Double_t lambdaMinor = 0.0;
+    Double_t radiusMajor = 0.0;
+    Double_t radiusMinor = 0.0;
+    Double_t majorAxisX = 1.0;
+    Double_t majorAxisY = 0.0;
+    Double_t minorAxisX = 0.0;
+    Double_t minorAxisY = 1.0;
+    Double_t eps2 = 0.0;
+    Double_t psi2 = 0.0;
+  };
+
   void declareEventBranches(TTree &tree, EventBranches &branches);
   void declareParticleBranches(TTree &tree, ParticleBranches &branches);
   void declareParticipantBranches(TTree &tree, ParticipantBranches &branches);
+  void declareFlowEllipseDebugBranches(TTree &tree, FlowEllipseDebugBranches &branches);
 
   void bindEventBranches(TTree &tree, EventBranches &branches);
   void bindParticleBranches(TTree &tree, ParticleBranches &branches);
   void bindParticipantBranches(TTree &tree, ParticipantBranches &branches);
+  void bindFlowEllipseDebugBranches(TTree &tree, FlowEllipseDebugBranches &branches);
 
 }  // namespace blastwave::io

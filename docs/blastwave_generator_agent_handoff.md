@@ -78,7 +78,12 @@ Implement a new first-version Blast-Wave event generator as independent C++ code
   - default `smearSigma = 0.5 fm`
   - default longitudinal width `sigmaEta = 1.5`
   - default multiplicity model per participant hotspot may use NBD with `mu = 2.0` and `k = 1.5`
-  - default radial-flow shape may use a bounded profile with `v_max = 0.8`, reference radius `R_ref = 6.0 fm`, and elliptic modulation strength `kappa2 = 0.5`
+  - default flow field now uses the participant covariance ellipse with:
+    - `rho0 = atanh(0.8) = 1.0986122886681098`
+    - `rho2 = 1.0986122886681098`
+    - `flowPower = 1.0`
+    - transverse flow direction given by the ellipse normal, not the lab-origin radial angle
+    - `betaT = tanh(max(0, rhoRaw))` clipped to `0.95`
 - The exact local-rest-frame thermal sampler is an implementation choice, provided it preserves on-shell kinematics and the acceptance criteria below.
 
 ## Constraints
@@ -119,13 +124,15 @@ Implement a new first-version Blast-Wave event generator as independent C++ code
 - `--output`
 
 ### Recommended Additional CLI Flags For QA Reproducibility
-- `--vmax`
-- `--kappa2`
+- `--rho0`
+- `--rho2`
+- `--flow-power`
+- `--debug-flow-ellipse`
 - `--sigma-eta`
 - `--nbd-mu`
 - `--nbd-k`
 
-These are recommended because the stated dynamic smoke tests cannot be driven from the outside unless anisotropy, radial-flow strength, and multiplicity parameters are externally adjustable.
+These are recommended because the stated dynamic smoke tests cannot be driven from the outside unless anisotropy, flow-profile strength, optional debug payloads, and multiplicity parameters are externally adjustable.
 
 ## Output Contract
 

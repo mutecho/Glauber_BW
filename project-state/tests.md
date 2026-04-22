@@ -118,3 +118,41 @@
   - gamma compatibility smoke: passed
   - gamma QA summary: `validation_passed events=100 particles=36509 mean_Npart=181.99 mean_eps2=0.265514 max_abs_eta_s=7.21087 max_E=755.096 max_mass_shell_deviation=9.99424e-11`
 - verification_status: `verified`
+
+## T-005 Covariance-Ellipse Default Flow Replacement
+
+- Status: passed
+- Purpose: verify that the default flow field now uses the participant covariance ellipse, that the public flow knobs have migrated to `rho0/rho2/flow-power`, and that the optional debug payload writes and validates correctly.
+- Execution shape:
+  - rebuild the checkout
+  - run `ctest --output-on-failure`
+  - inspect `generate_blastwave_events --help`
+  - exercise deprecated flow-parameter failure paths
+  - run one authoritative default generate+QA smoke
+  - run one authoritative debug generate+QA smoke
+- Existing evidence:
+  - local build/test commands executed on 2026-04-22:
+    - `cmake -S /Users/allenzhou/Research_software/Blast_wave -B /Users/allenzhou/Research_software/Blast_wave/build`
+    - `cmake --build /Users/allenzhou/Research_software/Blast_wave/build --target generate_blastwave_events qa_blastwave_output test_flow_field_model test_maxwell_juttner_sampler test_output_path_utils -j4`
+    - `cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-failure`
+    - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events --help`
+    - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events --vmax 0.8`
+    - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events --kappa2 0.5`
+    - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events --r-ref 6.0`
+  - authoritative outside-sandbox O2Physics commands executed on 2026-04-22:
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc 'cmake --preset default -S /Users/allenzhou/Research_software/Blast_wave'"`
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc 'cmake --build /Users/allenzhou/Research_software/Blast_wave/build'"`
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --output /tmp/blastwave_covariance_default.root'"`
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_covariance_default.root --output /tmp/blastwave_covariance_default_validation.root --expect-nevents 5000'"`
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 100 --debug-flow-ellipse --output /tmp/blastwave_covariance_debug.root'"`
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_covariance_debug.root --output /tmp/blastwave_covariance_debug_validation.root --expect-nevents 100'"`
+- Current result:
+  - ROOT-free tests: passed
+  - `--help` flow surface: passed
+  - deprecated flow-parameter failures: passed
+  - default `config/test_b8.cfg` authoritative smoke: passed
+  - default QA summary: `validation_passed events=5000 particles=1802202 mean_Npart=180.622 mean_eps2=0.263087 max_abs_eta_s=8.39197 max_E=7396.23 max_mass_shell_deviation=6.37788e-09`
+  - debug authoritative smoke: passed
+  - debug QA summary: `validation_passed events=100 particles=35786 mean_Npart=179.54 mean_eps2=0.258217 max_abs_eta_s=7.34076 max_E=1141.24 max_mass_shell_deviation=1.87173e-10`
+  - implementation note: the first debug authoritative run exposed a `RootEventFileWriter` lifetime bug in the optional debug `TTree/TH2`; detaching and resetting those objects before writer teardown fixed the crash and the rerun passed
+- verification_status: `verified`

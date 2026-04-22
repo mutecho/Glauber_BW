@@ -61,17 +61,20 @@ namespace blastwave {
     if (config_.nbdK <= 0.0) {
       throw std::invalid_argument("nbdK must be positive.");
     }
-    if (config_.referenceRadius <= 0.0) {
-      throw std::invalid_argument("referenceRadius must be positive.");
-    }
     if (config_.woodsSaxonRadius <= 0.0 || config_.woodsSaxonDiffuseness <= 0.0) {
       throw std::invalid_argument("Woods-Saxon geometry parameters must be positive.");
     }
     if (config_.mass <= 0.0) {
       throw std::invalid_argument("particle mass must be positive.");
     }
-    if (config_.vMax < 0.0 || config_.vMax >= 1.0) {
-      throw std::invalid_argument("vMax must stay in [0, 1).");
+    if (!isFinite(config_.rho0) || config_.rho0 < 0.0) {
+      throw std::invalid_argument("rho0 must be finite and non-negative.");
+    }
+    if (!isFinite(config_.rho2)) {
+      throw std::invalid_argument("rho2 must be finite.");
+    }
+    if (!isFinite(config_.flowPower) || config_.flowPower <= 0.0) {
+      throw std::invalid_argument("flowPower must be finite and positive.");
     }
   }
 

@@ -127,13 +127,14 @@ Configuration files use a lightweight `key = value` format:
   - `seed`
   - `output`
   - `progress`
-  - `vmax`
-  - `kappa2`
+  - `rho0`
+  - `rho2`
+  - `flow-power`
+  - `debug-flow-ellipse`
   - `sigma-eta`
   - `eta-plateau`
   - `nbd-mu`
   - `nbd-k`
-  - `r-ref`
 - relative `output` paths inside the config file are resolved relative to the
   config file directory
 
@@ -168,13 +169,21 @@ The same parameters remain available as explicit CLI flags:
 - `--output <path>`: ROOT output path
 - `--progress`: force-enable the progress bar
 - `--no-progress`: force-disable the progress bar
-- `--vmax <value>`: maximum transverse flow scale
-- `--kappa2 <value>`: elliptic flow response coefficient
+- `--rho0 <value>`: isotropic rapidity baseline of the covariance-ellipse flow field
+- `--rho2 <value>`: second-order rapidity amplitude multiplied by event `eps2`
+- `--flow-power <value>`: power of the normalized ellipse radius `rTilde`
+- `--debug-flow-ellipse`: write `flow_ellipse_debug` and `flow_ellipse_participant_norm_x-y`
+- `--no-debug-flow-ellipse`: force-disable the optional debug payload
 - `--sigma-eta <value>`: Gaussian tail width of source `eta_s`
 - `--eta-plateau <value>`: flat core half width of source `eta_s`
 - `--nbd-mu <value>`: mean multiplicity parameter per hotspot
 - `--nbd-k <value>`: NBD shape parameter
-- `--r-ref <fm>`: reference transverse size entering the flow profile
+
+Deprecated flow knobs now fail fast with migration guidance:
+
+- `vmax -> rho0 = atanh(vmax)`
+- `kappa2 -> re-tuned rho2`
+- `r-ref -> absorbed by event-ellipse semi-axes`
 
 If `progress` is not set in the config file and neither CLI flag is present, the
 generator only shows the progress bar when `stderr` is attached to a TTY.
@@ -209,7 +218,7 @@ Key data contracts:
   - final four-momentum
   - source-space metadata
 - `GeneratedEvent`
-  Bundles one `EventInfo` plus a `std::vector<ParticleRecord>`.
+  Bundles one `EventInfo`, one `FlowEllipseInfo`, participant records, and particle records.
 - `BlastWaveGenerator`
   Main class:
   - constructor `explicit BlastWaveGenerator(BlastWaveConfig config)`
@@ -285,6 +294,15 @@ Branches:
 
 The QA executable expects all of these objects to exist.
 
+When `debug-flow-ellipse` is enabled, the file also contains:
+
+- `flow_ellipse_debug`
+  Per-event debug tree with centroid, covariance, eigenvalues, semi-axes, axes, `eps2`, `psi2`, and `valid`
+- `flow_ellipse_participant_norm_x-y`
+  Aggregate `TH2` of participant coordinates after centroid shift, principal-axis projection, and semi-axis normalization
+
+The QA policy for these optional debug objects is “validate if present, ignore if absent.”
+
 ## Physics And Algorithm Summary
 
 ### 1. Geometry
@@ -351,13 +369,16 @@ This keeps the core ROOT-free while upgrading the default thermal spectrum beyon
 
 ### 7. Flow Field
 
-- Compute transverse radius `r` and azimuth `phi` from the emission point.
-- Build an elliptically modulated radial profile:
-  - `modulation = 1 + 2 * kappa2 * eps2 * cos(2 * (phi - psi2))`
-  - `profile = clamp((r / referenceRadius) * modulation, 0, 1)`
-  - `vT = clamp(vMax * profile, 0, 0.95)`
-- Convert to transverse rapidity and combine with `eta_s` in a Bjorken-like flow field.
-- Convert the flow four-velocity to a three-velocity `beta`.
+- Build the participant covariance ellipse from the event centroid and second moments.
+- Diagonalize it analytically to recover `lambdaMajor`, `lambdaMinor`, `radiusMajor`, `radiusMinor`, and a deterministic right-handed principal-axis basis.
+- For each emission point:
+  - shift by the event centroid
+  - project onto the principal-axis basis
+  - evaluate `rTilde = sqrt(x'^2 / radiusMajor^2 + y'^2 / radiusMinor^2)`
+  - evaluate the ellipse-normal angle `phiB = atan2(y' / radiusMinor^2, x' / radiusMajor^2)`
+  - evaluate `rhoRaw = pow(rTilde, flowPower) * (rho0 + rho2 * eps2 * cos(2 * phiB))`
+  - convert to `betaT = tanh(max(0, rhoRaw))`, clipped to `0.95`
+- Combine the transverse ellipse-normal flow with `eta_s` in a Bjorken-like flow field.
 
 ### 8. Proper Boost
 
@@ -371,6 +392,7 @@ The core validates:
 
 - all particle fields are finite
 - the flow field is not superluminal
+- optional flow-ellipse debug outputs, when present, satisfy the recorded covariance and orthonormal-axis invariants
 - on-shell relation holds within a tight internal tolerance
 
 The QA executable additionally validates:

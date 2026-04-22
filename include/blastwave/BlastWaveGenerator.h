@@ -5,6 +5,7 @@
 #include <random>
 #include <vector>
 
+#include "blastwave/FlowFieldModel.h"
 #include "blastwave/MaxwellJuttnerMomentumSampler.h"
 
 namespace blastwave {
@@ -30,9 +31,10 @@ namespace blastwave {
     double etaPlateauHalfWidth = 1.0;  // Flat |eta_s| core half width
     double nbdMu = 2.0;
     double nbdK = 1.5;
-    double vMax = 0.8;
-    double referenceRadius = 6.0;  // fm
-    double kappa2 = 0.5;
+    double rho0 = 1.0986122886681098;
+    double rho2 = 1.0986122886681098;
+    double flowPower = 1.0;
+    bool debugFlowEllipse = false;
     double woodsSaxonRadius = 6.62;        // fm
     double woodsSaxonDiffuseness = 0.546;  // fm
     double mass = 0.13957;                 // GeV
@@ -79,6 +81,7 @@ namespace blastwave {
 
   struct GeneratedEvent {
     EventInfo info;
+    FlowEllipseInfo flowEllipse;
     std::vector<ParticipantRecord> participants;
     std::vector<ParticleRecord> particles;
   };
@@ -118,15 +121,12 @@ namespace blastwave {
 
     [[nodiscard]] std::vector<Nucleon> sampleParticipants();
     [[nodiscard]] Nucleon sampleSingleNucleon(double xShift, int nucleusId);
-    [[nodiscard]] std::pair<double, double> computeParticipantShape(const std::vector<Nucleon> &participants) const;
+    [[nodiscard]] FlowEllipseInfo computeParticipantShape(const std::vector<Nucleon> &participants) const;
     [[nodiscard]] int sampleMultiplicity();
     [[nodiscard]] SpatialPoint smearSource(const Nucleon &participant);
     [[nodiscard]] double sampleEtaS();
     [[nodiscard]] FourMomentum sampleThermalMomentum();
-    [[nodiscard]] FlowVelocity sampleFlowVelocity(const SpatialPoint &emissionPoint,
-                                                  double etaS,
-                                                  double eps2,
-                                                  double psi2) const;
+    [[nodiscard]] FlowVelocity sampleFlowVelocity(const SpatialPoint &emissionPoint, double etaS, const FlowEllipseInfo &flowEllipse) const;
     [[nodiscard]] FourMomentum lorentzBoost(const FourMomentum &localMomentum, const FlowVelocity &beta) const;
     void validateParticle(const ParticleRecord &particle) const;
     void validateConfig() const;

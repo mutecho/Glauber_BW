@@ -17,6 +17,22 @@ namespace {
     std::string value;
   };
 
+  // Keep migration guidance centralized so deprecated flow keys produce
+  // deterministic invalid_argument diagnostics across config and CLI.
+  [[noreturn]] void throwDeprecatedFlowOptionError(const std::string &optionName, const std::string &sourceDescription) {
+    if (optionName == "vmax") {
+      throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription
+                                  + ". Migration: vmax -> rho0 = atanh(vmax).");
+    }
+    if (optionName == "kappa2") {
+      throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription
+                                  + ". Migration: kappa2 -> re-tuned rho2.");
+    }
+
+    throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription
+                                + ". Migration: r-ref -> absorbed by event-ellipse semi-axes.");
+  }
+
   std::string takeValue(int &index, int argc, char **argv, const std::string &optionName) {
     if (index + 1 >= argc) {
       throw std::invalid_argument("Missing value for " + optionName);
@@ -148,10 +164,14 @@ namespace {
     } else if (optionName == "progress") {
       runOptions.progressMode = parseBool(rawValue, optionName, sourceDescription) ? blastwave::app::ProgressMode::Enabled
                                                                                    : blastwave::app::ProgressMode::Disabled;
-    } else if (optionName == "vmax") {
-      runOptions.config.vMax = parseDouble(rawValue, optionName, sourceDescription);
-    } else if (optionName == "kappa2") {
-      runOptions.config.kappa2 = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "rho0") {
+      runOptions.config.rho0 = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "rho2") {
+      runOptions.config.rho2 = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "flow-power") {
+      runOptions.config.flowPower = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "debug-flow-ellipse") {
+      runOptions.config.debugFlowEllipse = parseBool(rawValue, optionName, sourceDescription);
     } else if (optionName == "sigma-eta") {
       runOptions.config.sigmaEta = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "eta-plateau") {
@@ -160,8 +180,8 @@ namespace {
       runOptions.config.nbdMu = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "nbd-k") {
       runOptions.config.nbdK = parseDouble(rawValue, optionName, sourceDescription);
-    } else if (optionName == "r-ref") {
-      runOptions.config.referenceRadius = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "vmax" || optionName == "kappa2" || optionName == "r-ref") {
+      throwDeprecatedFlowOptionError(optionName, sourceDescription);
     } else {
       throw std::invalid_argument("Unknown option/key '" + optionName + "' from " + sourceDescription);
     }
@@ -232,7 +252,8 @@ namespace blastwave::app {
               << "Configuration keys:\n"
               << "  nevents, b, temperature, thermal-sampler, mj-pmax, mj-grid-points,\n"
               << "  tau0, smear, sigma-nn, seed, output, progress,\n"
-              << "  vmax, kappa2, sigma-eta, eta-plateau, nbd-mu, nbd-k, r-ref\n"
+              << "  rho0, rho2, flow-power, debug-flow-ellipse,\n"
+              << "  sigma-eta, eta-plateau, nbd-mu, nbd-k\n"
               << "Primary options:\n"
               << "  --nevents <int>\n"
               << "  --b <fm>\n"
@@ -247,14 +268,16 @@ namespace blastwave::app {
               << "  --output <path>\n"
               << "  --progress\n"
               << "  --no-progress\n"
+              << "  --debug-flow-ellipse\n"
+              << "  --no-debug-flow-ellipse\n"
               << "QA-facing tuning knobs:\n"
-              << "  --vmax <value>\n"
-              << "  --kappa2 <value>\n"
+              << "  --rho0 <value>\n"
+              << "  --rho2 <value>\n"
+              << "  --flow-power <value>\n"
               << "  --sigma-eta <value>\n"
               << "  --eta-plateau <value>\n"
               << "  --nbd-mu <value>\n"
               << "  --nbd-k <value>\n"
-              << "  --r-ref <fm>\n"
               << "  --help\n";
   }
 
@@ -267,6 +290,8 @@ namespace blastwave::app {
     std::string positionalConfigPath;
     ProgressMode cliProgressMode = ProgressMode::Auto;
     bool hasCliProgressOverride = false;
+    bool cliDebugFlowEllipse = false;
+    bool hasCliDebugFlowEllipseOverride = false;
 
     showHelp = false;
 
@@ -294,6 +319,18 @@ namespace blastwave::app {
       if (argument == "--no-progress") {
         cliProgressMode = ProgressMode::Disabled;
         hasCliProgressOverride = true;
+        continue;
+      }
+
+      if (argument == "--debug-flow-ellipse") {
+        cliDebugFlowEllipse = true;
+        hasCliDebugFlowEllipseOverride = true;
+        continue;
+      }
+
+      if (argument == "--no-debug-flow-ellipse") {
+        cliDebugFlowEllipse = false;
+        hasCliDebugFlowEllipseOverride = true;
         continue;
       }
 
@@ -327,6 +364,9 @@ namespace blastwave::app {
 
     if (hasCliProgressOverride) {
       runOptions.progressMode = cliProgressMode;
+    }
+    if (hasCliDebugFlowEllipseOverride) {
+      runOptions.config.debugFlowEllipse = cliDebugFlowEllipse;
     }
 
     return runOptions;

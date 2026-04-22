@@ -29,6 +29,11 @@ namespace {
     return std::isfinite(value);
   }
 
+  bool nearlyEqual(double lhs, double rhs, double relativeTolerance) {
+    const double scale = std::max({1.0, std::abs(lhs), std::abs(rhs)});
+    return std::abs(lhs - rhs) <= relativeTolerance * scale;
+  }
+
   double computeExpectedCentrality(double impactParameter) {
     const double woodsSaxonRadius = blastwave::BlastWaveConfig{}.woodsSaxonRadius;
     return blastwave::computeCentralityPercent(impactParameter, woodsSaxonRadius);
@@ -109,6 +114,22 @@ int main(int argc, char **argv) {
       throw std::runtime_error("Input object 'cent' is not a TH1.");
     }
 
+    // Optional flow-ellipse debug payload uses "exists then validate" behavior.
+    auto *flowEllipseDebugTree = dynamic_cast<TTree *>(inputFile.Get(blastwave::io::kFlowEllipseDebugTreeName));
+    if (inputFile.Get(blastwave::io::kFlowEllipseDebugTreeName) != nullptr && flowEllipseDebugTree == nullptr) {
+      throw std::runtime_error("Input object 'flow_ellipse_debug' is not a TTree.");
+    }
+    auto *flowEllipseParticipantNormXYInput = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kFlowEllipseParticipantNormXYHistogramName));
+    if (inputFile.Get(blastwave::io::kFlowEllipseParticipantNormXYHistogramName) != nullptr && flowEllipseParticipantNormXYInput == nullptr) {
+      throw std::runtime_error("Input object 'flow_ellipse_participant_norm_x-y' is not a TH2.");
+    }
+    if (flowEllipseDebugTree != nullptr && flowEllipseParticipantNormXYInput == nullptr) {
+      throw std::runtime_error("Input tree 'flow_ellipse_debug' exists without companion 'flow_ellipse_participant_norm_x-y' histogram.");
+    }
+    if (flowEllipseParticipantNormXYInput != nullptr && flowEllipseDebugTree == nullptr) {
+      throw std::runtime_error("Input object 'flow_ellipse_participant_norm_x-y' exists without companion 'flow_ellipse_debug' tree.");
+    }
+
     blastwave::io::bindEventBranches(*eventsTree, eventBranches);
     blastwave::io::bindParticipantBranches(*participantsTree, participantBranches);
     blastwave::io::bindParticleBranches(*particlesTree, particleBranches);
@@ -130,6 +151,8 @@ int main(int argc, char **argv) {
 
     std::unordered_map<int, int> participantCountsByEvent;
     std::unordered_map<int, int> particleCountsByEvent;
+    std::unordered_map<int, bool> eventIdsSeen;
+    std::unordered_map<int, bool> flowEllipseValidByEvent;
     double maxMassShellDeviation = 0.0;
     double maxAbsEtaS = 0.0;
     double maxEnergy = 0.0;
@@ -233,10 +256,89 @@ int main(int argc, char **argv) {
       meanNpart += eventBranches.nParticipants;
       meanEps2 += eventBranches.eps2;
       hPsi2.Fill(eventBranches.psi2);
+      eventIdsSeen[eventBranches.eventId] = true;
     }
 
     if (expectedEvents >= 0 && eventsTree->GetEntries() != expectedEvents) {
       throw std::runtime_error("events tree entry count does not match --expect-nevents.");
+    }
+
+    if (flowEllipseDebugTree != nullptr) {
+      if (flowEllipseDebugTree->GetEntries() != eventsTree->GetEntries()) {
+        throw std::runtime_error("flow_ellipse_debug entry count must match events tree entry count.");
+      }
+
+      blastwave::io::FlowEllipseDebugBranches flowEllipseBranches;
+      blastwave::io::bindFlowEllipseDebugBranches(*flowEllipseDebugTree, flowEllipseBranches);
+
+      // Enforce debug-shape invariants when the optional debug tree exists.
+      for (Long64_t iEntry = 0; iEntry < flowEllipseDebugTree->GetEntries(); ++iEntry) {
+        flowEllipseDebugTree->GetEntry(iEntry);
+
+        const double fields[] = {flowEllipseBranches.centerX,
+                                 flowEllipseBranches.centerY,
+                                 flowEllipseBranches.sigmaX2,
+                                 flowEllipseBranches.sigmaY2,
+                                 flowEllipseBranches.sigmaXY,
+                                 flowEllipseBranches.lambdaMajor,
+                                 flowEllipseBranches.lambdaMinor,
+                                 flowEllipseBranches.radiusMajor,
+                                 flowEllipseBranches.radiusMinor,
+                                 flowEllipseBranches.majorAxisX,
+                                 flowEllipseBranches.majorAxisY,
+                                 flowEllipseBranches.minorAxisX,
+                                 flowEllipseBranches.minorAxisY,
+                                 flowEllipseBranches.eps2,
+                                 flowEllipseBranches.psi2};
+        for (double field : fields) {
+          if (!isFinite(field)) {
+            throw std::runtime_error("Detected NaN/Inf in flow_ellipse_debug tree.");
+          }
+        }
+        if (flowEllipseBranches.lambdaMajor < flowEllipseBranches.lambdaMinor || flowEllipseBranches.lambdaMinor < 0.0) {
+          throw std::runtime_error("flow_ellipse_debug must satisfy lambdaMajor >= lambdaMinor >= 0.");
+        }
+        if (!nearlyEqual(flowEllipseBranches.radiusMajor * flowEllipseBranches.radiusMajor, flowEllipseBranches.lambdaMajor, 1.0e-9)
+            || !nearlyEqual(flowEllipseBranches.radiusMinor * flowEllipseBranches.radiusMinor, flowEllipseBranches.lambdaMinor, 1.0e-9)) {
+          throw std::runtime_error("flow_ellipse_debug radii must satisfy R^2 == lambda for both axes.");
+        }
+
+        const double majorNorm2 = flowEllipseBranches.majorAxisX * flowEllipseBranches.majorAxisX + flowEllipseBranches.majorAxisY * flowEllipseBranches.majorAxisY;
+        const double minorNorm2 = flowEllipseBranches.minorAxisX * flowEllipseBranches.minorAxisX + flowEllipseBranches.minorAxisY * flowEllipseBranches.minorAxisY;
+        const double axisDot = flowEllipseBranches.majorAxisX * flowEllipseBranches.minorAxisX + flowEllipseBranches.majorAxisY * flowEllipseBranches.minorAxisY;
+        if (!nearlyEqual(majorNorm2, 1.0, 1.0e-9) || !nearlyEqual(minorNorm2, 1.0, 1.0e-9) || !nearlyEqual(axisDot, 0.0, 1.0e-9)) {
+          throw std::runtime_error("flow_ellipse_debug axes must be orthonormal.");
+        }
+        if (flowEllipseBranches.valid && (flowEllipseBranches.radiusMajor <= 0.0 || flowEllipseBranches.radiusMinor <= 0.0)) {
+          throw std::runtime_error("flow_ellipse_debug valid events must have positive semi-axes.");
+        }
+
+        const bool inserted = flowEllipseValidByEvent.emplace(flowEllipseBranches.eventId, static_cast<bool>(flowEllipseBranches.valid)).second;
+        if (!inserted) {
+          throw std::runtime_error("flow_ellipse_debug event_id must be unique.");
+        }
+      }
+      for (const auto &[eventId, _] : eventIdsSeen) {
+        if (flowEllipseValidByEvent.count(eventId) == 0U) {
+          throw std::runtime_error("flow_ellipse_debug is missing an event_id present in the events tree.");
+        }
+      }
+    }
+
+    if (flowEllipseParticipantNormXYInput != nullptr) {
+      Long64_t expectedValidParticipantFillCount = 0;
+      for (const auto &[eventId, ellipseValid] : flowEllipseValidByEvent) {
+        if (!ellipseValid) {
+          continue;
+        }
+        const auto countIt = participantCountsByEvent.find(eventId);
+        if (countIt != participantCountsByEvent.end()) {
+          expectedValidParticipantFillCount += static_cast<Long64_t>(countIt->second);
+        }
+      }
+      if (flowEllipseParticipantNormXYInput->GetEntries() < static_cast<double>(expectedValidParticipantFillCount)) {
+        throw std::runtime_error("flow_ellipse_participant_norm_x-y entries are smaller than valid-event participant fill expectation.");
+      }
     }
 
     const double eventCount = static_cast<double>(eventsTree->GetEntries());

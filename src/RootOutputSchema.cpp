@@ -20,6 +20,7 @@ namespace blastwave::io {
     constexpr char kPidBranchName[] = "pid";
     constexpr char kChargeBranchName[] = "charge";
     constexpr char kMassBranchName[] = "mass";
+    constexpr char kValidBranchName[] = "valid";
     constexpr char kTBranchName[] = "t";
     constexpr char kPxBranchName[] = "px";
     constexpr char kPyBranchName[] = "py";
@@ -28,6 +29,19 @@ namespace blastwave::io {
     constexpr char kEtaSBranchName[] = "eta_s";
     constexpr char kSourceXBranchName[] = "source_x";
     constexpr char kSourceYBranchName[] = "source_y";
+    constexpr char kCenterXBranchName[] = "center_x";
+    constexpr char kCenterYBranchName[] = "center_y";
+    constexpr char kSigmaX2BranchName[] = "sigma_x2";
+    constexpr char kSigmaY2BranchName[] = "sigma_y2";
+    constexpr char kSigmaXYBranchName[] = "sigma_xy";
+    constexpr char kLambdaMajorBranchName[] = "lambda_major";
+    constexpr char kLambdaMinorBranchName[] = "lambda_minor";
+    constexpr char kRadiusMajorBranchName[] = "R_major";
+    constexpr char kRadiusMinorBranchName[] = "R_minor";
+    constexpr char kMajorAxisXBranchName[] = "major_axis_x";
+    constexpr char kMajorAxisYBranchName[] = "major_axis_y";
+    constexpr char kMinorAxisXBranchName[] = "minor_axis_x";
+    constexpr char kMinorAxisYBranchName[] = "minor_axis_y";
 
   }  // namespace
 
@@ -67,6 +81,26 @@ namespace blastwave::io {
     tree.Branch(kZBranchName, &branches.z, "z/D");
   }
 
+  void declareFlowEllipseDebugBranches(TTree &tree, FlowEllipseDebugBranches &branches) {
+    tree.Branch(kEventIdBranchName, &branches.eventId, "event_id/I");
+    tree.Branch(kValidBranchName, &branches.valid, "valid/O");
+    tree.Branch(kCenterXBranchName, &branches.centerX, "center_x/D");
+    tree.Branch(kCenterYBranchName, &branches.centerY, "center_y/D");
+    tree.Branch(kSigmaX2BranchName, &branches.sigmaX2, "sigma_x2/D");
+    tree.Branch(kSigmaY2BranchName, &branches.sigmaY2, "sigma_y2/D");
+    tree.Branch(kSigmaXYBranchName, &branches.sigmaXY, "sigma_xy/D");
+    tree.Branch(kLambdaMajorBranchName, &branches.lambdaMajor, "lambda_major/D");
+    tree.Branch(kLambdaMinorBranchName, &branches.lambdaMinor, "lambda_minor/D");
+    tree.Branch(kRadiusMajorBranchName, &branches.radiusMajor, "radius_major/D");
+    tree.Branch(kRadiusMinorBranchName, &branches.radiusMinor, "radius_minor/D");
+    tree.Branch(kMajorAxisXBranchName, &branches.majorAxisX, "major_axis_x/D");
+    tree.Branch(kMajorAxisYBranchName, &branches.majorAxisY, "major_axis_y/D");
+    tree.Branch(kMinorAxisXBranchName, &branches.minorAxisX, "minor_axis_x/D");
+    tree.Branch(kMinorAxisYBranchName, &branches.minorAxisY, "minor_axis_y/D");
+    tree.Branch(kEps2BranchName, &branches.eps2, "eps2/D");
+    tree.Branch(kPsi2BranchName, &branches.psi2, "psi2/D");
+  }
+
   void bindEventBranches(TTree &tree, EventBranches &branches) {
     tree.SetBranchAddress(kEventIdBranchName, &branches.eventId);
     tree.SetBranchAddress(kImpactParameterBranchName, &branches.impactParameter);
@@ -101,6 +135,26 @@ namespace blastwave::io {
     tree.SetBranchAddress(kXBranchName, &branches.x);
     tree.SetBranchAddress(kYBranchName, &branches.y);
     tree.SetBranchAddress(kZBranchName, &branches.z);
+  }
+
+  void bindFlowEllipseDebugBranches(TTree &tree, FlowEllipseDebugBranches &branches) {
+    tree.SetBranchAddress(kEventIdBranchName, &branches.eventId);
+    tree.SetBranchAddress(kValidBranchName, &branches.valid);
+    tree.SetBranchAddress(kCenterXBranchName, &branches.centerX);
+    tree.SetBranchAddress(kCenterYBranchName, &branches.centerY);
+    tree.SetBranchAddress(kSigmaX2BranchName, &branches.sigmaX2);
+    tree.SetBranchAddress(kSigmaY2BranchName, &branches.sigmaY2);
+    tree.SetBranchAddress(kSigmaXYBranchName, &branches.sigmaXY);
+    tree.SetBranchAddress(kLambdaMajorBranchName, &branches.lambdaMajor);
+    tree.SetBranchAddress(kLambdaMinorBranchName, &branches.lambdaMinor);
+    tree.SetBranchAddress(kRadiusMajorBranchName, &branches.radiusMajor);
+    tree.SetBranchAddress(kRadiusMinorBranchName, &branches.radiusMinor);
+    tree.SetBranchAddress(kMajorAxisXBranchName, &branches.majorAxisX);
+    tree.SetBranchAddress(kMajorAxisYBranchName, &branches.majorAxisY);
+    tree.SetBranchAddress(kMinorAxisXBranchName, &branches.minorAxisX);
+    tree.SetBranchAddress(kMinorAxisYBranchName, &branches.minorAxisY);
+    tree.SetBranchAddress(kEps2BranchName, &branches.eps2);
+    tree.SetBranchAddress(kPsi2BranchName, &branches.psi2);
   }
 
 }  // namespace blastwave::io

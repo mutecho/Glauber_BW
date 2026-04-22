@@ -2,10 +2,10 @@
 
 ## Snapshot
 
-- Date: 2026-04-14
+- Date: 2026-04-22
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
-- Branch state: `master` with local source-structure cleanup updates in the working tree.
-- Active coordination task: split oversized source files so CLI parsing, app-level ROOT output, shared physics helpers, and generator-core responsibilities no longer live in the same translation units.
+- Branch state: `master` with local covariance-ellipse flow replacement updates in the working tree.
+- Active coordination task: replace the default lab-radial flow model with the covariance-ellipse normal-flow model, migrate the public flow knobs to `rho0/rho2/flow-power`, and keep debug flow diagnostics optional.
 
 ## Confirmed Baseline
 
@@ -33,8 +33,31 @@
   - `thermal-sampler`
   - `mj-pmax`
   - `mj-grid-points`
+- The default flow-field implementation now lives in the ROOT-free `FlowFieldModel` module:
+  - `include/blastwave/FlowFieldModel.h`
+  - `src/FlowFieldModel.cpp`
+  - participant covariance is diagonalized analytically into `FlowEllipseInfo`
+  - per-point flow is evaluated along the ellipse normal with `rho0`, `rho2 * eps2`, and `flowPower`
+- The public flow config/CLI surface now exposes:
+  - `rho0`
+  - `rho2`
+  - `flow-power`
+  - `debug-flow-ellipse`
+  - legacy `vmax`, `kappa2`, and `r-ref` now fail fast with migration guidance
+- `GeneratedEvent` now carries the event-level `FlowEllipseInfo` alongside `EventInfo`, participants, and particles so optional debug serialization does not have to reimplement the covariance math.
+- The on-disk ROOT contract still keeps the default mandatory payload at:
+  - `events`, `participants`, and `particles`
+  - `Npart`, `eps2`, `psi2`, `cent`, `participant_x-y`, `participant_x-y_canvas`, `x-y`, `px-py`, `pT`, `eta`, and `phi`
+- When `debug-flow-ellipse` is enabled, the ROOT writer now additionally emits:
+  - `flow_ellipse_debug`
+  - `flow_ellipse_participant_norm_x-y`
+- The QA reader now treats those debug objects as optional:
+  - absent: ignored
+  - present: validated for entry count, finite covariance content, eigenvalue/radius consistency, orthonormal axes, and normalized-participant fill count
 - The build now registers a ROOT-free core regression test target:
   - `test_maxwell_juttner_sampler`
+- The build now also registers:
+  - `test_flow_field_model`
 - The generator-side implementation is now structurally split along responsibility boundaries:
   - `src/BlastWaveGenerator.cpp` keeps event orchestration
   - `src/BlastWaveGeneratorGeometry.cpp` owns Glauber geometry sampling
@@ -57,6 +80,7 @@
   - `docs/blastwave_generator_agent_handoff.md`
 - Current code and schema sources:
   - `include/blastwave/BlastWaveGenerator.h`
+  - `include/blastwave/FlowFieldModel.h`
   - `include/blastwave/PhysicsUtils.h`
   - `include/blastwave/MaxwellJuttnerMomentumSampler.h`
   - `include/blastwave/io/RootOutputSchema.h`
@@ -64,6 +88,7 @@
   - `src/BlastWaveGeneratorGeometry.cpp`
   - `src/BlastWaveGeneratorSampling.cpp`
   - `src/BlastWaveGeneratorValidation.cpp`
+  - `src/FlowFieldModel.cpp`
   - `src/PhysicsUtils.cpp`
   - `src/MaxwellJuttnerMomentumSampler.cpp`
   - `src/RootOutputSchema.cpp`
@@ -71,6 +96,7 @@
   - `apps/generate_blastwave/RunOptions.cpp`
   - `apps/generate_blastwave/RootEventFileWriter.cpp`
   - `apps/qa_blastwave_output.cpp`
+  - `tests/FlowFieldModelTest.cpp`
   - `tests/MaxwellJuttnerMomentumSamplerTest.cpp`
 - Tracked runtime/config artifacts:
   - `config/test_b8.cfg`
@@ -99,8 +125,12 @@
 
 - verification_status: `verified`
 - Rationale:
-  - the project was reconfigured and rebuilt on 2026-04-14 after the source-structure cleanup
-  - the ROOT-free core test target passed through `ctest` after the refactor
-  - `generate_blastwave_events --help` and the new parser failure paths for thermal-sampler options were exercised successfully
-  - the canonical `config/test_b8.cfg` path now has one durable generate+QA record under the default Maxwell-Juttner mode
-  - an explicit `--thermal-sampler gamma` compatibility smoke also passed the independent QA reader
+  - the project was reconfigured and rebuilt on 2026-04-22 inside the authoritative O2Physics ROOT environment after the covariance-ellipse flow replacement
+  - `ctest --output-on-failure` passed with:
+    - `test_maxwell_juttner_sampler`
+    - `test_output_path_utils`
+    - `test_flow_field_model`
+  - `generate_blastwave_events --help` now advertises only `rho0`, `rho2`, `flow-power`, and `debug-flow-ellipse` for the flow surface
+  - legacy `--vmax`, `--kappa2`, and `--r-ref` failure paths were exercised successfully with migration guidance
+  - the canonical `config/test_b8.cfg` path passed an authoritative default generate+QA smoke on 2026-04-22
+  - an authoritative `--debug-flow-ellipse` generate+QA smoke also passed on 2026-04-22 after fixing a writer-lifetime crash in the optional debug payload

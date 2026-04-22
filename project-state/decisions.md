@@ -36,3 +36,22 @@
   - docs and help text must stay synchronized with the config-file key list and the example-config path
   - future CLI/config additions should update both explicit flag parsing and the shared config-file mapping
   - the config-file behavior is now part of the public CLI contract and should be validated when parser logic changes
+
+## DEC-003 Replace The Default Flow Model With The Covariance-Ellipse Normal Flow
+
+- Status: accepted
+- Date: 2026-04-22
+- Context:
+  - the previous default flow model used a lab-origin radial direction with `vMax`, `referenceRadius`, and `kappa2`
+  - that model did not match the documented covariance-ellipse normal-flow intent
+  - the project needed the default implementation, public config surface, optional debug payload, and QA strategy to align on one consistent flow-field contract
+- Decision:
+  - make the participant covariance ellipse the only default flow model
+  - expose its public tuning surface as `rho0`, `rho2`, and `flowPower`
+  - keep `events.eps2` and `events.psi2` on the existing summary convention
+  - keep extra flow-ellipse diagnostics optional behind `debugFlowEllipse`
+  - reject legacy `vmax`, `kappa2`, and `r-ref` inputs with explicit migration guidance instead of silently mapping them
+- Consequences:
+  - future flow-field work should extend `FlowFieldModel` rather than reimplementing covariance math inside the generator or QA code
+  - docs, help text, and sample configs must all use the `rho*` / `flow-power` vocabulary
+  - default ROOT consumers keep the same mandatory contract, while debug-aware workflows may opt into the extra tree and normalized-participant histogram

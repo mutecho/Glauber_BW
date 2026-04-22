@@ -1,19 +1,15 @@
-#include "blastwave/BlastWaveGenerator.h"
-
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
 
+#include "blastwave/BlastWaveGenerator.h"
+#include "blastwave/FlowFieldModel.h"
+
 namespace {
 
   constexpr double kPi = 3.14159265358979323846;
   constexpr double kTwoPi = 2.0 * kPi;
-
-  // Keep velocity and profile clamping local to the sampling implementation.
-  double clampToRange(double value, double lower, double upper) {
-    return std::max(lower, std::min(value, upper));
-  }
 
 }  // namespace
 
@@ -108,30 +104,15 @@ namespace blastwave {
     return {px, py, pz, energy};
   }
 
-  // Convert the spatial hotspot position into a bounded blast-wave flow field
-  // that carries both radial flow and the participant-plane anisotropy response.
+  // Evaluate the default flow field from the event covariance ellipse so the
+  // transverse direction follows the ellipse normal rather than the lab origin.
   BlastWaveGenerator::FlowVelocity BlastWaveGenerator::sampleFlowVelocity(const SpatialPoint &emissionPoint,
                                                                           double etaS,
-                                                                          double eps2,
-                                                                          double psi2) const {
-    const double radius = std::hypot(emissionPoint.x, emissionPoint.y);
-    const double phi = std::atan2(emissionPoint.y, emissionPoint.x);
-    const double modulation = 1.0 + 2.0 * config_.kappa2 * eps2 * std::cos(2.0 * (phi - psi2));
-    const double profile = clampToRange((radius / config_.referenceRadius) * modulation, 0.0, 1.0);
-    const double vT = clampToRange(config_.vMax * profile, 0.0, 0.95);
-    const double transverseRapidity = std::atanh(vT);
-
-    const double sinhRho = std::sinh(transverseRapidity);
-    const double coshRho = std::cosh(transverseRapidity);
-    const double sinhEta = std::sinh(etaS);
+                                                                          const FlowEllipseInfo &flowEllipse) const {
+    const FlowFieldParameters parameters{config_.rho0, config_.rho2, config_.flowPower};
+    const FlowFieldSample sample = evaluateFlowField(flowEllipse, emissionPoint.x, emissionPoint.y, parameters);
     const double coshEta = std::cosh(etaS);
-
-    const double u0 = coshRho * coshEta;
-    const double ux = sinhRho * std::cos(phi);
-    const double uy = sinhRho * std::sin(phi);
-    const double uz = coshRho * sinhEta;
-
-    return {ux / u0, uy / u0, uz / u0};
+    return {sample.betaX / coshEta, sample.betaY / coshEta, std::tanh(etaS)};
   }
 
   // Apply the full Lorentz boost from the local rest frame into the lab frame

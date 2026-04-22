@@ -71,6 +71,28 @@ namespace {
     return branches;
   }
 
+  blastwave::io::FlowEllipseDebugBranches toFlowEllipseDebugBranches(const blastwave::GeneratedEvent &event) {
+    blastwave::io::FlowEllipseDebugBranches branches;
+    branches.eventId = static_cast<Int_t>(event.info.eventId);
+    branches.valid = static_cast<Bool_t>(event.flowEllipse.valid);
+    branches.centerX = event.flowEllipse.centerX;
+    branches.centerY = event.flowEllipse.centerY;
+    branches.sigmaX2 = event.flowEllipse.sigmaX2;
+    branches.sigmaY2 = event.flowEllipse.sigmaY2;
+    branches.sigmaXY = event.flowEllipse.sigmaXY;
+    branches.lambdaMajor = event.flowEllipse.lambdaMajor;
+    branches.lambdaMinor = event.flowEllipse.lambdaMinor;
+    branches.radiusMajor = event.flowEllipse.radiusMajor;
+    branches.radiusMinor = event.flowEllipse.radiusMinor;
+    branches.majorAxisX = event.flowEllipse.majorAxisX;
+    branches.majorAxisY = event.flowEllipse.majorAxisY;
+    branches.minorAxisX = event.flowEllipse.minorAxisX;
+    branches.minorAxisY = event.flowEllipse.minorAxisY;
+    branches.eps2 = event.flowEllipse.eps2;
+    branches.psi2 = event.flowEllipse.psi2;
+    return branches;
+  }
+
   // Prepare the target path before ROOT constructs the output file object.
   const char *prepareRootOutputPath(const std::string &outputPath) {
     blastwave::io::ensureOutputDirectoryExists(outputPath, std::cout);
@@ -116,6 +138,21 @@ namespace blastwave::app {
       blastwave::io::declareEventBranches(eventsTree, eventBranches);
       blastwave::io::declareParticipantBranches(participantsTree, participantBranches);
       blastwave::io::declareParticleBranches(particlesTree, particleBranches);
+
+      // Keep optional flow-ellipse diagnostics in a separate payload so
+      // production output stays unchanged unless explicitly requested.
+      if (config.debugFlowEllipse) {
+        flowEllipseDebugTree = std::make_unique<TTree>(blastwave::io::kFlowEllipseDebugTreeName, "Flow ellipse debug records");
+        blastwave::io::declareFlowEllipseDebugBranches(*flowEllipseDebugTree, flowEllipseDebugBranches);
+        hFlowEllipseParticipantNormXY = std::make_unique<TH2F>(blastwave::io::kFlowEllipseParticipantNormXYHistogramName,
+                                                               "Flow ellipse normalized participant map;x' / R_{major};y' / R_{minor}",
+                                                               240,
+                                                               -6.0,
+                                                               6.0,
+                                                               240,
+                                                               -6.0,
+                                                               6.0);
+      }
     }
 
     // Fill the persistent ROOT trees and QA histograms from the generator-owned
@@ -129,10 +166,28 @@ namespace blastwave::app {
       hPsi2.Fill(eventBranches.psi2);
       hCentrality.Fill(eventBranches.centrality);
 
+      if (flowEllipseDebugTree != nullptr) {
+        flowEllipseDebugBranches = toFlowEllipseDebugBranches(event);
+        flowEllipseDebugTree->Fill();
+      }
+
       for (const blastwave::ParticipantRecord &participant : event.participants) {
         participantBranches = toParticipantBranches(participant);
         participantsTree.Fill();
         hParticipantXY.Fill(participant.x, participant.y);
+
+        // Build normalized participant coordinates in the principal-axis frame:
+        // center-shift -> axis projection -> divide by corresponding semi-axis.
+        if (hFlowEllipseParticipantNormXY != nullptr && event.flowEllipse.valid && event.flowEllipse.radiusMajor > 0.0 && event.flowEllipse.radiusMinor > 0.0
+            && std::isfinite(event.flowEllipse.radiusMajor) && std::isfinite(event.flowEllipse.radiusMinor)) {
+          const double dx = participant.x - event.flowEllipse.centerX;
+          const double dy = participant.y - event.flowEllipse.centerY;
+          const double xPrime = dx * event.flowEllipse.majorAxisX + dy * event.flowEllipse.majorAxisY;
+          const double yPrime = dx * event.flowEllipse.minorAxisX + dy * event.flowEllipse.minorAxisY;
+          const double normalizedX = xPrime / event.flowEllipse.radiusMajor;
+          const double normalizedY = yPrime / event.flowEllipse.radiusMinor;
+          hFlowEllipseParticipantNormXY->Fill(normalizedX, normalizedY);
+        }
       }
 
       for (const blastwave::ParticleRecord &particle : event.particles) {
@@ -186,11 +241,19 @@ namespace blastwave::app {
       eventsTree.Write();
       participantsTree.Write();
       particlesTree.Write();
+      if (flowEllipseDebugTree != nullptr) {
+        flowEllipseDebugTree->Write();
+        flowEllipseDebugTree->SetDirectory(nullptr);
+      }
       hNpart.Write();
       hEps2.Write();
       hPsi2.Write();
       hCentrality.Write();
       hParticipantXY.Write();
+      if (hFlowEllipseParticipantNormXY != nullptr) {
+        hFlowEllipseParticipantNormXY->Write();
+        hFlowEllipseParticipantNormXY->SetDirectory(nullptr);
+      }
       hXY.Write();
       hPxPy.Write();
       hPt.Write();
@@ -198,6 +261,8 @@ namespace blastwave::app {
       hPhi.Write();
       participantCanvas.Write();
       outputFile.Close();
+      flowEllipseDebugTree.reset();
+      hFlowEllipseParticipantNormXY.reset();
       finished = true;
     }
 
@@ -209,16 +274,19 @@ namespace blastwave::app {
     TTree eventsTree;
     TTree participantsTree;
     TTree particlesTree;
+    std::unique_ptr<TTree> flowEllipseDebugTree;
 
     blastwave::io::EventBranches eventBranches;
     blastwave::io::ParticipantBranches participantBranches;
     blastwave::io::ParticleBranches particleBranches;
+    blastwave::io::FlowEllipseDebugBranches flowEllipseDebugBranches;
 
     TH1F hNpart;
     TH1F hEps2;
     TH1F hPsi2;
     TH1F hCentrality;
     TH2F hParticipantXY;
+    std::unique_ptr<TH2F> hFlowEllipseParticipantNormXY;
     TH2F hXY;
     TH2F hPxPy;
     TH1F hPt;

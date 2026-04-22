@@ -2,7 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
-#include <limits>
+
+#include "blastwave/FlowFieldModel.h"
 
 namespace {
 
@@ -83,47 +84,16 @@ namespace blastwave {
     }
   }
 
-  // Compute the second-order participant eccentricity tensor in the transverse
-  // plane and return both its magnitude and participant-plane angle.
-  std::pair<double, double> BlastWaveGenerator::computeParticipantShape(const std::vector<Nucleon> &participants) const {
-    if (participants.size() < 2U) {
-      return {0.0, 0.0};
-    }
-
-    double meanX = 0.0;
-    double meanY = 0.0;
+  // Convert the generator-owned participant records into the shared ROOT-free
+  // covariance-ellipse module so geometry math stays implemented in one place.
+  FlowEllipseInfo BlastWaveGenerator::computeParticipantShape(const std::vector<Nucleon> &participants) const {
+    std::vector<WeightedTransversePoint> weightedPoints;
+    weightedPoints.reserve(participants.size());
     for (const Nucleon &participant : participants) {
-      meanX += participant.x;
-      meanY += participant.y;
-    }
-    const double inverseCount = 1.0 / static_cast<double>(participants.size());
-    meanX *= inverseCount;
-    meanY *= inverseCount;
-
-    double sigmaX2 = 0.0;
-    double sigmaY2 = 0.0;
-    double sigmaXY = 0.0;
-    for (const Nucleon &participant : participants) {
-      const double dx = participant.x - meanX;
-      const double dy = participant.y - meanY;
-      sigmaX2 += dx * dx;
-      sigmaY2 += dy * dy;
-      sigmaXY += dx * dy;
-    }
-    sigmaX2 *= inverseCount;
-    sigmaY2 *= inverseCount;
-    sigmaXY *= inverseCount;
-
-    const double denominator = sigmaX2 + sigmaY2;
-    if (denominator <= std::numeric_limits<double>::epsilon()) {
-      return {0.0, 0.0};
+      weightedPoints.push_back({participant.x, participant.y, 1.0});
     }
 
-    const double eccentricityX = sigmaY2 - sigmaX2;
-    const double eccentricityY = 2.0 * sigmaXY;
-    const double eps2 = std::sqrt(eccentricityX * eccentricityX + eccentricityY * eccentricityY) / denominator;
-    const double psi2 = 0.5 * std::atan2(eccentricityY, eccentricityX);
-    return {eps2, psi2};
+    return computeFlowEllipseInfo(weightedPoints);
   }
 
 }  // namespace blastwave
