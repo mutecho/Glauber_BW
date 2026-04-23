@@ -2,10 +2,10 @@
 
 ## Snapshot
 
-- Date: 2026-04-22
+- Date: 2026-04-23
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
-- Branch state: `master` with local covariance-ellipse flow and event-`v2` output updates in the working tree.
-- Active coordination task: keep the covariance-ellipse flow baseline verified while extending the mandatory output contract with event-level final-state `v2`.
+- Branch state: `master` with local fluid-velocity-sampler generalization work plus pre-existing doc and project-state edits in the working tree.
+- Active coordination task: keep the generalized fluid-element velocity sampler surface verified while preserving the covariance-ellipse and event-`v2` baseline.
 
 ## Confirmed Baseline
 
@@ -36,15 +36,21 @@
   - `thermal-sampler`
   - `mj-pmax`
   - `mj-grid-points`
-- The default flow-field implementation now lives in the ROOT-free `FlowFieldModel` module:
+- The fluid-element velocity sampler now lives in the ROOT-free `FlowFieldModel` module:
   - `include/blastwave/FlowFieldModel.h`
+  - `src/FlowFieldGeometry.cpp`
+  - `src/FlowFieldDensity.cpp`
   - `src/FlowFieldModel.cpp`
   - participant covariance is diagonalized analytically into `FlowEllipseInfo`
-  - per-point flow is evaluated along the ellipse normal with `rho0`, `rho2 * eps2`, and `flowPower`
+  - event-level `FlowFieldContext` is built once from the participant cloud and reused during emission-point sampling
+  - the default sampler remains the covariance-ellipse normal field
+  - `density-normal` is now a parallel sampler option that uses the smeared participant-density gradient with a covariance-normal fallback
 - The public flow config/CLI surface now exposes:
   - `rho0`
   - `rho2`
   - `flow-power`
+  - `flow-velocity-sampler`
+  - `flow-density-sigma`
   - `debug-flow-ellipse`
   - legacy `vmax`, `kappa2`, and `r-ref` now fail fast with migration guidance
 - `GeneratedEvent` now carries the event-level `FlowEllipseInfo` alongside `EventInfo`, participants, and particles so optional debug serialization does not have to reimplement the covariance math.
@@ -61,6 +67,7 @@
   - `test_maxwell_juttner_sampler`
 - The build now also registers:
   - `test_flow_field_model`
+  - `test_run_options`
   - `test_physics_utils`
 - The generator-side implementation is now structurally split along responsibility boundaries:
   - `src/BlastWaveGenerator.cpp` keeps event orchestration
@@ -73,6 +80,8 @@
   - `apps/generate_blastwave/RunOptions.cpp` owns CLI/config parsing and progress reporting
   - `apps/generate_blastwave/RootEventFileWriter.cpp` owns ROOT trees and embedded QA payload writing
 - The currently tracked example configs are `config/test_b8.cfg` and `config/b8.cfg`, while the convenience launcher now lives at `scripts/run_example_config.sh`.
+- The example launcher now checks the cached/binary ROOT prefix against the active `ROOTSYS` and refreshes the generator build when they differ, so switching O2Physics ROOT revisions does not reuse a stale ROOT-linked binary.
+- The generator now links `ROOT::HistPainter` explicitly because `RootEventFileWriter::finish()` saves a drawn `participant_x-y_canvas`, so the painter backend no longer arrives via delayed autoload.
 - Historical reference ROOT macros now live under `reference/legacy-root-macros/` instead of a top-level personal-name directory.
 - The `qa/` directory contains historical sample ROOT outputs from multiple schema revisions; they are useful artifacts, but not all of them represent the latest full output contract.
 
@@ -83,6 +92,7 @@
   - `docs/项目说明.md`
   - `docs/blastwave_generator_agent_handoff.md`
 - Current code and schema sources:
+  - `CMakeLists.txt`
   - `include/blastwave/BlastWaveGenerator.h`
   - `include/blastwave/FlowFieldModel.h`
   - `include/blastwave/PhysicsUtils.h`
@@ -93,6 +103,8 @@
   - `src/BlastWaveGeneratorSampling.cpp`
   - `src/BlastWaveGeneratorValidation.cpp`
   - `src/FlowFieldModel.cpp`
+  - `src/FlowFieldGeometry.cpp`
+  - `src/FlowFieldDensity.cpp`
   - `src/PhysicsUtils.cpp`
   - `src/MaxwellJuttnerMomentumSampler.cpp`
   - `src/RootOutputSchema.cpp`
@@ -101,6 +113,7 @@
   - `apps/generate_blastwave/RootEventFileWriter.cpp`
   - `apps/qa_blastwave_output.cpp`
   - `tests/FlowFieldModelTest.cpp`
+  - `tests/RunOptionsTest.cpp`
   - `tests/MaxwellJuttnerMomentumSamplerTest.cpp`
   - `tests/PhysicsUtilsTest.cpp`
 - Tracked runtime/config artifacts:
@@ -109,7 +122,7 @@
   - `scripts/run_example_config.sh`
   - `reference/legacy-root-macros/README.md`
 - Existing durable validation ledger entries:
-  - `project-state/tests.md` (`T-001`, `T-002`, `T-003`, `T-004`, `T-005`, `T-006`)
+  - `project-state/tests.md` (`T-001`, `T-002`, `T-003`, `T-004`, `T-005`, `T-006`, `T-007`, `T-008`)
 - Current commit baseline:
   - `ff10639 add cent based on b-param`
   - `8ba4af9 reoeganize struct & support config file as input`
@@ -131,12 +144,27 @@
 
 - verification_status: `verified`
 - Rationale:
-  - the project was reconfigured, rebuilt, and regression-tested on 2026-04-22 after the event-`v2` extension
+  - the project was reconfigured, rebuilt, and regression-tested on 2026-04-23 after the fluid-element velocity sampler generalization
   - `ctest --output-on-failure` passed with:
     - `test_maxwell_juttner_sampler`
     - `test_output_path_utils`
     - `test_flow_field_model`
+    - `test_run_options`
     - `test_physics_utils`
+  - a fresh authoritative O2Physics configure+build passed on 2026-04-23 for the sampler-generalized checkout
+  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-23 for the default covariance-ellipse sampler:
+    - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --output /tmp/blastwave_covariance_sampler_smoke.root`
+    - `/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_covariance_sampler_smoke.root --output /tmp/blastwave_covariance_sampler_smoke_validation.root --expect-nevents 20`
+  - the covariance-ellipse QA summary was:
+    - `validation_passed events=20 particles=7051 mean_Npart=181.6 mean_eps2=0.228879 mean_v2=0.0751083 max_abs_eta_s=7.2615 max_E=631.497 max_mass_shell_deviation=4.0778e-11`
+  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-23 for the `density-normal` sampler:
+    - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --flow-velocity-sampler density-normal --flow-density-sigma 0.5 --output /tmp/blastwave_density_normal_sampler_smoke.root`
+    - `/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_density_normal_sampler_smoke.root --output /tmp/blastwave_density_normal_sampler_smoke_validation.root --expect-nevents 20`
+  - the density-normal QA summary was:
+    - `validation_passed events=20 particles=7051 mean_Npart=181.6 mean_eps2=0.228879 mean_v2=0.0619416 max_abs_eta_s=7.2615 max_E=647.385 max_mass_shell_deviation=7.59367e-11`
+  - authoritative O2Physics diagnosis on 2026-04-23 confirmed that the earlier launcher noise came from a `local1`-built generator running under `ROOTSYS=/Users/allenzhou/ALICE/sw/osx_arm64/ROOT/v6-36-10-alice1-local2`
+  - after reconfiguring and rebuilding against `local2`, a fresh outside-sandbox `scripts/run_example_config.sh` run completed without the earlier `TClassTable::Add` or `TCling::LoadPCM` noise and wrote:
+    - `/Users/allenzhou/Research_software/Blast_wave/qa/test_b8_5000.root`
   - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-22 for:
     - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events --nevents 20 --output /tmp/blastwave_event_v2_smoke.root`
     - `/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_event_v2_smoke.root --output /tmp/blastwave_event_v2_smoke_validation.root --expect-nevents 20`

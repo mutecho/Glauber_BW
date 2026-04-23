@@ -64,3 +64,17 @@
   - authoritative ROOT validation currently requires an outside-sandbox rerun
 - Recommended resolution:
   - keep using outside-sandbox `alienv` ROOT commands for authoritative validation in Codex sessions until the sandbox/PCM interaction is fixed
+
+## ISSUE-006 Example Launcher Reused A Stale ROOT-Linked Generator
+
+- Type: runtime/build mismatch
+- Status: resolved on 2026-04-23
+- Evidence:
+  - authoritative diagnosis showed `scripts/run_example_config.sh` entering `ROOT/v6-36-10-alice1-local2` while the cached build and generator `LC_RPATH` still pointed at `ROOT/v6-36-10-alice1-local1`
+  - that mismatch produced duplicate `TClassTable::Add` warnings before the progress bar and delayed `TCling::LoadPCM` noise when the writer saved `participant_x-y_canvas`
+  - the launcher now refreshes the generator build when the cached or binary ROOT prefix differs from `ROOTSYS`
+  - `generate_blastwave_events` now links `ROOT::HistPainter` explicitly so the saved canvas does not depend on late painter autoload
+- Impact:
+  - operators could get large amounts of misleading ROOT noise from the tracked example launcher even though event generation still finished
+- Recommended resolution:
+  - preserve the launcher ROOT preflight and the explicit `HistPainter` link while the participant canvas remains part of the output contract

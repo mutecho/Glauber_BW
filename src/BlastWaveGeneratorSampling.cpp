@@ -104,11 +104,13 @@ namespace blastwave {
     return {px, py, pz, energy};
   }
 
-  // Evaluate the default flow field from the event covariance ellipse so the
-  // transverse direction follows the ellipse normal rather than the lab origin.
-  BlastWaveGenerator::FlowVelocity BlastWaveGenerator::sampleFlowVelocity(const SpatialPoint &emissionPoint, double etaS, const FlowEllipseInfo &flowEllipse) const {
-    const FlowFieldParameters parameters{config_.rho0, config_.rho2, config_.flowPower};
-    const FlowFieldSample sample = evaluateFlowField(flowEllipse, emissionPoint.x, emissionPoint.y, parameters);
+  // Evaluate the configured fluid-element velocity sampler and then compose in
+  // the longitudinal Bjorken piece expected by the blast-wave generator.
+  BlastWaveGenerator::FlowVelocity BlastWaveGenerator::sampleFlowVelocity(const SpatialPoint &emissionPoint,
+                                                                          double etaS,
+                                                                          const FlowFieldContext &flowContext) const {
+    const FlowFieldParameters parameters{config_.flowVelocitySamplerMode, config_.rho0, config_.rho2, config_.flowPower};
+    const FlowFieldSample sample = evaluateFlowField(flowContext, emissionPoint.x, emissionPoint.y, parameters);
     const double coshEta = std::cosh(etaS);
     return {sample.betaX / coshEta, sample.betaY / coshEta, std::tanh(etaS)};
   }

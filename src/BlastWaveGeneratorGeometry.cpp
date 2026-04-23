@@ -84,15 +84,16 @@ namespace blastwave {
   }
 
   // Convert the generator-owned participant records into the shared ROOT-free
-  // covariance-ellipse module so geometry math stays implemented in one place.
-  FlowEllipseInfo BlastWaveGenerator::computeParticipantShape(const std::vector<Nucleon> &participants) const {
+  // flow context so geometry and density reconstruction stay out of the
+  // generator orchestration layer.
+  FlowFieldContext BlastWaveGenerator::buildFlowContext(const std::vector<Nucleon> &participants) const {
     std::vector<WeightedTransversePoint> weightedPoints;
     weightedPoints.reserve(participants.size());
     for (const Nucleon &participant : participants) {
       weightedPoints.push_back({participant.x, participant.y, 1.0});
     }
 
-    return computeFlowEllipseInfo(weightedPoints);
+    return buildFlowFieldContext(weightedPoints, config_.flowDensitySigma);
   }
 
 }  // namespace blastwave

@@ -9,13 +9,16 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 enable_testing()
 
-find_package(ROOT CONFIG REQUIRED COMPONENTS Core Graf Gpad Hist RIO Tree)
+# The generator writes a saved participant canvas, so its finish path needs the painter backend eagerly linked.
+find_package(ROOT CONFIG REQUIRED COMPONENTS Core Graf Gpad Hist HistPainter RIO Tree)
 
 add_library(blastwave_core
   src/BlastWaveGenerator.cpp
   src/BlastWaveGeneratorGeometry.cpp
   src/BlastWaveGeneratorSampling.cpp
   src/BlastWaveGeneratorValidation.cpp
+  src/FlowFieldDensity.cpp
+  src/FlowFieldGeometry.cpp
   src/FlowFieldModel.cpp
   src/MaxwellJuttnerMomentumSampler.cpp
   src/PhysicsUtils.cpp
@@ -92,6 +95,7 @@ target_link_libraries(generate_blastwave_events
     ROOT::Graf
     ROOT::Gpad
     ROOT::Hist
+    ROOT::HistPainter
 )
 
 add_executable(qa_blastwave_output
@@ -187,6 +191,32 @@ add_test(
   COMMAND $<TARGET_FILE:test_flow_field_model>
 )
 
+add_executable(test_run_options
+  apps/generate_blastwave/RunOptions.cpp
+  tests/RunOptionsTest.cpp
+)
+
+target_include_directories(test_run_options
+  PRIVATE
+    ${PROJECT_SOURCE_DIR}/apps
+    ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_options(test_run_options
+  PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wshadow
+    -Wconversion
+    -Wsign-conversion
+)
+
+add_test(
+  NAME test_run_options
+  COMMAND $<TARGET_FILE:test_run_options>
+)
+
 add_executable(test_physics_utils
   tests/PhysicsUtilsTest.cpp
 )
@@ -211,7 +241,7 @@ add_test(
   COMMAND $<TARGET_FILE:test_physics_utils>
 )
 
-set_target_properties(generate_blastwave_events qa_blastwave_output test_maxwell_juttner_sampler test_output_path_utils test_flow_field_model test_physics_utils
+set_target_properties(generate_blastwave_events qa_blastwave_output test_maxwell_juttner_sampler test_output_path_utils test_flow_field_model test_run_options test_physics_utils
   PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin
 )

@@ -1,5 +1,19 @@
 # C++ Blast-Wave Event Generator Plan
 
+## Status Note
+
+- This file is a historical planning artifact, not the current runtime contract.
+- The generator described here has already been implemented and then extended beyond this original plan.
+- The current authoritative contract lives in:
+  - [docs/项目说明.md](/Users/allenzhou/Research_software/Blast_wave/docs/项目说明.md)
+  - [docs/agent_guide.md](/Users/allenzhou/Research_software/Blast_wave/docs/agent_guide.md)
+  - [docs/blastwave_generator_agent_handoff.md](/Users/allenzhou/Research_software/Blast_wave/docs/blastwave_generator_agent_handoff.md)
+- Compared with this original plan, the current implementation additionally includes:
+  - config-file entrypoints and tracked example configs
+  - a `participants` tree plus participant QA objects
+  - mandatory `events.centrality`, `events.v2`, `cent`, and `v2`
+  - the covariance-ellipse flow surface `rho0/rho2/flow-power/debug-flow-ellipse`
+
 ## Summary
 - 新实现使用独立的 C++ 代码，不复制 `reference/legacy-root-macros/` 目录中的参考实现，只借鉴其“Glauber 几何 + 逐粒子输出”的目标形态。
 - 第一版目标是固定 impact parameter 的事件生成器，默认 `b = 8 fm`，保留事件级 Glauber participant 波动。

@@ -4,6 +4,8 @@
 
 namespace blastwave {
 
+  enum class FlowVelocitySamplerMode { CovarianceEllipse, DensityNormal };
+
   /**
    * Lightweight transverse participant representation used by the ROOT-free
    * flow-field model. The first implementation keeps unit weights in the
@@ -18,7 +20,7 @@ namespace blastwave {
   /**
    * Event-level covariance ellipse recovered from the participant cloud.
    * The axis vectors form a deterministic right-handed orthonormal basis in
-   * the transverse plane so downstream tests and debug output stay stable.
+   * the transverse plane so tests and debug payloads stay stable.
    */
   struct FlowEllipseInfo {
     bool valid = false;
@@ -35,14 +37,37 @@ namespace blastwave {
     double majorAxisY = 0.0;
     double minorAxisX = 0.0;
     double minorAxisY = 1.0;
+    double inverseSigmaXX = 0.0;
+    double inverseSigmaXY = 0.0;
+    double inverseSigmaYY = 0.0;
     double eps2 = 0.0;
     double psi2 = 0.0;
   };
 
   /**
-   * Public parameters for the covariance-ellipse blast-wave flow profile.
+   * Event-level flow context assembled once from the participant cloud and
+   * reused for every emission-point velocity query in that event.
+   */
+  struct FlowFieldContext {
+    FlowEllipseInfo ellipse;
+    std::vector<WeightedTransversePoint> participantPoints;
+    double flowDensitySigma = 0.5;
+  };
+
+  /**
+   * Analytic density and gradient sample for the smeared participant field.
+   */
+  struct FlowDensitySample {
+    double density = 0.0;
+    double gradientX = 0.0;
+    double gradientY = 0.0;
+  };
+
+  /**
+   * Public parameters controlling the fluid-element velocity sampler.
    */
   struct FlowFieldParameters {
+    FlowVelocitySamplerMode velocitySamplerMode = FlowVelocitySamplerMode::CovarianceEllipse;
     double rho0 = 0.0;
     double rho2 = 0.0;
     double flowPower = 1.0;
@@ -63,6 +88,8 @@ namespace blastwave {
   };
 
   [[nodiscard]] FlowEllipseInfo computeFlowEllipseInfo(const std::vector<WeightedTransversePoint> &points);
-  [[nodiscard]] FlowFieldSample evaluateFlowField(const FlowEllipseInfo &ellipse, double x, double y, const FlowFieldParameters &parameters);
+  [[nodiscard]] FlowFieldContext buildFlowFieldContext(const std::vector<WeightedTransversePoint> &points, double flowDensitySigma);
+  [[nodiscard]] FlowDensitySample evaluateDensityField(const FlowFieldContext &context, double x, double y);
+  [[nodiscard]] FlowFieldSample evaluateFlowField(const FlowFieldContext &context, double x, double y, const FlowFieldParameters &parameters);
 
 }  // namespace blastwave

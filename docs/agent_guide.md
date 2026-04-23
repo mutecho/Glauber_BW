@@ -33,9 +33,23 @@ Not implemented in v1:
 - `include/blastwave/BlastWaveGenerator.h`
   Public physics data structures and the generator class.
 - `src/BlastWaveGenerator.cpp`
-  Core geometry, source sampling, flow, boost, and validation logic.
+  Event orchestration that ties geometry, sampling, and validation together.
+- `src/BlastWaveGeneratorGeometry.cpp`
+  Participant sampling and event-shape extraction.
+- `src/BlastWaveGeneratorSampling.cpp`
+  Multiplicity, source, thermal momentum, flow, and boost sampling.
+- `src/BlastWaveGeneratorValidation.cpp`
+  Generator-side validation and config checks.
+- `include/blastwave/FlowFieldModel.h` and `src/FlowFieldModel.cpp`
+  ROOT-free participant covariance ellipse and ellipse-normal flow evaluation.
+- `include/blastwave/PhysicsUtils.h` and `src/PhysicsUtils.cpp`
+  Shared helpers for azimuth, pseudorapidity, `centrality`, and event-level `v2`.
 - `apps/generate_blastwave_events.cpp`
-  CLI driver that generates events and writes the ROOT file.
+  Top-level CLI driver that hands parsing and ROOT writing to app-layer helpers.
+- `apps/generate_blastwave/RunOptions.cpp`
+  CLI/config parsing plus progress behavior.
+- `apps/generate_blastwave/RootEventFileWriter.cpp`
+  ROOT tree and embedded-QA writing.
 - `apps/qa_blastwave_output.cpp`
   Independent reader that validates the output contract and rewrites QA histograms.
 - `CMakeLists.txt`
@@ -71,6 +85,9 @@ Build products:
 - executable: `bin/generate_blastwave_events`
 - executable: `bin/qa_blastwave_output`
 - executable: `bin/test_maxwell_juttner_sampler`
+- executable: `bin/test_flow_field_model`
+- executable: `bin/test_physics_utils`
+- executable: `bin/test_output_path_utils`
 - compilation database: `build/compile_commands.json`
 
 ROOT-free core regression test:
@@ -209,6 +226,8 @@ Key data contracts:
   - `nParticipants`
   - `eps2`
   - `psi2`
+  - `v2`
+  - `centrality`
   - `nCharged`
 - `ParticleRecord`
   Per-particle payload:
@@ -232,7 +251,8 @@ Important implementation note:
 
 ## ROOT Output Contract
 
-One generated ROOT file contains three trees plus QA histograms.
+One generated ROOT file contains three mandatory trees, mandatory QA histograms,
+and one optional debug payload.
 
 ### Tree `events`
 
@@ -243,6 +263,8 @@ Branches:
 - `Npart`
 - `eps2`
 - `psi2`
+- `v2`
+- `centrality`
 - `Nch`
 
 ### Tree `participants`
@@ -280,6 +302,8 @@ Branches:
 - `Npart`
 - `eps2`
 - `psi2`
+- `v2`
+- `cent`
 - `participant_x-y`
 - `x-y`
 - `px-py`
@@ -401,14 +425,20 @@ The QA executable additionally validates:
 - required histograms exist
 - event IDs are continuous
 - `Nch` matches the particle count per event
+- `events.v2` matches the particle-level second-harmonic Q-vector
+- the `v2` histogram entry count and mean match the `events.v2` payload
+- `centrality` stays within `[0, 100]` and matches the fixed-`b` mapping
 - tree values contain no `NaN` or `Inf`
 - mass-shell deviation stays below `1e-4 GeV^2`
+- optional flow-ellipse debug objects, when present, match the recorded entry-count
+  and covariance-shape invariants
 
 ## Known Behavior And Interpretation Notes
 
 - The file now stores a `participants` tree, so downstream code can inspect participant geometry directly instead of inferring it from `source_x/source_y` in the particle tree.
 - `eta` is controlled by the source `eta_s` profile, but the final particle `eta` is not expected to match experimental charged-hadron data exactly because the model has only one direct pion species and no resonance feed-down.
 - A raw inclusive `px-py` histogram is a weak anisotropy diagnostic because low-`pT` thermal particles dominate the density. Use `phi`, `v2`, or high-`pT` cuts if directional anisotropy needs to be diagnosed more sharply.
+- `eps2` is an initial-state participant-shape observable, while `v2` is a final-state event observable reconstructed from particle azimuths. They are related but not interchangeable.
 - `Nch` in v1 means the number of generated particles in the event, not a realistic detector-level charged multiplicity.
 - Events with `Npart = 0` or `Npart = 1` are legal and remain in the `events` tree.
 

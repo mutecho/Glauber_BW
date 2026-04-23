@@ -76,6 +76,9 @@ namespace blastwave {
     if (!isFinite(config_.flowPower) || config_.flowPower <= 0.0) {
       throw std::invalid_argument("flowPower must be finite and positive.");
     }
+    if (!isFinite(config_.flowDensitySigma) || config_.flowDensitySigma <= 0.0) {
+      throw std::invalid_argument("flowDensitySigma must be finite and positive.");
+    }
   }
 
 }  // namespace blastwave

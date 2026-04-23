@@ -2,126 +2,139 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace {
 
-  constexpr double kEllipseTolerance = 1.0e-12;
   constexpr double kBetaTMax = 0.95;
+  constexpr double kDirectionTolerance = 1.0e-12;
+  constexpr double kFlatRegionTolerance = 1.0e-6;
+  constexpr double kDensityEpsilon = 1.0e-18;
 
-  bool lexicographicallyNegative(double x, double y) {
-    return x < 0.0 || (std::abs(x) <= kEllipseTolerance && y < 0.0);
+  struct EllipseMetricSample {
+    bool valid = false;
+    double deltaX = 0.0;
+    double deltaY = 0.0;
+    double normalX = 0.0;
+    double normalY = 0.0;
+    double qX = 0.0;
+    double qY = 0.0;
+    double qMajor = 0.0;
+    double qMinor = 0.0;
+    double rTilde = 0.0;
+  };
+
+  double computeBetaT(double rhoRaw) {
+    return std::min(kBetaTMax, std::tanh(std::max(0.0, rhoRaw)));
+  }
+
+  EllipseMetricSample sampleEllipseMetric(const blastwave::FlowEllipseInfo &ellipse, double x, double y) {
+    EllipseMetricSample metric;
+    if (!ellipse.valid) {
+      return metric;
+    }
+
+    metric.deltaX = x - ellipse.centerX;
+    metric.deltaY = y - ellipse.centerY;
+    metric.qX = ellipse.inverseSigmaXX * metric.deltaX + ellipse.inverseSigmaXY * metric.deltaY;
+    metric.qY = ellipse.inverseSigmaXY * metric.deltaX + ellipse.inverseSigmaYY * metric.deltaY;
+    metric.qMajor = metric.qX * ellipse.majorAxisX + metric.qY * ellipse.majorAxisY;
+    metric.qMinor = metric.qX * ellipse.minorAxisX + metric.qY * ellipse.minorAxisY;
+
+    const double qNorm = std::hypot(metric.qX, metric.qY);
+    if (!std::isfinite(qNorm) || qNorm <= kDirectionTolerance) {
+      return metric;
+    }
+
+    const double rTilde2 = metric.deltaX * metric.qX + metric.deltaY * metric.qY;
+    if (!std::isfinite(rTilde2) || rTilde2 < 0.0) {
+      return metric;
+    }
+
+    metric.normalX = metric.qX / qNorm;
+    metric.normalY = metric.qY / qNorm;
+    metric.rTilde = std::sqrt(std::max(0.0, rTilde2));
+    metric.valid = true;
+    return metric;
+  }
+
+  // Use the historical ellipse-normal sampler as one concrete backend of the
+  // generalized fluid-element velocity sampling interface.
+  blastwave::FlowFieldSample evaluateCovarianceEllipseFlow(const blastwave::FlowFieldContext &context,
+                                                           double x,
+                                                           double y,
+                                                           const blastwave::FlowFieldParameters &parameters) {
+    blastwave::FlowFieldSample sample;
+    const EllipseMetricSample metric = sampleEllipseMetric(context.ellipse, x, y);
+    if (!metric.valid) {
+      return sample;
+    }
+
+    sample.rTilde = metric.rTilde;
+    sample.phiB = std::atan2(metric.qMinor, metric.qMajor);
+    sample.rhoRaw = std::pow(sample.rTilde, parameters.flowPower) * (parameters.rho0 + parameters.rho2 * context.ellipse.eps2 * std::cos(2.0 * sample.phiB));
+    sample.betaT = computeBetaT(sample.rhoRaw);
+    sample.betaX = sample.betaT * metric.normalX;
+    sample.betaY = sample.betaT * metric.normalY;
+    return sample;
+  }
+
+  // Sample the transverse velocity from the density-gradient normal while
+  // falling back to the inverse-covariance normal in flat or numerically
+  // degenerate regions.
+  blastwave::FlowFieldSample evaluateDensityNormalFlow(const blastwave::FlowFieldContext &context,
+                                                       double x,
+                                                       double y,
+                                                       const blastwave::FlowFieldParameters &parameters) {
+    blastwave::FlowFieldSample sample;
+    const EllipseMetricSample metric = sampleEllipseMetric(context.ellipse, x, y);
+    if (!metric.valid) {
+      return sample;
+    }
+
+    const blastwave::FlowDensitySample densitySample = blastwave::evaluateDensityField(context, x, y);
+    const double gradientMagnitude = std::hypot(densitySample.gradientX, densitySample.gradientY);
+    const double flatness = gradientMagnitude * context.flowDensitySigma / std::max(densitySample.density, kDensityEpsilon);
+
+    double normalX = 0.0;
+    double normalY = 0.0;
+    if (std::isfinite(gradientMagnitude) && gradientMagnitude > kDirectionTolerance && std::isfinite(flatness) && flatness >= kFlatRegionTolerance) {
+      normalX = -densitySample.gradientX / gradientMagnitude;
+      normalY = -densitySample.gradientY / gradientMagnitude;
+    } else {
+      normalX = metric.normalX;
+      normalY = metric.normalY;
+    }
+
+    const double normalMagnitude = std::hypot(normalX, normalY);
+    if (!std::isfinite(normalMagnitude) || normalMagnitude <= kDirectionTolerance) {
+      return sample;
+    }
+
+    normalX /= normalMagnitude;
+    normalY /= normalMagnitude;
+    sample.rTilde = metric.rTilde;
+    sample.phiB = std::atan2(normalY, normalX);
+    sample.rhoRaw = parameters.rho0 * std::pow(sample.rTilde, parameters.flowPower);
+    sample.betaT = computeBetaT(sample.rhoRaw);
+    sample.betaX = sample.betaT * normalX;
+    sample.betaY = sample.betaT * normalY;
+    return sample;
   }
 
 }  // namespace
 
 namespace blastwave {
 
-  // Recover the participant covariance ellipse, preserve the historical
-  // eps2/psi2 summary convention, and make the principal-axis orientation
-  // deterministic for tests and optional debug serialization.
-  FlowEllipseInfo computeFlowEllipseInfo(const std::vector<WeightedTransversePoint> &points) {
-    FlowEllipseInfo ellipse;
-
-    double totalWeight = 0.0;
-    int contributingPoints = 0;
-    for (const WeightedTransversePoint &point : points) {
-      if (!std::isfinite(point.weight) || point.weight <= 0.0) {
-        continue;
-      }
-
-      ellipse.centerX += point.weight * point.x;
-      ellipse.centerY += point.weight * point.y;
-      totalWeight += point.weight;
-      ++contributingPoints;
+  FlowFieldSample evaluateFlowField(const FlowFieldContext &context, double x, double y, const FlowFieldParameters &parameters) {
+    switch (parameters.velocitySamplerMode) {
+      case FlowVelocitySamplerMode::CovarianceEllipse:
+        return evaluateCovarianceEllipseFlow(context, x, y, parameters);
+      case FlowVelocitySamplerMode::DensityNormal:
+        return evaluateDensityNormalFlow(context, x, y, parameters);
     }
 
-    if (totalWeight <= 0.0) {
-      return ellipse;
-    }
-
-    ellipse.centerX /= totalWeight;
-    ellipse.centerY /= totalWeight;
-
-    for (const WeightedTransversePoint &point : points) {
-      if (!std::isfinite(point.weight) || point.weight <= 0.0) {
-        continue;
-      }
-
-      const double dx = point.x - ellipse.centerX;
-      const double dy = point.y - ellipse.centerY;
-      ellipse.sigmaX2 += point.weight * dx * dx;
-      ellipse.sigmaY2 += point.weight * dy * dy;
-      ellipse.sigmaXY += point.weight * dx * dy;
-    }
-
-    ellipse.sigmaX2 /= totalWeight;
-    ellipse.sigmaY2 /= totalWeight;
-    ellipse.sigmaXY /= totalWeight;
-
-    const double trace = ellipse.sigmaX2 + ellipse.sigmaY2;
-    if (trace > kEllipseTolerance) {
-      const double eccX = ellipse.sigmaY2 - ellipse.sigmaX2;
-      const double eccY = 2.0 * ellipse.sigmaXY;
-      ellipse.eps2 = std::hypot(eccX, eccY) / trace;
-      ellipse.psi2 = 0.5 * std::atan2(eccY, eccX);
-    }
-
-    const double covarianceDiscriminant =
-        std::sqrt(std::max(0.0, (ellipse.sigmaX2 - ellipse.sigmaY2) * (ellipse.sigmaX2 - ellipse.sigmaY2) + 4.0 * ellipse.sigmaXY * ellipse.sigmaXY));
-    ellipse.lambdaMajor = 0.5 * (trace + covarianceDiscriminant);
-    ellipse.lambdaMinor = 0.5 * (trace - covarianceDiscriminant);
-    ellipse.radiusMajor = ellipse.lambdaMajor > 0.0 ? std::sqrt(ellipse.lambdaMajor) : 0.0;
-    ellipse.radiusMinor = ellipse.lambdaMinor > 0.0 ? std::sqrt(ellipse.lambdaMinor) : 0.0;
-
-    const double majorAxisAngle = 0.5 * std::atan2(2.0 * ellipse.sigmaXY, ellipse.sigmaX2 - ellipse.sigmaY2);
-    ellipse.majorAxisX = std::cos(majorAxisAngle);
-    ellipse.majorAxisY = std::sin(majorAxisAngle);
-
-    if (ellipse.eps2 > kEllipseTolerance) {
-      const double preferredMinorX = std::cos(ellipse.psi2);
-      const double preferredMinorY = std::sin(ellipse.psi2);
-      const double currentMinorX = -ellipse.majorAxisY;
-      const double currentMinorY = ellipse.majorAxisX;
-      if (currentMinorX * preferredMinorX + currentMinorY * preferredMinorY < 0.0) {
-        ellipse.majorAxisX = -ellipse.majorAxisX;
-        ellipse.majorAxisY = -ellipse.majorAxisY;
-      }
-    } else if (lexicographicallyNegative(ellipse.majorAxisX, ellipse.majorAxisY)) {
-      ellipse.majorAxisX = -ellipse.majorAxisX;
-      ellipse.majorAxisY = -ellipse.majorAxisY;
-    }
-
-    ellipse.minorAxisX = -ellipse.majorAxisY;
-    ellipse.minorAxisY = ellipse.majorAxisX;
-
-    ellipse.valid = contributingPoints >= 2 && trace > kEllipseTolerance && ellipse.lambdaMajor > kEllipseTolerance && ellipse.lambdaMinor > kEllipseTolerance;
-    return ellipse;
-  }
-
-  // Evaluate the default flow field at one transverse point, using the
-  // ellipse-normal direction and clipping the transverse speed before the
-  // generator composes in longitudinal Bjorken motion.
-  FlowFieldSample evaluateFlowField(const FlowEllipseInfo &ellipse, double x, double y, const FlowFieldParameters &parameters) {
-    FlowFieldSample sample;
-    if (!ellipse.valid) {
-      return sample;
-    }
-
-    const double dx = x - ellipse.centerX;
-    const double dy = y - ellipse.centerY;
-    const double xPrime = dx * ellipse.majorAxisX + dy * ellipse.majorAxisY;
-    const double yPrime = dx * ellipse.minorAxisX + dy * ellipse.minorAxisY;
-
-    sample.rTilde = std::sqrt(xPrime * xPrime / (ellipse.radiusMajor * ellipse.radiusMajor) + yPrime * yPrime / (ellipse.radiusMinor * ellipse.radiusMinor));
-    sample.phiB = std::atan2(yPrime / (ellipse.radiusMinor * ellipse.radiusMinor), xPrime / (ellipse.radiusMajor * ellipse.radiusMajor));
-    sample.rhoRaw = std::pow(sample.rTilde, parameters.flowPower) * (parameters.rho0 + parameters.rho2 * ellipse.eps2 * std::cos(2.0 * sample.phiB));
-    sample.betaT = std::min(kBetaTMax, std::tanh(std::max(0.0, sample.rhoRaw)));
-
-    const double betaMajor = sample.betaT * std::cos(sample.phiB);
-    const double betaMinor = sample.betaT * std::sin(sample.phiB);
-    sample.betaX = betaMajor * ellipse.majorAxisX + betaMinor * ellipse.minorAxisX;
-    sample.betaY = betaMajor * ellipse.majorAxisY + betaMinor * ellipse.minorAxisY;
-    return sample;
+    return {};
   }
 
 }  // namespace blastwave

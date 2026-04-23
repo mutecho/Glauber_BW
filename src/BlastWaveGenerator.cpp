@@ -25,14 +25,14 @@ namespace blastwave {
     info.impactParameter = config_.impactParameter;
     info.nParticipants = static_cast<int>(participants.size());
 
-    const FlowEllipseInfo flowEllipse = computeParticipantShape(participants);
-    info.eps2 = flowEllipse.eps2;
-    info.psi2 = flowEllipse.psi2;
+    const FlowFieldContext flowContext = buildFlowContext(participants);
+    info.eps2 = flowContext.ellipse.eps2;
+    info.psi2 = flowContext.ellipse.psi2;
     info.centrality = computeCentralityPercent(config_.impactParameter, config_.woodsSaxonRadius);
 
     GeneratedEvent event;
     event.info = info;
-    event.flowEllipse = flowEllipse;
+    event.flowEllipse = flowContext.ellipse;
     event.participants.reserve(participants.size());
     event.particles.reserve(static_cast<std::size_t>(std::max(0, info.nParticipants)) * 4U);
     double q2x = 0.0;
@@ -57,7 +57,7 @@ namespace blastwave {
       for (int iParticle = 0; iParticle < multiplicity; ++iParticle) {
         const SpatialPoint emissionPoint = smearSource(participant);
         const double etaS = sampleEtaS();
-        const FlowVelocity beta = sampleFlowVelocity(emissionPoint, etaS, event.flowEllipse);
+        const FlowVelocity beta = sampleFlowVelocity(emissionPoint, etaS, flowContext);
         const FourMomentum localMomentum = sampleThermalMomentum();
         const FourMomentum boostedMomentum = lorentzBoost(localMomentum, beta);
 

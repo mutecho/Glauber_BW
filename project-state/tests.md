@@ -180,3 +180,66 @@
   - QA summary: `validation_passed events=20 particles=7051 mean_Npart=181.6 mean_eps2=0.228879 mean_v2=0.0645756 max_abs_eta_s=7.2615 max_E=568.599 max_mass_shell_deviation=6.21324e-11`
   - implementation note: the validation loop also exposed a pre-existing `computePseudorapidity` edge-case bug for exactly beam-aligned negative-z momenta; the helper now returns the documented finite fallback there as well
 - verification_status: `verified`
+
+## T-007 Example Launcher ROOT Alignment And Painter Startup Noise
+
+- Status: passed
+- Purpose: verify that the tracked example launcher no longer emits invalid ROOT noise when the active O2Physics ROOT revision changed since the last build, and that the saved participant canvas does not depend on delayed `HistPainter` autoload.
+- Execution shape:
+  - authoritatively reproduce the launcher noise under the active O2Physics ROOT environment
+  - inspect the cached build ROOT prefix and generator `LC_RPATH`
+  - repair the launcher so it refreshes stale ROOT-linked builds before running
+  - link `ROOT::HistPainter` explicitly into `generate_blastwave_events`
+  - rerun the tracked launcher outside the sandbox and inspect the output for the previous warning patterns
+  - rerun `ctest --output-on-failure`
+- Existing evidence:
+  - authoritative diagnosis on 2026-04-23 showed:
+    - `ROOTSYS=/Users/allenzhou/ALICE/sw/osx_arm64/ROOT/v6-36-10-alice1-local2`
+    - `build/CMakeCache.txt` and the generator `LC_RPATH` still pointed at `ROOT/v6-36-10-alice1-local1`
+    - the stale launcher run emitted duplicate `TClassTable::Add` warnings before the progress bar
+    - the stale launcher run later emitted `Error in <TCling::LoadPCM>: ROOT PCM ... libHistPainter_rdict.pcm file does not exist`
+  - an authoritative standalone local2 ROOT batch draw path did not reproduce the noise, isolating the problem to the stale generator binary rather than the active ROOT module alone
+  - authoritative repair commands executed on 2026-04-23:
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc 'cmake --preset default -S /Users/allenzhou/Research_software/Blast_wave'"`
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc 'cmake --build /Users/allenzhou/Research_software/Blast_wave/build'"`
+    - `/Users/allenzhou/Research_software/Blast_wave/scripts/run_example_config.sh`
+    - `cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-failure`
+- Current result:
+  - `generate_blastwave_events` now links `libHistPainter` and its `LC_RPATH` points at `ROOT/v6-36-10-alice1-local2/lib`
+  - `scripts/run_example_config.sh` completed and wrote `/Users/allenzhou/Research_software/Blast_wave/qa/test_b8_5000.root`
+  - the repaired launcher run emitted none of the earlier duplicate `TClassTable::Add` warnings
+  - the repaired launcher run emitted none of the earlier `TCling::LoadPCM` `HistPainter` noise
+  - `ctest --output-on-failure` passed all four registered tests
+- verification_status: `verified`
+
+## T-008 Fluid-Element Velocity Sampler Strategy Surface
+
+- Status: passed
+- Purpose: verify that the flow-selection contract is now expressed as a fluid-element velocity sampler surface, that the default covariance-ellipse path is preserved, and that the parallel `density-normal` sampler runs through generate+QA without changing the mandatory ROOT contract.
+- Execution shape:
+  - reconfigure and rebuild the checkout
+  - run `ctest --output-on-failure`
+  - run one authoritative covariance-ellipse generate+QA smoke
+  - run one authoritative `density-normal` generate+QA smoke
+- Existing evidence:
+  - local build/test commands executed on 2026-04-23:
+    - `cmake -S /Users/allenzhou/Research_software/Blast_wave -B /Users/allenzhou/Research_software/Blast_wave/build`
+    - `cmake --build /Users/allenzhou/Research_software/Blast_wave/build --target test_run_options test_flow_field_model test_physics_utils test_maxwell_juttner_sampler test_output_path_utils generate_blastwave_events qa_blastwave_output -j4`
+    - `cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-failure`
+  - authoritative outside-sandbox O2Physics commands executed on 2026-04-23:
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc 'cmake --preset default -S /Users/allenzhou/Research_software/Blast_wave'"`
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc 'cmake --build /Users/allenzhou/Research_software/Blast_wave/build'"`
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --output /tmp/blastwave_covariance_sampler_smoke.root'"`
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_covariance_sampler_smoke.root --output /tmp/blastwave_covariance_sampler_smoke_validation.root --expect-nevents 20'"`
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --flow-velocity-sampler density-normal --flow-density-sigma 0.5 --output /tmp/blastwave_density_normal_sampler_smoke.root'"`
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_density_normal_sampler_smoke.root --output /tmp/blastwave_density_normal_sampler_smoke_validation.root --expect-nevents 20'"`
+- Current result:
+  - ROOT-free tests: passed
+  - `test_run_options`: passed
+  - `test_flow_field_model`: passed
+  - default covariance-ellipse authoritative smoke: passed
+  - covariance-ellipse QA summary: `validation_passed events=20 particles=7051 mean_Npart=181.6 mean_eps2=0.228879 mean_v2=0.0751083 max_abs_eta_s=7.2615 max_E=631.497 max_mass_shell_deviation=4.0778e-11`
+  - `density-normal` authoritative smoke: passed
+  - density-normal QA summary: `validation_passed events=20 particles=7051 mean_Npart=181.6 mean_eps2=0.228879 mean_v2=0.0619416 max_abs_eta_s=7.2615 max_E=647.385 max_mass_shell_deviation=7.59367e-11`
+  - implementation note: the new surface keeps the mandatory ROOT payload unchanged while adding only runtime sampler selection and density-kernel width controls
+- verification_status: `verified`

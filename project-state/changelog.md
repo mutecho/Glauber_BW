@@ -80,16 +80,16 @@
   - added `include/blastwave/FlowFieldModel.h`
   - added `src/FlowFieldModel.cpp`
   - added `tests/FlowFieldModelTest.cpp`
-- Migrated the public flow surface from `vMax/referenceRadius/kappa2` to:
-  - `rho0`
-  - `rho2`
-  - `flowPower`
-  - `debugFlowEllipse`
-- Switched CLI/config parsing and repository-shipped example configs to:
+- Migrated the public CLI/config flow surface from `vMax/referenceRadius/kappa2` to:
   - `rho0`
   - `rho2`
   - `flow-power`
   - `debug-flow-ellipse`
+- The internal `BlastWaveConfig` field names now mirror that surface as:
+  - `rho0`
+  - `rho2`
+  - `flowPower`
+  - `debugFlowEllipse`
 - Made legacy flow keys fail fast with migration guidance instead of silently mapping them.
 - Extended the optional ROOT debug payload with:
   - `flow_ellipse_debug`
@@ -116,3 +116,37 @@
   - the `v2` histogram entry count and mean match the event payload
 - Fixed a pre-existing `computePseudorapidity` edge case so exactly beam-aligned negative-z momenta now return the documented finite fallback instead of `-inf`.
 - Recorded a fresh authoritative outside-sandbox O2Physics generate+QA smoke for the new contract.
+
+## 2026-04-23 Example Launcher ROOT Alignment Repair
+
+- Diagnosed the tracked example-launcher noise as a build/runtime ROOT mismatch:
+  - the active O2Physics environment exposed `ROOT/v6-36-10-alice1-local2`
+  - the cached build and generator binary still pointed at `ROOT/v6-36-10-alice1-local1`
+- Hardened `scripts/run_example_config.sh` so it re-enters the canonical O2Physics runtime, checks the cached or binary ROOT prefix against `ROOTSYS`, and refreshes the generator build when they differ.
+- Linked `ROOT::HistPainter` explicitly into `generate_blastwave_events` so the saved `participant_x-y_canvas` no longer depends on late painter autoload during `RootEventFileWriter::finish()`.
+- Reconfigured, rebuilt, reran the tracked launcher outside the sandbox, and confirmed the earlier `TClassTable::Add` and `TCling::LoadPCM` noise no longer appears.
+
+## 2026-04-23 Documentation Resync For The Current Runtime Contract
+
+- Refreshed the lower-authority coordination guide in `project-state/guide.md` so it now matches the current covariance-ellipse flow model, public flow knobs, mandatory `v2`/`centrality` output, and optional flow-ellipse debug payload.
+- Replaced the stale requirement-era `docs/blastwave_generator_agent_handoff.md` with a current implementation handoff focused on the shipped runtime contract.
+- Updated `docs/agent_guide.md` so its repository layout, `EventInfo` summary, ROOT output contract, and QA-behavior sections now match the current code.
+- Refreshed `project-state/handoff.md` so the durable handoff no longer points to the pre-flow-replacement structure-cleanup stage.
+- This resync changed documentation only; it did not change generator or QA behavior.
+
+## 2026-04-23 Fluid-Element Velocity Sampler Generalization
+
+- Generalized flow selection into a fluid-element velocity sampler surface instead of introducing a narrowly named new flow model.
+- Kept `covariance-ellipse` as the default sampler and added `density-normal` as a parallel sampler option.
+- Split the ROOT-free flow implementation into:
+  - `src/FlowFieldGeometry.cpp`
+  - `src/FlowFieldDensity.cpp`
+  - `src/FlowFieldModel.cpp`
+- Extended the public runtime/config surface with:
+  - `flow-velocity-sampler`
+  - `flow-density-sigma`
+- Kept `rho0`, `rho2`, and `flow-power`, with `rho2` intentionally ignored by `density-normal`.
+- Added `test_run_options` and expanded `test_flow_field_model` to cover the new sampler contract.
+- Recorded fresh authoritative outside-sandbox O2Physics generate+QA smokes for both:
+  - the default covariance-ellipse sampler
+  - the `density-normal` sampler

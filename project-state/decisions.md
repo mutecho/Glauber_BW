@@ -47,9 +47,9 @@
   - the project needed the default implementation, public config surface, optional debug payload, and QA strategy to align on one consistent flow-field contract
 - Decision:
   - make the participant covariance ellipse the only default flow model
-  - expose its public tuning surface as `rho0`, `rho2`, and `flowPower`
+  - expose its public CLI/config tuning surface as `rho0`, `rho2`, and `flow-power`
   - keep `events.eps2` and `events.psi2` on the existing summary convention
-  - keep extra flow-ellipse diagnostics optional behind `debugFlowEllipse`
+  - keep extra flow-ellipse diagnostics optional behind the public `debug-flow-ellipse` switch
   - reject legacy `vmax`, `kappa2`, and `r-ref` inputs with explicit migration guidance instead of silently mapping them
 - Consequences:
   - future flow-field work should extend `FlowFieldModel` rather than reimplementing covariance math inside the generator or QA code
@@ -77,3 +77,23 @@
   - downstream readers can treat `events.v2` as a stable default final-state anisotropy summary
   - `v2` is now distinct by contract from initial-state `eps2` and from any future `mean(cos(2 * (phi - psi2)))` or `v2(pT)` outputs
   - older sample files may legitimately miss `events.v2` and `v2`, so long-lived QA artifacts should be regenerated when the repository wants fully current reference files
+
+## DEC-005 Generalize Flow Selection Into A Fluid-Element Velocity Sampler Surface
+
+- Status: accepted
+- Date: 2026-04-23
+- Context:
+  - the repository already shipped one covariance-ellipse normal-flow implementation
+  - the new `density-normal` method should not freeze the public abstraction around one specific profile name because more velocity-sampling methods may be added later
+  - the project still needed to preserve the existing default behavior and ROOT contract while separating geometry recovery, density evaluation, and sampler dispatch in the ROOT-free core
+- Decision:
+  - generalize the public flow-selection surface into a fluid-element velocity sampler option rather than a narrowly named `flow-model`
+  - keep `covariance-ellipse` as the default sampler
+  - add `density-normal` as a parallel sampler choice under `flow-velocity-sampler`
+  - add `flow-density-sigma` as a dedicated density-reconstruction width independent of `smear`
+  - keep `rho0`, `rho2`, and `flow-power` on the public surface, with `rho2` intentionally parsed but unused by `density-normal`
+  - keep `events.eps2` and `events.psi2` on the existing covariance definition independent of sampler choice
+- Consequences:
+  - future flow-field extensions should plug into the sampler dispatch surface instead of renaming the public interface again
+  - sample configs, help text, and durable tests must use `flow-velocity-sampler` / `flow-density-sigma` rather than reviving `flow-model`
+  - `smear` and `flow-density-sigma` now carry different responsibilities and should not be silently coupled

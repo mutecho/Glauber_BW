@@ -31,6 +31,8 @@ namespace blastwave {
     double rho0 = 1.0986122886681098;
     double rho2 = 1.0986122886681098;
     double flowPower = 1.0;
+    FlowVelocitySamplerMode flowVelocitySamplerMode = FlowVelocitySamplerMode::CovarianceEllipse;
+    double flowDensitySigma = 0.5;     // fm
     bool debugFlowEllipse = false;
     double woodsSaxonRadius = 6.62;        // fm
     double woodsSaxonDiffuseness = 0.546;  // fm
@@ -119,12 +121,12 @@ namespace blastwave {
 
     [[nodiscard]] std::vector<Nucleon> sampleParticipants();
     [[nodiscard]] Nucleon sampleSingleNucleon(double xShift, int nucleusId);
-    [[nodiscard]] FlowEllipseInfo computeParticipantShape(const std::vector<Nucleon> &participants) const;
+    [[nodiscard]] FlowFieldContext buildFlowContext(const std::vector<Nucleon> &participants) const;
     [[nodiscard]] int sampleMultiplicity();
     [[nodiscard]] SpatialPoint smearSource(const Nucleon &participant);
     [[nodiscard]] double sampleEtaS();
     [[nodiscard]] FourMomentum sampleThermalMomentum();
-    [[nodiscard]] FlowVelocity sampleFlowVelocity(const SpatialPoint &emissionPoint, double etaS, const FlowEllipseInfo &flowEllipse) const;
+    [[nodiscard]] FlowVelocity sampleFlowVelocity(const SpatialPoint &emissionPoint, double etaS, const FlowFieldContext &flowContext) const;
     [[nodiscard]] FourMomentum lorentzBoost(const FourMomentum &localMomentum, const FlowVelocity &beta) const;
     void validateParticle(const ParticleRecord &particle) const;
     void validateConfig() const;

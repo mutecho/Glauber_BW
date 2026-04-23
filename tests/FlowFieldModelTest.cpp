@@ -46,6 +46,10 @@ namespace {
     return rotated;
   }
 
+  blastwave::FlowFieldContext buildAxisAlignedContext(double densitySigma = 0.5) {
+    return blastwave::buildFlowFieldContext(makeAxisAlignedEllipse(), densitySigma);
+  }
+
   void runAxisAlignedEllipseRecoveryTest() {
     const blastwave::FlowEllipseInfo ellipse = blastwave::computeFlowEllipseInfo(makeAxisAlignedEllipse());
     require(ellipse.valid, "Axis-aligned ellipse should be valid.");
@@ -58,6 +62,9 @@ namespace {
     requireNear(ellipse.lambdaMinor, 1.0, kTolerance, "Axis-aligned lambdaMinor mismatch.");
     requireNear(ellipse.radiusMajor, 2.0, kTolerance, "Axis-aligned radiusMajor mismatch.");
     requireNear(ellipse.radiusMinor, 1.0, kTolerance, "Axis-aligned radiusMinor mismatch.");
+    requireNear(ellipse.inverseSigmaXX, 0.25, kTolerance, "Axis-aligned inverseSigmaXX mismatch.");
+    requireNear(ellipse.inverseSigmaXY, 0.0, kTolerance, "Axis-aligned inverseSigmaXY mismatch.");
+    requireNear(ellipse.inverseSigmaYY, 1.0, kTolerance, "Axis-aligned inverseSigmaYY mismatch.");
     requireNear(std::hypot(ellipse.majorAxisX, ellipse.majorAxisY), 1.0, kTolerance, "Major axis is not normalized.");
     requireNear(std::hypot(ellipse.minorAxisX, ellipse.minorAxisY), 1.0, kTolerance, "Minor axis is not normalized.");
     requireNear(ellipse.majorAxisX * ellipse.minorAxisX + ellipse.majorAxisY * ellipse.minorAxisY,
@@ -108,11 +115,27 @@ namespace {
     requireNear(ellipse.lambdaMinor, 0.0, kTolerance, "Degenerate line lambdaMinor mismatch.");
   }
 
-  void runNormalDirectionTest() {
-    const blastwave::FlowEllipseInfo ellipse = blastwave::computeFlowEllipseInfo(makeAxisAlignedEllipse());
-    const blastwave::FlowFieldParameters parameters{0.4, 0.0, 1.0};
-    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(ellipse, 1.0, 0.5, parameters);
-    require(sample.betaT > 0.0, "Normal-direction test needs a non-zero flow sample.");
+  void runSingleGaussianDensityTest() {
+    const blastwave::FlowFieldContext context = blastwave::buildFlowFieldContext({{0.0, 0.0, 1.0}}, 0.5);
+    const blastwave::FlowDensitySample sample = blastwave::evaluateDensityField(context, 0.4, -0.3);
+    const double sigma2 = 0.25;
+    const double normalization = 1.0 / (2.0 * std::acos(-1.0) * sigma2);
+    const double expectedDensity = normalization * std::exp(-0.5 * ((0.4 * 0.4 + (-0.3) * (-0.3)) / sigma2));
+    requireNear(sample.density, expectedDensity, 1.0e-12, "Single-Gaussian density mismatch.");
+    requireNear(sample.gradientX, -expectedDensity * 0.4 / sigma2, 1.0e-12, "Single-Gaussian gradientX mismatch.");
+    requireNear(sample.gradientY, -expectedDensity * -0.3 / sigma2, 1.0e-12, "Single-Gaussian gradientY mismatch.");
+  }
+
+  void runCovarianceEllipseDirectionTest() {
+    const blastwave::FlowFieldContext context = buildAxisAlignedContext();
+    const blastwave::FlowFieldParameters parameters{
+        blastwave::FlowVelocitySamplerMode::CovarianceEllipse,
+        0.4,
+        0.0,
+        1.0,
+    };
+    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(context, 1.0, 0.5, parameters);
+    require(sample.betaT > 0.0, "Covariance-ellipse test needs a non-zero flow sample.");
 
     const double normalization = std::sqrt((1.0 / 4.0) * (1.0 / 4.0) + (0.5 / 1.0) * (0.5 / 1.0));
     const double expectedNormalX = (1.0 / 4.0) / normalization;
@@ -120,13 +143,76 @@ namespace {
     const double directionX = sample.betaX / sample.betaT;
     const double directionY = sample.betaY / sample.betaT;
     const double dot = directionX * expectedNormalX + directionY * expectedNormalY;
-    requireNear(dot, 1.0, 1.0e-9, "Flow direction should follow the ellipse normal when rho2=0.");
+    requireNear(dot, 1.0, 1.0e-9, "Covariance-ellipse sampler should follow the ellipse normal when rho2=0.");
+  }
+
+  void runDensityNormalDirectionTest() {
+    const blastwave::FlowFieldContext context = buildAxisAlignedContext(0.35);
+    const blastwave::FlowFieldParameters parameters{
+        blastwave::FlowVelocitySamplerMode::DensityNormal,
+        0.4,
+        0.0,
+        1.0,
+    };
+    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(context, 2.2, 0.0, parameters);
+    require(sample.betaT > 0.0, "Density-normal test needs a non-zero flow sample.");
+    requireNear(sample.betaX / sample.betaT, 1.0, 1.0e-6, "Density-normal sampler should point outward along +x in this symmetric probe.");
+    requireNear(sample.betaY / sample.betaT, 0.0, 1.0e-6, "Density-normal sampler should stay on the x axis in this symmetric probe.");
+  }
+
+  void runDensityNormalCenterFallbackTest() {
+    const blastwave::FlowFieldContext context = buildAxisAlignedContext();
+    const blastwave::FlowFieldParameters parameters{
+        blastwave::FlowVelocitySamplerMode::DensityNormal,
+        0.4,
+        0.0,
+        1.0,
+    };
+    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(context, 0.0, 0.0, parameters);
+    requireNear(sample.betaT, 0.0, 1.0e-12, "Density-normal center fallback should return zero flow when both gradient and ellipse fallback vanish.");
+  }
+
+  void runDensityNormalIgnoresRho2Test() {
+    const blastwave::FlowFieldContext context = buildAxisAlignedContext(0.35);
+    const blastwave::FlowFieldSample sampleA = blastwave::evaluateFlowField(
+        context,
+        2.2,
+        0.0,
+        {blastwave::FlowVelocitySamplerMode::DensityNormal, 0.7, 0.0, 1.0});
+    const blastwave::FlowFieldSample sampleB = blastwave::evaluateFlowField(
+        context,
+        2.2,
+        0.0,
+        {blastwave::FlowVelocitySamplerMode::DensityNormal, 0.7, 100.0, 1.0});
+    requireNear(sampleA.betaX, sampleB.betaX, 1.0e-12, "Density-normal betaX must ignore rho2.");
+    requireNear(sampleA.betaY, sampleB.betaY, 1.0e-12, "Density-normal betaY must ignore rho2.");
+    requireNear(sampleA.rhoRaw, sampleB.rhoRaw, 1.0e-12, "Density-normal rhoRaw must ignore rho2.");
+  }
+
+  void runSharedRTildeTest() {
+    const blastwave::FlowFieldContext context = buildAxisAlignedContext(0.35);
+    const blastwave::FlowFieldSample covarianceSample = blastwave::evaluateFlowField(
+        context,
+        1.0,
+        0.5,
+        {blastwave::FlowVelocitySamplerMode::CovarianceEllipse, 0.4, 0.0, 1.0});
+    const blastwave::FlowFieldSample densitySample = blastwave::evaluateFlowField(
+        context,
+        1.0,
+        0.5,
+        {blastwave::FlowVelocitySamplerMode::DensityNormal, 0.4, 0.0, 1.0});
+    requireNear(covarianceSample.rTilde, densitySample.rTilde, 1.0e-12, "Both samplers should share the same covariance-based rTilde.");
   }
 
   void runVelocityClippingTest() {
-    const blastwave::FlowEllipseInfo ellipse = blastwave::computeFlowEllipseInfo(makeAxisAlignedEllipse());
-    const blastwave::FlowFieldParameters parameters{20.0, 20.0, 1.0};
-    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(ellipse, 2.0, 0.0, parameters);
+    const blastwave::FlowFieldContext context = buildAxisAlignedContext();
+    const blastwave::FlowFieldParameters parameters{
+        blastwave::FlowVelocitySamplerMode::CovarianceEllipse,
+        20.0,
+        20.0,
+        1.0,
+    };
+    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(context, 2.0, 0.0, parameters);
     require(sample.betaT < 1.0, "Clipped betaT must stay subluminal.");
     requireNear(sample.betaT, 0.95, 1.0e-12, "betaT clipping threshold mismatch.");
   }
@@ -139,7 +225,12 @@ int main() {
     runRotatedEllipseRecoveryTest();
     runInsufficientParticipantsTest();
     runDegenerateLineTest();
-    runNormalDirectionTest();
+    runSingleGaussianDensityTest();
+    runCovarianceEllipseDirectionTest();
+    runDensityNormalDirectionTest();
+    runDensityNormalCenterFallbackTest();
+    runDensityNormalIgnoresRho2Test();
+    runSharedRTildeTest();
     runVelocityClippingTest();
 
     std::cout << "Flow field model tests passed.\n";

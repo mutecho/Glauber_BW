@@ -114,6 +114,20 @@ namespace {
     throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'maxwell-juttner' or 'gamma'.");
   }
 
+  blastwave::FlowVelocitySamplerMode parseFlowVelocitySamplerMode(const std::string &rawValue,
+                                                                  const std::string &optionName,
+                                                                  const std::string &sourceDescription) {
+    if (rawValue == "covariance-ellipse") {
+      return blastwave::FlowVelocitySamplerMode::CovarianceEllipse;
+    }
+    if (rawValue == "density-normal") {
+      return blastwave::FlowVelocitySamplerMode::DensityNormal;
+    }
+
+    throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription
+                                + ". Expected 'covariance-ellipse' or 'density-normal'.");
+  }
+
   std::string resolveOutputPath(const std::string &rawValue, const std::filesystem::path &baseDirectory) {
     if (rawValue.empty()) {
       throw std::invalid_argument("Output path must not be empty.");
@@ -163,6 +177,10 @@ namespace {
       runOptions.config.rho2 = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "flow-power") {
       runOptions.config.flowPower = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "flow-velocity-sampler") {
+      runOptions.config.flowVelocitySamplerMode = parseFlowVelocitySamplerMode(rawValue, optionName, sourceDescription);
+    } else if (optionName == "flow-density-sigma") {
+      runOptions.config.flowDensitySigma = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "debug-flow-ellipse") {
       runOptions.config.debugFlowEllipse = parseBool(rawValue, optionName, sourceDescription);
     } else if (optionName == "sigma-eta") {
@@ -241,7 +259,8 @@ namespace blastwave::app {
               << "Configuration keys:\n"
               << "  nevents, b, temperature, thermal-sampler, mj-pmax, mj-grid-points,\n"
               << "  tau0, smear, sigma-nn, seed, output, progress,\n"
-              << "  rho0, rho2, flow-power, debug-flow-ellipse,\n"
+              << "  rho0, rho2, flow-power, flow-velocity-sampler, flow-density-sigma,\n"
+              << "  debug-flow-ellipse,\n"
               << "  sigma-eta, eta-plateau, nbd-mu, nbd-k\n"
               << "Primary options:\n"
               << "  --nevents <int>\n"
@@ -263,6 +282,8 @@ namespace blastwave::app {
               << "  --rho0 <value>\n"
               << "  --rho2 <value>\n"
               << "  --flow-power <value>\n"
+              << "  --flow-velocity-sampler <covariance-ellipse|density-normal>\n"
+              << "  --flow-density-sigma <fm>\n"
               << "  --sigma-eta <value>\n"
               << "  --eta-plateau <value>\n"
               << "  --nbd-mu <value>\n"
