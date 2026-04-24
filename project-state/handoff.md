@@ -2,22 +2,23 @@
 
 ## Latest Durable Handoff
 
-- Stage completed: fluid-element velocity sampler generalization with preserved covariance-ellipse default behavior
+- Stage completed: density-normal single-event density snapshot output with preserved covariance-ellipse baseline behavior
 - Artifact produced:
-  - generalized the public flow-selection surface into `flow-velocity-sampler` plus `flow-density-sigma`
-  - split the ROOT-free flow core into geometry recovery, density evaluation, and sampler dispatch translation units
-  - added `test_run_options` to cover the new CLI/config surface and expanded `test_flow_field_model` for density-normal math and dispatch behavior
-  - refreshed the relevant `project-state/` ledger files for the new sampler contract and verification evidence
+  - added the optional sampler-specific ROOT histogram `density_normal_event_density_x-y`
+  - `RootEventFileWriter` now captures the first event with participants when `flow-velocity-sampler = density-normal` and serializes its smeared participant density as a `TH2`
+  - the new histogram is stored with default draw option `LEGO1` so ROOT opens it as a 3D height-style view rather than a heatmap
+  - extended `qa_blastwave_output` so it validates that histogram when present for type, finite non-negative bins, positive support, and 3D draw option semantics
+  - refreshed the relevant docs and `project-state/` ledger files for the new sampler-specific output contract and validation evidence
 - Current contract snapshot:
   - `events` still carries `b`, `Npart`, `eps2`, `psi2`, `v2`, `centrality`, and `Nch`
   - mandatory QA objects remain `Npart`, `eps2`, `psi2`, `v2`, `cent`, `participant_x-y`, `participant_x-y_canvas`, `x-y`, `px-py`, `pT`, `eta`, and `phi`
   - optional debug output remains `flow_ellipse_debug` plus `flow_ellipse_participant_norm_x-y`, gated by `debug-flow-ellipse`
+  - optional sampler-specific output now includes `density_normal_event_density_x-y`, gated by `flow-velocity-sampler = density-normal`
   - the default fluid-element velocity sampler remains `covariance-ellipse`
   - the parallel sampler surface now also accepts `density-normal`
   - public flow/runtime knobs now include `rho0`, `rho2`, `flow-power`, `flow-velocity-sampler`, `flow-density-sigma`, and `debug-flow-ellipse`
   - legacy `vmax`, `kappa2`, and `r-ref` still fail fast with explicit migration guidance
 - Remaining durable follow-up:
-  - refresh the higher-authority `docs/` descriptions if you want them to advertise the new sampler surface explicitly
   - regenerate long-lived sample files under `qa/` when a fully current reference artifact set is needed
   - keep using outside-sandbox ROOT smoke runs as the authoritative Codex validation path on this machine
 - project_state_sync_status: `written`

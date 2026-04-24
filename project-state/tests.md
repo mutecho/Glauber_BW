@@ -215,24 +215,23 @@
 ## T-008 Fluid-Element Velocity Sampler Strategy Surface
 
 - Status: passed
-- Purpose: verify that the flow-selection contract is now expressed as a fluid-element velocity sampler surface, that the default covariance-ellipse path is preserved, and that the parallel `density-normal` sampler runs through generate+QA without changing the mandatory ROOT contract.
+- Purpose: verify that the flow-selection contract is now expressed as a fluid-element velocity sampler surface, that the default covariance-ellipse path is preserved, and that the parallel `density-normal` sampler runs through generate+QA while only adding its sampler-specific density snapshot object.
 - Execution shape:
   - reconfigure and rebuild the checkout
   - run `ctest --output-on-failure`
   - run one authoritative covariance-ellipse generate+QA smoke
   - run one authoritative `density-normal` generate+QA smoke
 - Existing evidence:
-  - local build/test commands executed on 2026-04-23:
-    - `cmake -S /Users/allenzhou/Research_software/Blast_wave -B /Users/allenzhou/Research_software/Blast_wave/build`
-    - `cmake --build /Users/allenzhou/Research_software/Blast_wave/build --target test_run_options test_flow_field_model test_physics_utils test_maxwell_juttner_sampler test_output_path_utils generate_blastwave_events qa_blastwave_output -j4`
+  - local build/test commands executed on 2026-04-24:
+    - `cmake --build /Users/allenzhou/Research_software/Blast_wave/build --target generate_blastwave_events qa_blastwave_output test_flow_field_model test_run_options test_physics_utils -j4`
     - `cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-failure`
-  - authoritative outside-sandbox O2Physics commands executed on 2026-04-23:
-    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc 'cmake --preset default -S /Users/allenzhou/Research_software/Blast_wave'"`
-    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc 'cmake --build /Users/allenzhou/Research_software/Blast_wave/build'"`
+  - authoritative outside-sandbox O2Physics commands executed on 2026-04-24:
     - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --output /tmp/blastwave_covariance_sampler_smoke.root'"`
     - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_covariance_sampler_smoke.root --output /tmp/blastwave_covariance_sampler_smoke_validation.root --expect-nevents 20'"`
     - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --flow-velocity-sampler density-normal --flow-density-sigma 0.5 --output /tmp/blastwave_density_normal_sampler_smoke.root'"`
     - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_density_normal_sampler_smoke.root --output /tmp/blastwave_density_normal_sampler_smoke_validation.root --expect-nevents 20'"`
+    - `bash /Users/allenzhou/.codex/skills/cern_root/root-file-inspector/scripts/run_inspect_root_file.sh /tmp/blastwave_density_normal_sampler_smoke.root --max-keys 200`
+    - `bash /Users/allenzhou/.codex/skills/cern_root/o2physics-root/scripts/run_root_command.sh --command 'root -l -b -q -e "TFile f(\"/tmp/blastwave_density_normal_sampler_smoke.root\", \"READ\"); auto* h = dynamic_cast<TH2*>(f.Get(\"density_normal_event_density_x-y\")); if (!h) { cout << \"STATUS: MISSING\" << endl; gSystem->Exit(2); } cout << \"STATUS: FOUND\" << endl; cout << \"DRAW_OPTION: \" << h->GetOption() << endl; cout << \"MAX_BIN: \" << h->GetMaximum() << endl; cout << \"MIN_BIN: \" << h->GetMinimum() << endl; gSystem->Exit(0);"'`
 - Current result:
   - ROOT-free tests: passed
   - `test_run_options`: passed
@@ -241,5 +240,7 @@
   - covariance-ellipse QA summary: `validation_passed events=20 particles=7051 mean_Npart=181.6 mean_eps2=0.228879 mean_v2=0.0751083 max_abs_eta_s=7.2615 max_E=631.497 max_mass_shell_deviation=4.0778e-11`
   - `density-normal` authoritative smoke: passed
   - density-normal QA summary: `validation_passed events=20 particles=7051 mean_Npart=181.6 mean_eps2=0.228879 mean_v2=0.0619416 max_abs_eta_s=7.2615 max_E=647.385 max_mass_shell_deviation=7.59367e-11`
-  - implementation note: the new surface keeps the mandatory ROOT payload unchanged while adding only runtime sampler selection and density-kernel width controls
+  - ROOT file inspection: `PRIMARY_OK`, `density_normal_event_density_x-y` key present in the output file
+  - direct ROOT histogram query: `STATUS: FOUND`, `DRAW_OPTION: LEGO1`, `MAX_BIN: 5.5882`, `MIN_BIN: 0`
+  - implementation note: the new surface keeps the mandatory ROOT payload unchanged while adding only runtime sampler selection, density-kernel width controls, and the optional sampler-specific `density_normal_event_density_x-y` `TH2`
 - verification_status: `verified`

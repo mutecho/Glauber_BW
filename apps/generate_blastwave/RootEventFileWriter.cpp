@@ -17,6 +17,7 @@
 #include <stdexcept>
 #include <utility>
 
+#include "blastwave/FlowFieldModel.h"
 #include "blastwave/PhysicsUtils.h"
 #include "blastwave/io/OutputPathUtils.h"
 #include "blastwave/io/RootOutputSchema.h"
@@ -27,6 +28,49 @@ namespace {
     const double diffusePadding = 2.0 * config.woodsSaxonDiffuseness + 1.0;
     const double halfSpan = 0.5 * std::abs(config.impactParameter) + config.woodsSaxonRadius + diffusePadding;
     return std::max(15.0, std::ceil(halfSpan));
+  }
+
+  bool shouldWriteDensityNormalEventDensity(const blastwave::BlastWaveConfig &config) {
+    return config.flowVelocitySamplerMode == blastwave::FlowVelocitySamplerMode::DensityNormal;
+  }
+
+  std::unique_ptr<TH2F> makeDensityNormalEventDensityHistogram(const blastwave::BlastWaveConfig &config) {
+    const double extent = computeParticipantDisplayExtent(config);
+    auto histogram = std::make_unique<TH2F>(blastwave::io::kDensityNormalEventDensityHistogramName,
+                                            "Density-normal single-event participant density;x [fm];y [fm];#rho(x, y) [fm^{-2}]",
+                                            200,
+                                            -extent,
+                                            extent,
+                                            200,
+                                            -extent,
+                                            extent);
+    histogram->SetStats(false);
+    histogram->SetOption("LEGO1");
+    return histogram;
+  }
+
+  // Rebuild one event's smeared participant density on the writer side so the
+  // ROOT payload can expose a directly inspectable density-normal snapshot.
+  void fillDensityNormalEventDensityHistogram(TH2F &histogram, const blastwave::GeneratedEvent &event, double flowDensitySigma) {
+    std::vector<blastwave::WeightedTransversePoint> participantPoints;
+    participantPoints.reserve(event.participants.size());
+    for (const blastwave::ParticipantRecord &participant : event.participants) {
+      participantPoints.push_back({participant.x, participant.y, 1.0});
+    }
+
+    const blastwave::FlowFieldContext flowContext = blastwave::buildFlowFieldContext(participantPoints, flowDensitySigma);
+    const std::string histogramTitle = "Density-normal single-event participant density (event " + std::to_string(event.info.eventId)
+                                       + ");x [fm];y [fm];#rho(x, y) [fm^{-2}]";
+    histogram.SetTitle(histogramTitle.c_str());
+
+    for (int iBinX = 1; iBinX <= histogram.GetNbinsX(); ++iBinX) {
+      const double x = histogram.GetXaxis()->GetBinCenter(iBinX);
+      for (int iBinY = 1; iBinY <= histogram.GetNbinsY(); ++iBinY) {
+        const double y = histogram.GetYaxis()->GetBinCenter(iBinY);
+        const blastwave::FlowDensitySample densitySample = blastwave::evaluateDensityField(flowContext, x, y);
+        histogram.SetBinContent(iBinX, iBinY, densitySample.density);
+      }
+    }
   }
 
   blastwave::io::EventBranches toEventBranches(const blastwave::EventInfo &info) {
@@ -168,6 +212,8 @@ namespace blastwave::app {
         flowEllipseDebugTree->Fill();
       }
 
+      maybeCaptureDensityNormalEventDensity(event);
+
       for (const blastwave::ParticipantRecord &participant : event.participants) {
         participantBranches = toParticipantBranches(participant);
         participantsTree.Fill();
@@ -197,6 +243,17 @@ namespace blastwave::app {
         hEta.Fill(blastwave::computePseudorapidity(particle.px, particle.py, particle.pz));
         hPhi.Fill(blastwave::computeAzimuth(particle.px, particle.py));
       }
+    }
+
+    // Keep the density-normal visualization sampler-specific and stable by
+    // capturing the first event that actually has participant geometry.
+    void maybeCaptureDensityNormalEventDensity(const blastwave::GeneratedEvent &event) {
+      if (hDensityNormalEventDensity != nullptr || !shouldWriteDensityNormalEventDensity(config) || event.participants.empty()) {
+        return;
+      }
+
+      hDensityNormalEventDensity = makeDensityNormalEventDensityHistogram(config);
+      fillDensityNormalEventDensityHistogram(*hDensityNormalEventDensity, event, config.flowDensitySigma);
     }
 
     // Finalize the embedded QA objects and persist the full output contract into
@@ -252,6 +309,10 @@ namespace blastwave::app {
         hFlowEllipseParticipantNormXY->Write();
         hFlowEllipseParticipantNormXY->SetDirectory(nullptr);
       }
+      if (hDensityNormalEventDensity != nullptr) {
+        hDensityNormalEventDensity->Write();
+        hDensityNormalEventDensity->SetDirectory(nullptr);
+      }
       hXY.Write();
       hPxPy.Write();
       hPt.Write();
@@ -261,6 +322,7 @@ namespace blastwave::app {
       outputFile.Close();
       flowEllipseDebugTree.reset();
       hFlowEllipseParticipantNormXY.reset();
+      hDensityNormalEventDensity.reset();
       finished = true;
     }
 
@@ -286,6 +348,7 @@ namespace blastwave::app {
     TH1F hCentrality;
     TH2F hParticipantXY;
     std::unique_ptr<TH2F> hFlowEllipseParticipantNormXY;
+    std::unique_ptr<TH2F> hDensityNormalEventDensity;
     TH2F hXY;
     TH2F hPxPy;
     TH1F hPt;

@@ -32,6 +32,8 @@
   仅当 `debug-flow-ellipse = true` 时，才额外输出：
   - `flow_ellipse_debug`
   - `flow_ellipse_participant_norm_x-y`
+  仅当 `flow-velocity-sampler = density-normal` 时，才额外输出：
+  - `density_normal_event_density_x-y`
 - 生成端入口位于 [apps/generate_blastwave_events.cpp](/Users/allenzhou/Research_software/Blast_wave/apps/generate_blastwave_events.cpp)，其 app 层实现拆分在：
   - [apps/generate_blastwave/RunOptions.cpp](/Users/allenzhou/Research_software/Blast_wave/apps/generate_blastwave/RunOptions.cpp)
   - [apps/generate_blastwave/RootEventFileWriter.cpp](/Users/allenzhou/Research_software/Blast_wave/apps/generate_blastwave/RootEventFileWriter.cpp)
@@ -111,6 +113,9 @@ cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-fail
   - `flow_ellipse_debug`
   - `flow_ellipse_participant_norm_x-y`
   QA 对这两者采用“存在则验证，不存在则忽略”的策略。
+- 当前 sampler-specific ROOT 契约是：
+  - `density_normal_event_density_x-y`
+  QA 对该对象也采用“存在则验证，不存在则忽略”的策略，但当前 writer 只会在 `density-normal` 抽样器下写出它。
 - `project-state/` 是当前采用的协调台账路径；不要再使用旧写法 `.project-state/`。
 - `config/test_b8.cfg` 现在仍是高权威文档、运行脚本和耐久验证记录一致使用的规范示例路径。
 - 在 Codex 里跑 ROOT smoke 时，沙箱内 `alienv`/ROOT PCM 访问仍然不可靠；若出现模块/PCM 报错，应改用沙箱外命令重跑，那个结果才是权威验证。

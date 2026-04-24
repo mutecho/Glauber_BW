@@ -114,9 +114,7 @@ namespace {
     throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'maxwell-juttner' or 'gamma'.");
   }
 
-  blastwave::FlowVelocitySamplerMode parseFlowVelocitySamplerMode(const std::string &rawValue,
-                                                                  const std::string &optionName,
-                                                                  const std::string &sourceDescription) {
+  blastwave::FlowVelocitySamplerMode parseFlowVelocitySamplerMode(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
     if (rawValue == "covariance-ellipse") {
       return blastwave::FlowVelocitySamplerMode::CovarianceEllipse;
     }
@@ -124,8 +122,7 @@ namespace {
       return blastwave::FlowVelocitySamplerMode::DensityNormal;
     }
 
-    throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription
-                                + ". Expected 'covariance-ellipse' or 'density-normal'.");
+    throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'covariance-ellipse' or 'density-normal'.");
   }
 
   std::string resolveOutputPath(const std::string &rawValue, const std::filesystem::path &baseDirectory) {

@@ -60,10 +60,7 @@ namespace {
 
   // Use the historical ellipse-normal sampler as one concrete backend of the
   // generalized fluid-element velocity sampling interface.
-  blastwave::FlowFieldSample evaluateCovarianceEllipseFlow(const blastwave::FlowFieldContext &context,
-                                                           double x,
-                                                           double y,
-                                                           const blastwave::FlowFieldParameters &parameters) {
+  blastwave::FlowFieldSample evaluateCovarianceEllipseFlow(const blastwave::FlowFieldContext &context, double x, double y, const blastwave::FlowFieldParameters &parameters) {
     blastwave::FlowFieldSample sample;
     const EllipseMetricSample metric = sampleEllipseMetric(context.ellipse, x, y);
     if (!metric.valid) {
@@ -82,10 +79,7 @@ namespace {
   // Sample the transverse velocity from the density-gradient normal while
   // falling back to the inverse-covariance normal in flat or numerically
   // degenerate regions.
-  blastwave::FlowFieldSample evaluateDensityNormalFlow(const blastwave::FlowFieldContext &context,
-                                                       double x,
-                                                       double y,
-                                                       const blastwave::FlowFieldParameters &parameters) {
+  blastwave::FlowFieldSample evaluateDensityNormalFlow(const blastwave::FlowFieldContext &context, double x, double y, const blastwave::FlowFieldParameters &parameters) {
     blastwave::FlowFieldSample sample;
     const EllipseMetricSample metric = sampleEllipseMetric(context.ellipse, x, y);
     if (!metric.valid) {

@@ -5,6 +5,7 @@
 #include <TTree.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdlib>
 #include <exception>
@@ -32,6 +33,11 @@ namespace {
   bool nearlyEqual(double lhs, double rhs, double relativeTolerance) {
     const double scale = std::max({1.0, std::abs(lhs), std::abs(rhs)});
     return std::abs(lhs - rhs) <= relativeTolerance * scale;
+  }
+
+  std::string toUpperCopy(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char character) { return static_cast<char>(std::toupper(character)); });
+    return value;
   }
 
   double computeExpectedCentrality(double impactParameter) {
@@ -127,6 +133,10 @@ int main(int argc, char **argv) {
     auto *flowEllipseParticipantNormXYInput = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kFlowEllipseParticipantNormXYHistogramName));
     if (inputFile.Get(blastwave::io::kFlowEllipseParticipantNormXYHistogramName) != nullptr && flowEllipseParticipantNormXYInput == nullptr) {
       throw std::runtime_error("Input object 'flow_ellipse_participant_norm_x-y' is not a TH2.");
+    }
+    auto *densityNormalEventDensityInput = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kDensityNormalEventDensityHistogramName));
+    if (inputFile.Get(blastwave::io::kDensityNormalEventDensityHistogramName) != nullptr && densityNormalEventDensityInput == nullptr) {
+      throw std::runtime_error("Input object 'density_normal_event_density_x-y' is not a TH2.");
     }
     if (flowEllipseDebugTree != nullptr && flowEllipseParticipantNormXYInput == nullptr) {
       throw std::runtime_error("Input tree 'flow_ellipse_debug' exists without companion 'flow_ellipse_participant_norm_x-y' histogram.");
@@ -359,6 +369,30 @@ int main(int argc, char **argv) {
       }
       if (flowEllipseParticipantNormXYInput->GetEntries() < static_cast<double>(expectedValidParticipantFillCount)) {
         throw std::runtime_error("flow_ellipse_participant_norm_x-y entries are smaller than valid-event participant fill expectation.");
+      }
+    }
+
+    if (densityNormalEventDensityInput != nullptr) {
+      const std::string drawOption = toUpperCopy(densityNormalEventDensityInput->GetOption());
+      if (drawOption.find("LEGO") == std::string::npos && drawOption.find("SURF") == std::string::npos) {
+        throw std::runtime_error("density_normal_event_density_x-y must default to a 3D ROOT draw option.");
+      }
+
+      bool sawPositiveDensityBin = false;
+      for (int iBinX = 1; iBinX <= densityNormalEventDensityInput->GetNbinsX(); ++iBinX) {
+        for (int iBinY = 1; iBinY <= densityNormalEventDensityInput->GetNbinsY(); ++iBinY) {
+          const double binContent = densityNormalEventDensityInput->GetBinContent(iBinX, iBinY);
+          if (!isFinite(binContent)) {
+            throw std::runtime_error("density_normal_event_density_x-y contains NaN/Inf bin content.");
+          }
+          if (binContent < 0.0) {
+            throw std::runtime_error("density_normal_event_density_x-y contains a negative density bin.");
+          }
+          sawPositiveDensityBin = sawPositiveDensityBin || binContent > 0.0;
+        }
+      }
+      if (!sawPositiveDensityBin) {
+        throw std::runtime_error("density_normal_event_density_x-y must contain at least one positive density bin.");
       }
     }
 

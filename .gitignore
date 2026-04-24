@@ -10,3 +10,5 @@ res/
 *.swp
 .DS_Store
 agent_written/
+tmp/
+outputs/

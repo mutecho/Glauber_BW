@@ -21,6 +21,7 @@ namespace blastwave::io {
   inline constexpr char kCentralityHistogramName[] = "cent";
   inline constexpr char kParticipantXYHistogramName[] = "participant_x-y";
   inline constexpr char kFlowEllipseParticipantNormXYHistogramName[] = "flow_ellipse_participant_norm_x-y";
+  inline constexpr char kDensityNormalEventDensityHistogramName[] = "density_normal_event_density_x-y";
   inline constexpr char kParticipantXYCanvasName[] = "participant_x-y_canvas";
   inline constexpr char kXYHistogramName[] = "x-y";
   inline constexpr char kPxPyHistogramName[] = "px-py";

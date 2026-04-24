@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-04-24 Density-Normal Event Density Snapshot
+
+- Added an optional sampler-specific ROOT object `density_normal_event_density_x-y`.
+- The generator now captures the first event with participants when `flow-velocity-sampler = density-normal` and writes its smeared participant-density field as a `TH2`.
+- Stored that histogram with the default ROOT draw option `LEGO1` so it opens as a 3D height-style visualization instead of a heatmap.
+- Extended the independent QA reader so it validates that object when present:
+  - it must be a `TH2`
+  - its bin contents must be finite and non-negative
+  - it must contain at least one positive density bin
+  - it must advertise a 3D draw option such as `LEGO` or `SURF`
+- Updated the human-facing docs and the project-state ledger for the new sampler-specific output contract.
+
 ## 2026-04-10 Project-State Bootstrap
 
 - Bootstrapped the project coordination ledger on explicit user request.

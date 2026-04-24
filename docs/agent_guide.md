@@ -325,7 +325,12 @@ When `debug-flow-ellipse` is enabled, the file also contains:
 - `flow_ellipse_participant_norm_x-y`
   Aggregate `TH2` of participant coordinates after centroid shift, principal-axis projection, and semi-axis normalization
 
-The QA policy for these optional debug objects is “validate if present, ignore if absent.”
+When `flow-velocity-sampler = density-normal`, the file also contains:
+
+- `density_normal_event_density_x-y`
+  Single-event smeared participant-density `TH2` captured from the first event with participants and stored with the default draw option `LEGO1` so ROOT opens it as a 3D height-style plot
+
+The QA policy for these optional objects is “validate if present, ignore if absent.”
 
 ## Physics And Algorithm Summary
 
@@ -432,6 +437,8 @@ The QA executable additionally validates:
 - mass-shell deviation stays below `1e-4 GeV^2`
 - optional flow-ellipse debug objects, when present, match the recorded entry-count
   and covariance-shape invariants
+- optional `density_normal_event_density_x-y`, when present, is a finite non-negative `TH2`
+  and advertises a 3D draw option such as `LEGO` or `SURF`
 
 ## Known Behavior And Interpretation Notes
 

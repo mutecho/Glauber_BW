@@ -2,10 +2,10 @@
 
 ## Snapshot
 
-- Date: 2026-04-23
+- Date: 2026-04-24
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
 - Branch state: `master` with local fluid-velocity-sampler generalization work plus pre-existing doc and project-state edits in the working tree.
-- Active coordination task: keep the generalized fluid-element velocity sampler surface verified while preserving the covariance-ellipse and event-`v2` baseline.
+- Active coordination task: keep the generalized fluid-element velocity sampler surface verified while exposing a sampler-specific density snapshot for `density-normal`.
 
 ## Confirmed Baseline
 
@@ -16,6 +16,7 @@
   - `events.centrality` derived from the configured fixed `b`
   - `events.v2` derived from the final-state second-harmonic Q-vector magnitude
   - QA objects `Npart`, `eps2`, `psi2`, `v2`, `cent`, `participant_x-y`, `participant_x-y_canvas`, `x-y`, `px-py`, `pT`, `eta`, and `phi`
+  - sampler-specific `density_normal_event_density_x-y` when `flow-velocity-sampler = density-normal`
 - The QA reader now validates:
   - participant tree presence and multiplicity consistency
   - participant histogram/canvas presence
@@ -60,9 +61,14 @@
 - When `debug-flow-ellipse` is enabled, the ROOT writer now additionally emits:
   - `flow_ellipse_debug`
   - `flow_ellipse_participant_norm_x-y`
+- When `flow-velocity-sampler = density-normal`, the ROOT writer now additionally emits:
+  - `density_normal_event_density_x-y`
 - The QA reader now treats those debug objects as optional:
   - absent: ignored
   - present: validated for entry count, finite covariance content, eigenvalue/radius consistency, orthonormal axes, and normalized-participant fill count
+- The QA reader also treats the density-normal snapshot histogram as optional:
+  - absent: ignored
+  - present: validated for finite non-negative bin contents, at least one positive-density bin, and a 3D default draw option (`LEGO`/`SURF`)
 - The build now registers a ROOT-free core regression test target:
   - `test_maxwell_juttner_sampler`
 - The build now also registers:
@@ -144,24 +150,29 @@
 
 - verification_status: `verified`
 - Rationale:
-  - the project was reconfigured, rebuilt, and regression-tested on 2026-04-23 after the fluid-element velocity sampler generalization
+  - the project was rebuilt, regression-tested, and smoke-validated on 2026-04-24 after adding the sampler-specific density-normal event-density snapshot
   - `ctest --output-on-failure` passed with:
     - `test_maxwell_juttner_sampler`
     - `test_output_path_utils`
     - `test_flow_field_model`
     - `test_run_options`
     - `test_physics_utils`
-  - a fresh authoritative O2Physics configure+build passed on 2026-04-23 for the sampler-generalized checkout
-  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-23 for the default covariance-ellipse sampler:
+  - a fresh authoritative O2Physics build passed on 2026-04-24 for the updated checkout
+  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-24 for the default covariance-ellipse sampler:
     - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --output /tmp/blastwave_covariance_sampler_smoke.root`
     - `/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_covariance_sampler_smoke.root --output /tmp/blastwave_covariance_sampler_smoke_validation.root --expect-nevents 20`
   - the covariance-ellipse QA summary was:
     - `validation_passed events=20 particles=7051 mean_Npart=181.6 mean_eps2=0.228879 mean_v2=0.0751083 max_abs_eta_s=7.2615 max_E=631.497 max_mass_shell_deviation=4.0778e-11`
-  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-23 for the `density-normal` sampler:
+  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-24 for the `density-normal` sampler:
     - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --flow-velocity-sampler density-normal --flow-density-sigma 0.5 --output /tmp/blastwave_density_normal_sampler_smoke.root`
     - `/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_density_normal_sampler_smoke.root --output /tmp/blastwave_density_normal_sampler_smoke_validation.root --expect-nevents 20`
   - the density-normal QA summary was:
     - `validation_passed events=20 particles=7051 mean_Npart=181.6 mean_eps2=0.228879 mean_v2=0.0619416 max_abs_eta_s=7.2615 max_E=647.385 max_mass_shell_deviation=7.59367e-11`
+  - authoritative ROOT inspection on 2026-04-24 also confirmed that `/tmp/blastwave_density_normal_sampler_smoke.root` now contains `density_normal_event_density_x-y`
+  - a direct ROOT query under `O2Physics/latest-master-o2` reported:
+    - `DRAW_OPTION: LEGO1`
+    - `MAX_BIN: 5.5882`
+    - `MIN_BIN: 0`
   - authoritative O2Physics diagnosis on 2026-04-23 confirmed that the earlier launcher noise came from a `local1`-built generator running under `ROOTSYS=/Users/allenzhou/ALICE/sw/osx_arm64/ROOT/v6-36-10-alice1-local2`
   - after reconfiguring and rebuilding against `local2`, a fresh outside-sandbox `scripts/run_example_config.sh` run completed without the earlier `TClassTable::Add` or `TCling::LoadPCM` noise and wrote:
     - `/Users/allenzhou/Research_software/Blast_wave/qa/test_b8_5000.root`
