@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-04-28 EventMedium And Emission Interface Refactor
+
+- Replaced the old flow-context language with an `EventMedium` state that separates participant geometry, initial density, emission-stage density, and emission-stage geometry.
+- Added a dedicated `DensityFieldModel` and routed `density-normal` flow plus the optional density snapshot through the same generator-owned emission density.
+- Added an `EmissionSampler` boundary with `EmissionSite` so the generator loop no longer directly owns participant-hotspot smearing.
+- Kept the public CLI/config surface and ROOT output schema unchanged.
+- Added the `test_emission_sampler` regression target and expanded flow/density coverage in `test_flow_field_model`.
+- Added `docs/EventMedium与发射接口设计.md` and refreshed the human-facing docs and project-state ledger for the new extension points.
+
 ## 2026-04-24 Density-Normal Event Density Snapshot
 
 - Added an optional sampler-specific ROOT object `density_normal_event_density_x-y`.

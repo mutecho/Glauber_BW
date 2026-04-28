@@ -49,16 +49,9 @@ namespace {
     return histogram;
   }
 
-  // Rebuild one event's smeared participant density on the writer side so the
-  // ROOT payload can expose a directly inspectable density-normal snapshot.
-  void fillDensityNormalEventDensityHistogram(TH2F &histogram, const blastwave::GeneratedEvent &event, double flowDensitySigma) {
-    std::vector<blastwave::WeightedTransversePoint> participantPoints;
-    participantPoints.reserve(event.participants.size());
-    for (const blastwave::ParticipantRecord &participant : event.participants) {
-      participantPoints.push_back({participant.x, participant.y, 1.0});
-    }
-
-    const blastwave::FlowFieldContext flowContext = blastwave::buildFlowFieldContext(participantPoints, flowDensitySigma);
+  // Serialize the generator-owned emission-stage density so optional debug
+  // output reflects the same medium state used by flow sampling.
+  void fillDensityNormalEventDensityHistogram(TH2F &histogram, const blastwave::GeneratedEvent &event) {
     const std::string histogramTitle = "Density-normal single-event participant density (event " + std::to_string(event.info.eventId)
                                        + ");x [fm];y [fm];#rho(x, y) [fm^{-2}]";
     histogram.SetTitle(histogramTitle.c_str());
@@ -67,7 +60,7 @@ namespace {
       const double x = histogram.GetXaxis()->GetBinCenter(iBinX);
       for (int iBinY = 1; iBinY <= histogram.GetNbinsY(); ++iBinY) {
         const double y = histogram.GetYaxis()->GetBinCenter(iBinY);
-        const blastwave::FlowDensitySample densitySample = blastwave::evaluateDensityField(flowContext, x, y);
+        const blastwave::DensityFieldSample densitySample = blastwave::evaluateDensityField(event.medium.emissionDensity, x, y);
         histogram.SetBinContent(iBinX, iBinY, densitySample.density);
       }
     }
@@ -119,22 +112,22 @@ namespace {
   blastwave::io::FlowEllipseDebugBranches toFlowEllipseDebugBranches(const blastwave::GeneratedEvent &event) {
     blastwave::io::FlowEllipseDebugBranches branches;
     branches.eventId = static_cast<Int_t>(event.info.eventId);
-    branches.valid = static_cast<Bool_t>(event.flowEllipse.valid);
-    branches.centerX = event.flowEllipse.centerX;
-    branches.centerY = event.flowEllipse.centerY;
-    branches.sigmaX2 = event.flowEllipse.sigmaX2;
-    branches.sigmaY2 = event.flowEllipse.sigmaY2;
-    branches.sigmaXY = event.flowEllipse.sigmaXY;
-    branches.lambdaMajor = event.flowEllipse.lambdaMajor;
-    branches.lambdaMinor = event.flowEllipse.lambdaMinor;
-    branches.radiusMajor = event.flowEllipse.radiusMajor;
-    branches.radiusMinor = event.flowEllipse.radiusMinor;
-    branches.majorAxisX = event.flowEllipse.majorAxisX;
-    branches.majorAxisY = event.flowEllipse.majorAxisY;
-    branches.minorAxisX = event.flowEllipse.minorAxisX;
-    branches.minorAxisY = event.flowEllipse.minorAxisY;
-    branches.eps2 = event.flowEllipse.eps2;
-    branches.psi2 = event.flowEllipse.psi2;
+    branches.valid = static_cast<Bool_t>(event.medium.emissionGeometry.valid);
+    branches.centerX = event.medium.emissionGeometry.centerX;
+    branches.centerY = event.medium.emissionGeometry.centerY;
+    branches.sigmaX2 = event.medium.emissionGeometry.sigmaX2;
+    branches.sigmaY2 = event.medium.emissionGeometry.sigmaY2;
+    branches.sigmaXY = event.medium.emissionGeometry.sigmaXY;
+    branches.lambdaMajor = event.medium.emissionGeometry.lambdaMajor;
+    branches.lambdaMinor = event.medium.emissionGeometry.lambdaMinor;
+    branches.radiusMajor = event.medium.emissionGeometry.radiusMajor;
+    branches.radiusMinor = event.medium.emissionGeometry.radiusMinor;
+    branches.majorAxisX = event.medium.emissionGeometry.majorAxisX;
+    branches.majorAxisY = event.medium.emissionGeometry.majorAxisY;
+    branches.minorAxisX = event.medium.emissionGeometry.minorAxisX;
+    branches.minorAxisY = event.medium.emissionGeometry.minorAxisY;
+    branches.eps2 = event.medium.emissionGeometry.eps2;
+    branches.psi2 = event.medium.emissionGeometry.psi2;
     return branches;
   }
 
@@ -221,14 +214,15 @@ namespace blastwave::app {
 
         // Build normalized participant coordinates in the principal-axis frame:
         // center-shift -> axis projection -> divide by corresponding semi-axis.
-        if (hFlowEllipseParticipantNormXY != nullptr && event.flowEllipse.valid && event.flowEllipse.radiusMajor > 0.0 && event.flowEllipse.radiusMinor > 0.0
-            && std::isfinite(event.flowEllipse.radiusMajor) && std::isfinite(event.flowEllipse.radiusMinor)) {
-          const double dx = participant.x - event.flowEllipse.centerX;
-          const double dy = participant.y - event.flowEllipse.centerY;
-          const double xPrime = dx * event.flowEllipse.majorAxisX + dy * event.flowEllipse.majorAxisY;
-          const double yPrime = dx * event.flowEllipse.minorAxisX + dy * event.flowEllipse.minorAxisY;
-          const double normalizedX = xPrime / event.flowEllipse.radiusMajor;
-          const double normalizedY = yPrime / event.flowEllipse.radiusMinor;
+        if (hFlowEllipseParticipantNormXY != nullptr && event.medium.emissionGeometry.valid && event.medium.emissionGeometry.radiusMajor > 0.0
+            && event.medium.emissionGeometry.radiusMinor > 0.0 && std::isfinite(event.medium.emissionGeometry.radiusMajor)
+            && std::isfinite(event.medium.emissionGeometry.radiusMinor)) {
+          const double dx = participant.x - event.medium.emissionGeometry.centerX;
+          const double dy = participant.y - event.medium.emissionGeometry.centerY;
+          const double xPrime = dx * event.medium.emissionGeometry.majorAxisX + dy * event.medium.emissionGeometry.majorAxisY;
+          const double yPrime = dx * event.medium.emissionGeometry.minorAxisX + dy * event.medium.emissionGeometry.minorAxisY;
+          const double normalizedX = xPrime / event.medium.emissionGeometry.radiusMajor;
+          const double normalizedY = yPrime / event.medium.emissionGeometry.radiusMinor;
           hFlowEllipseParticipantNormXY->Fill(normalizedX, normalizedY);
         }
       }
@@ -253,7 +247,7 @@ namespace blastwave::app {
       }
 
       hDensityNormalEventDensity = makeDensityNormalEventDensityHistogram(config);
-      fillDensityNormalEventDensityHistogram(*hDensityNormalEventDensity, event, config.flowDensitySigma);
+      fillDensityNormalEventDensityHistogram(*hDensityNormalEventDensity, event);
     }
 
     // Finalize the embedded QA objects and persist the full output contract into

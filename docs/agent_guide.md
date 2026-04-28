@@ -37,11 +37,17 @@ Not implemented in v1:
 - `src/BlastWaveGeneratorGeometry.cpp`
   Participant sampling and event-shape extraction.
 - `src/BlastWaveGeneratorSampling.cpp`
-  Multiplicity, source, thermal momentum, flow, and boost sampling.
+  Source rapidity, thermal momentum, flow composition, and boost sampling.
 - `src/BlastWaveGeneratorValidation.cpp`
   Generator-side validation and config checks.
+- `include/blastwave/DensityFieldModel.h` and `src/FlowFieldDensity.cpp`
+  ROOT-free Gaussian point-cloud density field and analytic gradient evaluation.
+- `include/blastwave/EventMedium.h` and `src/EventMedium.cpp`
+  Event-level medium assembly with participant geometry, initial density, emission density, and emission geometry.
+- `include/blastwave/EmissionSampler.h` and `src/EmissionSampler.cpp`
+  Transverse emission-site sampling; the current backend preserves participant-hotspot multiplicity and smear.
 - `include/blastwave/FlowFieldModel.h` and `src/FlowFieldModel.cpp`
-  ROOT-free participant covariance ellipse and ellipse-normal flow evaluation.
+  ROOT-free flow evaluation over the event medium.
 - `include/blastwave/PhysicsUtils.h` and `src/PhysicsUtils.cpp`
   Shared helpers for azimuth, pseudorapidity, `centrality`, and event-level `v2`.
 - `apps/generate_blastwave_events.cpp`
@@ -88,6 +94,8 @@ Build products:
 - executable: `bin/test_flow_field_model`
 - executable: `bin/test_physics_utils`
 - executable: `bin/test_output_path_utils`
+- executable: `bin/test_emission_sampler`
+- executable: `bin/test_run_options`
 - compilation database: `build/compile_commands.json`
 
 ROOT-free core regression test:
@@ -237,7 +245,11 @@ Key data contracts:
   - final four-momentum
   - source-space metadata
 - `GeneratedEvent`
-  Bundles one `EventInfo`, one `FlowEllipseInfo`, participant records, and particle records.
+  Bundles one `EventInfo`, one `EventMedium`, participant records, and particle records.
+- `EventMedium`
+  Per-event ROOT-free medium state with participant geometry, initial density, emission-stage density, and emission-stage geometry. The current density evolution mode is the identity map, so initial and emission-stage fields are equal.
+- `EmissionSite`
+  Internal transverse emission sample with `position` written to particle `x/y` and `sourceAnchor` written to legacy `source_x/source_y`.
 - `BlastWaveGenerator`
   Main class:
   - constructor `explicit BlastWaveGenerator(BlastWaveConfig config)`
@@ -369,9 +381,17 @@ Interpretation:
   - Poisson draw for multiplicity
 - This is an NBD-like fluctuation model controlled by `nbdMu` and `nbdK`.
 
-### 4. Emission Coordinates
+### 4. Event Medium And Emission Coordinates
+
+- The generator first builds an `EventMedium` from participant points.
+- The medium keeps separate names for `initialDensity` and `emissionDensity`; they are currently identical because density evolution is `None`.
+- The participant geometry continues to define `events.eps2` and `events.psi2`.
+- The emission geometry and emission density are the flow/emission query surfaces future density-expansion backends should replace.
+- The current emission sampler is still `ParticipantHotspot`.
 
 - The hotspot position is transversely smeared with a Gaussian of width `smearSigma`.
+- The sampled `EmissionSite::position` becomes particle `x/y`.
+- The unsmeared participant anchor becomes particle `source_x/source_y`.
 - Emission proper time is fixed:
   - `t = tau0 * cosh(eta_s)`
   - `z = tau0 * sinh(eta_s)`
@@ -399,6 +419,7 @@ This keeps the core ROOT-free while upgrading the default thermal spectrum beyon
 ### 7. Flow Field
 
 - Build the participant covariance ellipse from the event centroid and second moments.
+- Store that ellipse as both `participantGeometry` and, for the current identity evolution, `emissionGeometry`.
 - Diagonalize it analytically to recover `lambdaMajor`, `lambdaMinor`, `radiusMajor`, `radiusMinor`, and a deterministic right-handed principal-axis basis.
 - For each emission point:
   - shift by the event centroid
@@ -408,6 +429,7 @@ This keeps the core ROOT-free while upgrading the default thermal spectrum beyon
   - evaluate `rhoRaw = pow(rTilde, flowPower) * (rho0 + rho2 * eps2 * cos(2 * phiB))`
   - convert to `betaT = tanh(max(0, rhoRaw))`, clipped to `0.95`
 - Combine the transverse ellipse-normal flow with `eta_s` in a Bjorken-like flow field.
+- The `density-normal` sampler reads the shared `emissionDensity` gradient and falls back to `emissionGeometry` in flat or degenerate regions.
 
 ### 8. Proper Boost
 
@@ -446,6 +468,7 @@ The QA executable additionally validates:
 - `eta` is controlled by the source `eta_s` profile, but the final particle `eta` is not expected to match experimental charged-hadron data exactly because the model has only one direct pion species and no resonance feed-down.
 - A raw inclusive `px-py` histogram is a weak anisotropy diagnostic because low-`pT` thermal particles dominate the density. Use `phi`, `v2`, or high-`pT` cuts if directional anisotropy needs to be diagnosed more sharply.
 - `eps2` is an initial-state participant-shape observable, while `v2` is a final-state event observable reconstructed from particle azimuths. They are related but not interchangeable.
+- The code now separates `participantGeometry` from `emissionGeometry` so future density evolution can alter the emission medium without changing the event-summary `eps2/psi2` definition.
 - `Nch` in v1 means the number of generated particles in the event, not a realistic detector-level charged multiplicity.
 - Events with `Npart = 0` or `Npart = 1` are legal and remain in the `events` tree.
 

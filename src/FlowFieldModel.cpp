@@ -4,6 +4,8 @@
 #include <cmath>
 #include <limits>
 
+#include "blastwave/EventMedium.h"
+
 namespace {
 
   constexpr double kBetaTMax = 0.95;
@@ -60,16 +62,16 @@ namespace {
 
   // Use the historical ellipse-normal sampler as one concrete backend of the
   // generalized fluid-element velocity sampling interface.
-  blastwave::FlowFieldSample evaluateCovarianceEllipseFlow(const blastwave::FlowFieldContext &context, double x, double y, const blastwave::FlowFieldParameters &parameters) {
+  blastwave::FlowFieldSample evaluateCovarianceEllipseFlow(const blastwave::EventMedium &medium, double x, double y, const blastwave::FlowFieldParameters &parameters) {
     blastwave::FlowFieldSample sample;
-    const EllipseMetricSample metric = sampleEllipseMetric(context.ellipse, x, y);
+    const EllipseMetricSample metric = sampleEllipseMetric(medium.emissionGeometry, x, y);
     if (!metric.valid) {
       return sample;
     }
 
     sample.rTilde = metric.rTilde;
     sample.phiB = std::atan2(metric.qMinor, metric.qMajor);
-    sample.rhoRaw = std::pow(sample.rTilde, parameters.flowPower) * (parameters.rho0 + parameters.rho2 * context.ellipse.eps2 * std::cos(2.0 * sample.phiB));
+    sample.rhoRaw = std::pow(sample.rTilde, parameters.flowPower) * (parameters.rho0 + parameters.rho2 * medium.emissionGeometry.eps2 * std::cos(2.0 * sample.phiB));
     sample.betaT = computeBetaT(sample.rhoRaw);
     sample.betaX = sample.betaT * metric.normalX;
     sample.betaY = sample.betaT * metric.normalY;
@@ -79,16 +81,16 @@ namespace {
   // Sample the transverse velocity from the density-gradient normal while
   // falling back to the inverse-covariance normal in flat or numerically
   // degenerate regions.
-  blastwave::FlowFieldSample evaluateDensityNormalFlow(const blastwave::FlowFieldContext &context, double x, double y, const blastwave::FlowFieldParameters &parameters) {
+  blastwave::FlowFieldSample evaluateDensityNormalFlow(const blastwave::EventMedium &medium, double x, double y, const blastwave::FlowFieldParameters &parameters) {
     blastwave::FlowFieldSample sample;
-    const EllipseMetricSample metric = sampleEllipseMetric(context.ellipse, x, y);
+    const EllipseMetricSample metric = sampleEllipseMetric(medium.emissionGeometry, x, y);
     if (!metric.valid) {
       return sample;
     }
 
-    const blastwave::FlowDensitySample densitySample = blastwave::evaluateDensityField(context, x, y);
+    const blastwave::DensityFieldSample densitySample = blastwave::evaluateDensityField(medium.emissionDensity, x, y);
     const double gradientMagnitude = std::hypot(densitySample.gradientX, densitySample.gradientY);
-    const double flatness = gradientMagnitude * context.flowDensitySigma / std::max(densitySample.density, kDensityEpsilon);
+    const double flatness = gradientMagnitude * medium.emissionDensity.gaussianSigma / std::max(densitySample.density, kDensityEpsilon);
 
     double normalX = 0.0;
     double normalY = 0.0;
@@ -120,12 +122,12 @@ namespace {
 
 namespace blastwave {
 
-  FlowFieldSample evaluateFlowField(const FlowFieldContext &context, double x, double y, const FlowFieldParameters &parameters) {
+  FlowFieldSample evaluateFlowField(const EventMedium &medium, double x, double y, const FlowFieldParameters &parameters) {
     switch (parameters.velocitySamplerMode) {
       case FlowVelocitySamplerMode::CovarianceEllipse:
-        return evaluateCovarianceEllipseFlow(context, x, y, parameters);
+        return evaluateCovarianceEllipseFlow(medium, x, y, parameters);
       case FlowVelocitySamplerMode::DensityNormal:
-        return evaluateDensityNormalFlow(context, x, y, parameters);
+        return evaluateDensityNormalFlow(medium, x, y, parameters);
     }
 
     return {};

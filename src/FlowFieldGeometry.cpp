@@ -103,14 +103,4 @@ namespace blastwave {
     return ellipse;
   }
 
-  // Capture the event-level geometry and density-reconstruction inputs once so
-  // per-particle velocity sampling can stay a thin query over cached state.
-  FlowFieldContext buildFlowFieldContext(const std::vector<WeightedTransversePoint> &points, double flowDensitySigma) {
-    FlowFieldContext context;
-    context.ellipse = computeFlowEllipseInfo(points);
-    context.participantPoints = points;
-    context.flowDensitySigma = flowDensitySigma;
-    return context;
-  }
-
 }  // namespace blastwave

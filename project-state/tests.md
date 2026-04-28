@@ -244,3 +244,36 @@
   - direct ROOT histogram query: `STATUS: FOUND`, `DRAW_OPTION: LEGO1`, `MAX_BIN: 5.5882`, `MIN_BIN: 0`
   - implementation note: the new surface keeps the mandatory ROOT payload unchanged while adding only runtime sampler selection, density-kernel width controls, and the optional sampler-specific `density_normal_event_density_x-y` `TH2`
 - verification_status: `verified`
+
+## T-009 EventMedium And Emission Interface Refactor
+
+- Status: passed
+- Purpose: verify that the internal `EventMedium` / `EmissionSite` refactor preserves the ROOT contract while removing the old `FlowFieldContext` interface.
+- Execution shape:
+  - rebuild the checkout
+  - run ROOT-free regression tests
+  - run one authoritative default covariance-ellipse generate+QA smoke
+  - run one authoritative `density-normal` generate+QA smoke
+  - inspect the density-normal ROOT file for the optional density snapshot object
+- Existing evidence:
+  - local commands executed on 2026-04-28:
+    - `cmake --build /Users/allenzhou/Research_software/Blast_wave/build --target generate_blastwave_events qa_blastwave_output test_flow_field_model test_emission_sampler test_maxwell_juttner_sampler test_output_path_utils test_run_options test_physics_utils -j4`
+    - `cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-failure`
+  - authoritative outside-sandbox O2Physics commands executed on 2026-04-28:
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc 'cmake --preset default -S /Users/allenzhou/Research_software/Blast_wave'"`
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc 'cmake --build /Users/allenzhou/Research_software/Blast_wave/build'"`
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --output /tmp/blastwave_eventmedium_covariance_smoke.root'"`
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_eventmedium_covariance_smoke.root --output /tmp/blastwave_eventmedium_covariance_smoke_validation.root --expect-nevents 20'"`
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --flow-velocity-sampler density-normal --flow-density-sigma 0.5 --output /tmp/blastwave_eventmedium_density_normal_smoke.root'"`
+    - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_eventmedium_density_normal_smoke.root --output /tmp/blastwave_eventmedium_density_normal_smoke_validation.root --expect-nevents 20'"`
+    - `bash /Users/allenzhou/.codex/skills/cern_root/root-file-inspector/scripts/run_inspect_root_file.sh /tmp/blastwave_eventmedium_density_normal_smoke.root --max-keys 80`
+- Current result:
+  - ROOT-free tests: passed
+  - registered tests now include `test_emission_sampler`
+  - default covariance-ellipse authoritative smoke: passed
+  - covariance-ellipse QA summary: `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0924968 max_abs_eta_s=6.67501 max_E=984.787 max_mass_shell_deviation=3.58382e-11`
+  - `density-normal` authoritative smoke: passed
+  - density-normal QA summary: `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0552974 max_abs_eta_s=6.67501 max_E=977.704 max_mass_shell_deviation=1.01809e-10`
+  - ROOT file inspection: `RUNTIME_STATUS: PRIMARY_OK`, `STATUS: OK`, `density_normal_event_density_x-y [TH2F]` present with `entries=40000`
+  - source search confirmed no tracked code occurrence of `FlowFieldContext`, `buildFlowFieldContext`, or `FlowDensitySample`
+- verification_status: `verified`

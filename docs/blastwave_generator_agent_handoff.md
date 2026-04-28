@@ -10,22 +10,33 @@
 - The default transverse flow model is the participant covariance-ellipse normal field implemented in:
   - `include/blastwave/FlowFieldModel.h`
   - `src/FlowFieldModel.cpp`
+- The internal event-medium and emission extension points are implemented in:
+  - `include/blastwave/DensityFieldModel.h`
+  - `include/blastwave/EventMedium.h`
+  - `include/blastwave/EmissionSampler.h`
+  - `src/EventMedium.cpp`
+  - `src/EmissionSampler.cpp`
 - The current public flow surface is:
   - `rho0`
   - `rho2`
   - `flow-power`
+  - `flow-velocity-sampler`
+  - `flow-density-sigma`
   - `debug-flow-ellipse`
 - Legacy flow knobs `vmax`, `kappa2`, and `r-ref` are no longer accepted; they fail fast with migration guidance.
 - Event summaries now carry both:
   - initial-state geometry observables `eps2` and `psi2`
   - final-state event observable `v2`
   - fixed-`b` mapping observable `centrality`
-- `GeneratedEvent` now carries `FlowEllipseInfo` so the ROOT writer and QA code do not need to duplicate covariance math.
+- `GeneratedEvent` now carries `EventMedium`, whose `participantGeometry` defines event-summary `eps2/psi2` while `emissionDensity` and `emissionGeometry` are the future density-evolution insertion points.
 
 ## Key Source Evidence
 
 - Public data contracts:
   - `include/blastwave/BlastWaveGenerator.h`
+  - `include/blastwave/DensityFieldModel.h`
+  - `include/blastwave/EventMedium.h`
+  - `include/blastwave/EmissionSampler.h`
   - `include/blastwave/FlowFieldModel.h`
   - `include/blastwave/io/RootOutputSchema.h`
 - Runtime surface:
@@ -37,6 +48,7 @@
   - `src/PhysicsUtils.cpp`
 - Regression coverage:
   - `tests/FlowFieldModelTest.cpp`
+  - `tests/EmissionSamplerTest.cpp`
   - `tests/PhysicsUtilsTest.cpp`
   - `tests/MaxwellJuttnerMomentumSamplerTest.cpp`
 
@@ -97,6 +109,8 @@
 - Optional debug payload, emitted only when `debug-flow-ellipse` is enabled:
   - `flow_ellipse_debug`
   - `flow_ellipse_participant_norm_x-y`
+- Optional sampler-specific payload, emitted only when `flow-velocity-sampler = density-normal`:
+  - `density_normal_event_density_x-y`
 
 ### QA Behavior
 
@@ -110,6 +124,9 @@
 - The QA reader conditionally validates flow-ellipse debug objects:
   - absent: ignored
   - present: checked for entry counts, finite covariance content, eigenvalue/radius consistency, orthonormal axes, and normalized-participant fill counts
+- The QA reader conditionally validates `density_normal_event_density_x-y`:
+  - absent: ignored
+  - present: checked as a finite non-negative `TH2` with positive support and a 3D draw option
 
 ## Verification Snapshot
 
@@ -117,6 +134,8 @@
   - `test_maxwell_juttner_sampler`
   - `test_output_path_utils`
   - `test_flow_field_model`
+  - `test_emission_sampler`
+  - `test_run_options`
   - `test_physics_utils`
 - The current durable verification baseline is recorded in `project-state/current-status.md` and `project-state/tests.md`.
 - The authoritative runtime path on this machine is still the outside-sandbox O2Physics `alienv` path; sandboxed ROOT smoke output is not the source of truth when PCM/module noise appears.
@@ -125,4 +144,6 @@
 
 - Regenerate long-lived sample files in `qa/` when one fully current reference artifact set is needed for reuse.
 - Preserve the explicit `ROOT::HistPainter` link and the launcher ROOT-alignment preflight while `participant_x-y_canvas` remains part of the mandatory output contract.
+- Add future density evolution in `buildEventMedium()` by updating `emissionDensity` / `emissionGeometry`, not by changing the `participantGeometry` event-summary contract.
+- Add future emission backends behind `sampleEmissionSites()` and continue returning `EmissionSite`.
 - When future changes touch output schema or public knobs, update `docs/agent_guide.md`, `docs/项目说明.md`, and `project-state/guide.md` in the same patch so coordination docs do not drift again.

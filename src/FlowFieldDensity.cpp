@@ -1,4 +1,4 @@
-#include "blastwave/FlowFieldModel.h"
+#include "blastwave/DensityFieldModel.h"
 
 #include <cmath>
 
@@ -10,19 +10,26 @@ namespace {
 
 namespace blastwave {
 
-  // Evaluate the smeared participant density and its analytic Gaussian
-  // gradient so density-normal velocity sampling never falls back to
-  // finite-difference noise.
-  FlowDensitySample evaluateDensityField(const FlowFieldContext &context, double x, double y) {
-    FlowDensitySample sample;
-    if (!std::isfinite(context.flowDensitySigma) || context.flowDensitySigma <= 0.0) {
+  DensityField buildGaussianPointCloudDensityField(const std::vector<WeightedTransversePoint> &points, double gaussianSigma) {
+    DensityField field;
+    field.supportPoints = points;
+    field.gaussianSigma = gaussianSigma;
+    return field;
+  }
+
+  // Evaluate the analytic Gaussian point-cloud density and gradient so
+  // density-normal flow can use the same field that emission/evolution code
+  // will later expose.
+  DensityFieldSample evaluateDensityField(const DensityField &field, double x, double y) {
+    DensityFieldSample sample;
+    if (!std::isfinite(field.gaussianSigma) || field.gaussianSigma <= 0.0) {
       return sample;
     }
 
-    const double sigma2 = context.flowDensitySigma * context.flowDensitySigma;
+    const double sigma2 = field.gaussianSigma * field.gaussianSigma;
     const double inverseSigma2 = 1.0 / sigma2;
     const double normalization = 1.0 / (2.0 * kPi * sigma2);
-    for (const WeightedTransversePoint &point : context.participantPoints) {
+    for (const WeightedTransversePoint &point : field.supportPoints) {
       if (!std::isfinite(point.weight) || point.weight <= 0.0) {
         continue;
       }

@@ -83,17 +83,17 @@ namespace blastwave {
     }
   }
 
-  // Convert the generator-owned participant records into the shared ROOT-free
-  // flow context so geometry and density reconstruction stay out of the
-  // generator orchestration layer.
-  FlowFieldContext BlastWaveGenerator::buildFlowContext(const std::vector<Nucleon> &participants) const {
+  // Convert generator-owned participants into the shared event-medium state so
+  // geometry, density reconstruction, and future density evolution stay out of
+  // the generator orchestration layer.
+  EventMedium BlastWaveGenerator::buildMedium(const std::vector<Nucleon> &participants) const {
     std::vector<WeightedTransversePoint> weightedPoints;
     weightedPoints.reserve(participants.size());
     for (const Nucleon &participant : participants) {
       weightedPoints.push_back({participant.x, participant.y, 1.0});
     }
 
-    return buildFlowFieldContext(weightedPoints, config_.flowDensitySigma);
+    return buildEventMedium(weightedPoints, {DensityEvolutionMode::None, config_.flowDensitySigma});
   }
 
 }  // namespace blastwave

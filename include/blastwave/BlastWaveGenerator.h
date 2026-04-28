@@ -5,7 +5,8 @@
 #include <random>
 #include <vector>
 
-#include "blastwave/FlowFieldModel.h"
+#include "blastwave/EmissionSampler.h"
+#include "blastwave/EventMedium.h"
 #include "blastwave/MaxwellJuttnerMomentumSampler.h"
 
 namespace blastwave {
@@ -81,7 +82,7 @@ namespace blastwave {
 
   struct GeneratedEvent {
     EventInfo info;
-    FlowEllipseInfo flowEllipse;
+    EventMedium medium;
     std::vector<ParticipantRecord> participants;
     std::vector<ParticleRecord> particles;
   };
@@ -101,11 +102,6 @@ namespace blastwave {
       bool participant = false;
     };
 
-    struct SpatialPoint {
-      double x = 0.0;
-      double y = 0.0;
-    };
-
     struct FourMomentum {
       double px = 0.0;
       double py = 0.0;
@@ -121,12 +117,11 @@ namespace blastwave {
 
     [[nodiscard]] std::vector<Nucleon> sampleParticipants();
     [[nodiscard]] Nucleon sampleSingleNucleon(double xShift, int nucleusId);
-    [[nodiscard]] FlowFieldContext buildFlowContext(const std::vector<Nucleon> &participants) const;
-    [[nodiscard]] int sampleMultiplicity();
-    [[nodiscard]] SpatialPoint smearSource(const Nucleon &participant);
+    [[nodiscard]] EventMedium buildMedium(const std::vector<Nucleon> &participants) const;
+    [[nodiscard]] std::vector<EmissionSite> sampleEventEmissionSites(const EventMedium &medium);
     [[nodiscard]] double sampleEtaS();
     [[nodiscard]] FourMomentum sampleThermalMomentum();
-    [[nodiscard]] FlowVelocity sampleFlowVelocity(const SpatialPoint &emissionPoint, double etaS, const FlowFieldContext &flowContext) const;
+    [[nodiscard]] FlowVelocity sampleFlowVelocity(const TransversePoint &emissionPoint, double etaS, const EventMedium &medium) const;
     [[nodiscard]] FourMomentum lorentzBoost(const FourMomentum &localMomentum, const FlowVelocity &beta) const;
     void validateParticle(const ParticleRecord &particle) const;
     void validateConfig() const;

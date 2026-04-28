@@ -2,20 +2,12 @@
 
 #include <vector>
 
+#include "blastwave/DensityFieldModel.h"
+
 namespace blastwave {
 
   enum class FlowVelocitySamplerMode { CovarianceEllipse, DensityNormal };
-
-  /**
-   * Lightweight transverse participant representation used by the ROOT-free
-   * flow-field model. The first implementation keeps unit weights in the
-   * generator and leaves the explicit weight slot for future extensions.
-   */
-  struct WeightedTransversePoint {
-    double x = 0.0;
-    double y = 0.0;
-    double weight = 1.0;
-  };
+  struct EventMedium;
 
   /**
    * Event-level covariance ellipse recovered from the participant cloud.
@@ -45,25 +37,6 @@ namespace blastwave {
   };
 
   /**
-   * Event-level flow context assembled once from the participant cloud and
-   * reused for every emission-point velocity query in that event.
-   */
-  struct FlowFieldContext {
-    FlowEllipseInfo ellipse;
-    std::vector<WeightedTransversePoint> participantPoints;
-    double flowDensitySigma = 0.5;
-  };
-
-  /**
-   * Analytic density and gradient sample for the smeared participant field.
-   */
-  struct FlowDensitySample {
-    double density = 0.0;
-    double gradientX = 0.0;
-    double gradientY = 0.0;
-  };
-
-  /**
    * Public parameters controlling the fluid-element velocity sampler.
    */
   struct FlowFieldParameters {
@@ -88,8 +61,6 @@ namespace blastwave {
   };
 
   [[nodiscard]] FlowEllipseInfo computeFlowEllipseInfo(const std::vector<WeightedTransversePoint> &points);
-  [[nodiscard]] FlowFieldContext buildFlowFieldContext(const std::vector<WeightedTransversePoint> &points, double flowDensitySigma);
-  [[nodiscard]] FlowDensitySample evaluateDensityField(const FlowFieldContext &context, double x, double y);
-  [[nodiscard]] FlowFieldSample evaluateFlowField(const FlowFieldContext &context, double x, double y, const FlowFieldParameters &parameters);
+  [[nodiscard]] FlowFieldSample evaluateFlowField(const EventMedium &medium, double x, double y, const FlowFieldParameters &parameters);
 
 }  // namespace blastwave

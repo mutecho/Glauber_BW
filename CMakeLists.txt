@@ -17,6 +17,8 @@ add_library(blastwave_core
   src/BlastWaveGeneratorGeometry.cpp
   src/BlastWaveGeneratorSampling.cpp
   src/BlastWaveGeneratorValidation.cpp
+  src/EmissionSampler.cpp
+  src/EventMedium.cpp
   src/FlowFieldDensity.cpp
   src/FlowFieldGeometry.cpp
   src/FlowFieldModel.cpp
@@ -191,6 +193,30 @@ add_test(
   COMMAND $<TARGET_FILE:test_flow_field_model>
 )
 
+add_executable(test_emission_sampler
+  tests/EmissionSamplerTest.cpp
+)
+
+target_compile_options(test_emission_sampler
+  PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wshadow
+    -Wconversion
+    -Wsign-conversion
+)
+
+target_link_libraries(test_emission_sampler
+  PRIVATE
+    blastwave_core
+)
+
+add_test(
+  NAME test_emission_sampler
+  COMMAND $<TARGET_FILE:test_emission_sampler>
+)
+
 add_executable(test_run_options
   apps/generate_blastwave/RunOptions.cpp
   tests/RunOptionsTest.cpp
@@ -241,7 +267,7 @@ add_test(
   COMMAND $<TARGET_FILE:test_physics_utils>
 )
 
-set_target_properties(generate_blastwave_events qa_blastwave_output test_maxwell_juttner_sampler test_output_path_utils test_flow_field_model test_run_options test_physics_utils
+set_target_properties(generate_blastwave_events qa_blastwave_output test_maxwell_juttner_sampler test_output_path_utils test_flow_field_model test_emission_sampler test_run_options test_physics_utils
   PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin
 )

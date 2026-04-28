@@ -25,16 +25,17 @@ namespace blastwave {
     info.impactParameter = config_.impactParameter;
     info.nParticipants = static_cast<int>(participants.size());
 
-    const FlowFieldContext flowContext = buildFlowContext(participants);
-    info.eps2 = flowContext.ellipse.eps2;
-    info.psi2 = flowContext.ellipse.psi2;
+    const EventMedium medium = buildMedium(participants);
+    info.eps2 = medium.participantGeometry.eps2;
+    info.psi2 = medium.participantGeometry.psi2;
     info.centrality = computeCentralityPercent(config_.impactParameter, config_.woodsSaxonRadius);
 
     GeneratedEvent event;
     event.info = info;
-    event.flowEllipse = flowContext.ellipse;
+    event.medium = medium;
     event.participants.reserve(participants.size());
-    event.particles.reserve(static_cast<std::size_t>(std::max(0, info.nParticipants)) * 4U);
+    const std::vector<EmissionSite> emissionSites = sampleEventEmissionSites(event.medium);
+    event.particles.reserve(emissionSites.size());
     double q2x = 0.0;
     double q2y = 0.0;
 
@@ -50,42 +51,38 @@ namespace blastwave {
       event.participants.push_back(participantRecord);
     }
 
-    // Emit particles by smearing each participant hotspot, sampling the local
-    // rest-frame spectrum, and boosting into the lab frame through the flow field.
-    for (const Nucleon &participant : participants) {
-      const int multiplicity = sampleMultiplicity();
-      for (int iParticle = 0; iParticle < multiplicity; ++iParticle) {
-        const SpatialPoint emissionPoint = smearSource(participant);
-        const double etaS = sampleEtaS();
-        const FlowVelocity beta = sampleFlowVelocity(emissionPoint, etaS, flowContext);
-        const FourMomentum localMomentum = sampleThermalMomentum();
-        const FourMomentum boostedMomentum = lorentzBoost(localMomentum, beta);
+    // Emit particles from sampler-provided sites so future density-field
+    // backends can replace hotspot smearing without changing momentum/flow code.
+    for (const EmissionSite &emissionSite : emissionSites) {
+      const double etaS = sampleEtaS();
+      const FlowVelocity beta = sampleFlowVelocity(emissionSite.position, etaS, event.medium);
+      const FourMomentum localMomentum = sampleThermalMomentum();
+      const FourMomentum boostedMomentum = lorentzBoost(localMomentum, beta);
 
-        ParticleRecord particle;
-        particle.eventId = eventId;
-        particle.pid = config_.pid;
-        particle.charge = config_.charge;
-        particle.mass = config_.mass;
-        particle.x = emissionPoint.x;
-        particle.y = emissionPoint.y;
-        particle.z = config_.tau0 * std::sinh(etaS);
-        particle.t = config_.tau0 * std::cosh(etaS);
-        particle.px = boostedMomentum.px;
-        particle.py = boostedMomentum.py;
-        particle.pz = boostedMomentum.pz;
-        particle.energy = boostedMomentum.energy;
-        particle.etaS = etaS;
-        particle.sourceX = participant.x;
-        particle.sourceY = participant.y;
+      ParticleRecord particle;
+      particle.eventId = eventId;
+      particle.pid = config_.pid;
+      particle.charge = config_.charge;
+      particle.mass = config_.mass;
+      particle.x = emissionSite.position.x;
+      particle.y = emissionSite.position.y;
+      particle.z = config_.tau0 * std::sinh(etaS);
+      particle.t = config_.tau0 * std::cosh(etaS);
+      particle.px = boostedMomentum.px;
+      particle.py = boostedMomentum.py;
+      particle.pz = boostedMomentum.pz;
+      particle.energy = boostedMomentum.energy;
+      particle.etaS = etaS;
+      particle.sourceX = emissionSite.sourceAnchor.x;
+      particle.sourceY = emissionSite.sourceAnchor.y;
 
-        validateParticle(particle);
-        // Accumulate the final-state second-harmonic Q-vector while the boosted
-        // momentum is still in hand so the event summary stays ROOT-free.
-        const double phi = computeAzimuth(particle.px, particle.py);
-        q2x += std::cos(2.0 * phi);
-        q2y += std::sin(2.0 * phi);
-        event.particles.push_back(particle);
-      }
+      validateParticle(particle);
+      // Accumulate the final-state second-harmonic Q-vector while the boosted
+      // momentum is still in hand so the event summary stays ROOT-free.
+      const double phi = computeAzimuth(particle.px, particle.py);
+      q2x += std::cos(2.0 * phi);
+      q2y += std::sin(2.0 * phi);
+      event.particles.push_back(particle);
     }
 
     event.info.nCharged = static_cast<int>(event.particles.size());

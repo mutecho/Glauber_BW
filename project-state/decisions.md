@@ -97,3 +97,22 @@
   - future flow-field extensions should plug into the sampler dispatch surface instead of renaming the public interface again
   - sample configs, help text, and durable tests must use `flow-velocity-sampler` / `flow-density-sigma` rather than reviving `flow-model`
   - `smear` and `flow-density-sigma` now carry different responsibilities and should not be silently coupled
+
+## DEC-006 Adopt `EventMedium` And `EmissionSite` As Internal Expansion Interfaces
+
+- Status: accepted
+- Date: 2026-04-28
+- Context:
+  - future work is expected to change particle emission from direct participant-hotspot smearing to a pipeline where participants build a density field, the density field may expand, and particles are sampled from the emission-stage field
+  - the current implementation already had participant geometry, density-gradient flow, and ROOT density snapshots, but still routed event generation through hotspot-specific helper names
+  - the user explicitly requested a full internal naming migration without retaining `FlowFieldContext` / `buildFlowFieldContext` compatibility shims
+- Decision:
+  - use `EventMedium` as the event-level ROOT-free medium state
+  - distinguish `participantGeometry`, `initialDensity`, `emissionDensity`, and `emissionGeometry`
+  - keep `DensityEvolutionMode::None` as the only implemented evolution mode for now, so initial and emission-stage fields are currently identical
+  - route transverse emission through `EmissionSite` and `sampleEmissionSites()`
+  - keep CLI/config keys and ROOT schema unchanged for this internal refactor
+- Consequences:
+  - future density-expansion implementations should update `emissionDensity` / `emissionGeometry` in `buildEventMedium()` rather than changing `events.eps2` / `events.psi2`
+  - future density-field emission backends should add an `EmissionSamplerMode` and still return `EmissionSite`
+  - writer-side density snapshots should serialize the generator-owned `EventMedium` state instead of rebuilding density independently

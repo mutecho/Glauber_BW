@@ -15,29 +15,11 @@ namespace {
 
 namespace blastwave {
 
-  // Sample the hotspot multiplicity from the configured NBD compound Poisson
-  // model, returning zero directly when the mean intensity is disabled.
-  int BlastWaveGenerator::sampleMultiplicity() {
-    if (config_.nbdMu <= 0.0) {
-      return 0;
-    }
-
-    const double gammaScale = config_.nbdMu / config_.nbdK;
-    std::gamma_distribution<double> gammaDistribution(config_.nbdK, gammaScale);
-    const double lambda = gammaDistribution(rng_);
-    std::poisson_distribution<int> poissonDistribution(lambda);
-    return poissonDistribution(rng_);
-  }
-
-  // Smear the participant hotspot in the transverse plane while keeping the
-  // unsmeared participant position available as source metadata.
-  BlastWaveGenerator::SpatialPoint BlastWaveGenerator::smearSource(const Nucleon &participant) {
-    if (config_.smearSigma <= 0.0) {
-      return {participant.x, participant.y};
-    }
-
-    std::normal_distribution<double> smearDistribution(0.0, config_.smearSigma);
-    return {participant.x + smearDistribution(rng_), participant.y + smearDistribution(rng_)};
+  // Convert generator configuration into the sampler-level emission contract
+  // so the event loop does not know which transverse source backend is active.
+  std::vector<EmissionSite> BlastWaveGenerator::sampleEventEmissionSites(const EventMedium &medium) {
+    const EmissionParameters parameters{EmissionSamplerMode::ParticipantHotspot, config_.smearSigma, config_.nbdMu, config_.nbdK};
+    return sampleEmissionSites(medium, parameters, rng_);
   }
 
   // Sample the source space-time rapidity using the current plateau-plus-tail
@@ -106,9 +88,9 @@ namespace blastwave {
 
   // Evaluate the configured fluid-element velocity sampler and then compose in
   // the longitudinal Bjorken piece expected by the blast-wave generator.
-  BlastWaveGenerator::FlowVelocity BlastWaveGenerator::sampleFlowVelocity(const SpatialPoint &emissionPoint, double etaS, const FlowFieldContext &flowContext) const {
+  BlastWaveGenerator::FlowVelocity BlastWaveGenerator::sampleFlowVelocity(const TransversePoint &emissionPoint, double etaS, const EventMedium &medium) const {
     const FlowFieldParameters parameters{config_.flowVelocitySamplerMode, config_.rho0, config_.rho2, config_.flowPower};
-    const FlowFieldSample sample = evaluateFlowField(flowContext, emissionPoint.x, emissionPoint.y, parameters);
+    const FlowFieldSample sample = evaluateFlowField(medium, emissionPoint.x, emissionPoint.y, parameters);
     const double coshEta = std::cosh(etaS);
     return {sample.betaX / coshEta, sample.betaY / coshEta, std::tanh(etaS)};
   }
