@@ -47,6 +47,7 @@ namespace blastwave {
     double rho0 = 0.0;
     double kappa2 = 0.0;
     double flowPower = 1.0;
+    bool densityNormalKappaCompensation = false;
   };
 
   /**

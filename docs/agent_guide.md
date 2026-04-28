@@ -158,6 +158,7 @@ Configuration files use a lightweight `key = value` format:
   - `flow-velocity-sampler`
   - `density-evolution`
   - `flow-density-sigma`
+  - `density-normal-kappa-compensation`
   - `debug-flow-ellipse`
   - `sigma-eta`
   - `eta-plateau`
@@ -191,6 +192,9 @@ progress = true
 tau0 = 10.0
 smear = 0.5
 density-evolution = affine-gaussian
+affine-lambda-in = 1.20
+affine-lambda-out = 1.05
+affine-sigma-evo = 0.5
 output = test_b8_from_config.root
 ```
 
@@ -213,8 +217,13 @@ The same parameters remain available as explicit CLI flags:
 - `--kappa2 <value>`: second-order response coefficient; the event-wise amplitude is `kappa2 * eps2_initial`
 - `--flow-power <value>`: power of the normalized ellipse radius `rTilde`
 - `--flow-velocity-sampler <covariance-ellipse|density-normal|gradient-response>`: transverse flow-direction sampler
-- `--density-evolution <affine-gaussian|none|gradient-response>`: medium evolution mode. The default `affine-gaussian` enables the fixed-parameter V1a response; `none` preserves the previous identity medium and participant-hotspot emission path; `gradient-response` is opt-in V2 and must be paired with `flow-velocity-sampler = gradient-response`.
+- `--density-evolution <affine-gaussian|none|gradient-response>`: medium evolution mode. The default `affine-gaussian` enables the V1a response; `none` preserves the previous identity medium and participant-hotspot emission path; `gradient-response` is opt-in V2 and must be paired with `flow-velocity-sampler = gradient-response`.
 - `--flow-density-sigma <fm>`: Gaussian point-cloud deposition width for the density field
+- `--affine-lambda-in <value>`: in-plane affine expansion factor used by `affine-gaussian`; default `1.20`
+- `--affine-lambda-out <value>`: out-of-plane affine expansion factor used by `affine-gaussian`; default `1.05`
+- `--affine-sigma-evo <fm>`: extra Gaussian evolution smoothing width used by `affine-gaussian`; default `0.5 fm`, `0` disables this smoothing layer
+- `--density-normal-kappa-compensation`: only legal with `density-evolution = affine-gaussian` plus `flow-velocity-sampler = density-normal`; restores the explicit V1a `kappa2` compensation
+- `--no-density-normal-kappa-compensation`: explicitly disable that compensation; this is the default
 - `--debug-flow-ellipse`: write `flow_ellipse_debug` and `flow_ellipse_participant_norm_x-y`
 - `--no-debug-flow-ellipse`: force-disable the optional debug payload
 - `--gradient-sigma-em <fm>`: extra smoothing width for the V2 emission marker density `s_em`
@@ -283,7 +292,7 @@ Key data contracts:
 - `GeneratedEvent`
   Bundles one `EventInfo`, one `EventMedium`, participant records, and particle records.
 - `EventMedium`
-  Per-event ROOT-free medium state with participant geometry, initial density, V2 marker/dynamics densities, emission-stage density, and emission-stage geometry. The default density evolution mode applies the fixed V1a affine Gaussian response; `none` keeps the identity map for comparison; opt-in `gradient-response` builds separate `s_em` and `s_dyn` fields.
+  Per-event ROOT-free medium state with participant geometry, initial density, V2 marker/dynamics densities, emission-stage density, and emission-stage geometry. The default density evolution mode applies the V1a affine Gaussian response with public defaults `affine-lambda-in = 1.20`, `affine-lambda-out = 1.05`, and `affine-sigma-evo = 0.5 fm`; `none` keeps the identity map for comparison; opt-in `gradient-response` builds separate `s_em` and `s_dyn` fields.
 - `EmissionSite`
   Internal transverse emission sample with `initialPosition` written to particle `x0/y0`, `position` written to particle `x/y`, `sourceAnchor` written to legacy `source_x/source_y`, and optional V2 gradient-response metadata.
 - `BlastWaveGenerator`
@@ -450,7 +459,7 @@ Interpretation:
 - The emission geometry defines `events.eps2_f`, `events.psi2_f`, and `events.chi2`.
 - `density-evolution = none` keeps the older identity medium and `ParticipantHotspot` emission backend.
 
-- In V1a, participant points are expanded in the participant-plane basis with fixed `lambda_in = 1.20`, `lambda_out = 1.05`, then smoothed with fixed `sigma_evo = 0.5 fm`.
+- In V1a, participant points are expanded in the participant-plane basis with default `lambda_in = 1.20`, default `lambda_out = 1.05`, then smoothed with default `sigma_evo = 0.5 fm`; all three defaults are now public config/CLI knobs.
 - In V1a, emission positions are sampled from `emissionDensity`; in `none`, hotspot positions are transversely smeared with `smearSigma`.
 - In V2, each participant still samples multiplicity with the same Gamma-Poisson model, then each particle samples `r0` from that participant's `s_em` component, applies a bounded displacement along `-grad ln s_dyn`, and stores the resulting `rf` as the emission point.
 - The sampled `EmissionSite::position` becomes particle `x/y`.
@@ -492,10 +501,12 @@ This keeps the core ROOT-free while upgrading the default thermal spectrum beyon
   - evaluate the ellipse-normal angle `phiB = atan2(y' / radiusMinor^2, x' / radiusMajor^2)`
   - evaluate `rhoRaw = pow(rTilde, flowPower) * (rho0 + kappa2 * eps2_initial * cos(2 * phiB))`
   - convert to `betaT = tanh(max(0, rhoRaw))`, clipped to `0.95`
-- For V1a, both velocity samplers use the freeze-out geometry for `rTilde` and direction, but the second-order response vector is initial-state:
+- For V1a, the covariance-ellipse sampler uses the freeze-out geometry for `rTilde` and direction, while the second-order response vector stays initial-state:
   - `rhoRaw = rho0 * pow(rTilde, flowPower) * exp(2 * kappa2 * eps2_initial * cos(2 * (phiB - psi2_initial)))`
 - Combine the transverse ellipse-normal flow with `eta_s` in a Bjorken-like flow field.
 - The `density-normal` sampler reads the shared `emissionDensity` gradient and falls back to `emissionGeometry` in flat or degenerate regions.
+  - With the default `density-normal-kappa-compensation = false`, affine density-normal strength is `rho0 * pow(rTilde, flowPower)`.
+  - When the compensation flag is enabled, affine density-normal restores the same explicit `exp(2 * kappa2 * eps2_initial * cos(2 * (phiB - psi2_initial)))` multiplier using the density-normal `phiB`.
 - The `gradient-response` sampler is only legal with `density-evolution = gradient-response`; it returns the `EmissionSite` transverse velocity generated from `-grad ln s_dyn` and combines it with the same Bjorken-like longitudinal component.
 
 ### 7a. V2 Radius And Weight Diagnostics

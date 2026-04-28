@@ -107,7 +107,13 @@ namespace blastwave {
   // Evaluate the configured fluid-element velocity sampler and then compose in
   // the longitudinal Bjorken piece expected by the blast-wave generator.
   BlastWaveGenerator::FlowVelocity BlastWaveGenerator::sampleFlowVelocity(const EmissionSite &emissionSite, double etaS, const EventMedium &medium) const {
-    const FlowFieldParameters parameters{config_.flowVelocitySamplerMode, config_.rho0, config_.kappa2, config_.flowPower};
+    const FlowFieldParameters parameters{
+        config_.flowVelocitySamplerMode,
+        config_.rho0,
+        config_.kappa2,
+        config_.flowPower,
+        config_.densityNormalKappaCompensation,
+    };
     const FlowFieldSample sample = evaluateFlowField(medium, emissionSite, parameters);
     const double coshEta = std::cosh(etaS);
     return {sample.betaX / coshEta, sample.betaY / coshEta, std::tanh(etaS)};

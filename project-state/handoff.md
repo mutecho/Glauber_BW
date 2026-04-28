@@ -2,31 +2,25 @@
 
 ## Latest Durable Handoff
 
-- Stage completed: opt-in V2 gradient-response medium and flow implementation
+- Stage completed: public affine V1a evolution knob exposure
 - Artifact produced:
-  - added `DensityEvolutionMode::GradientResponse` and `FlowVelocitySamplerMode::GradientResponse`
-  - required V2 density and flow modes to be selected together
-  - constructed separate `s_em` marker and `s_dyn` dynamics densities from participant Gaussian point clouds
-  - sampled V2 marker positions `r0`, final emission positions `rf`, gradient-driven displacement, and site transverse velocities through `EmissionSite`
-  - kept default `density-evolution = affine-gaussian` and legacy `density-evolution = none` behavior available
-  - added optional `cooper-frye-weight = none|mt-cosh`, defaulting to unit weights
-  - extended mandatory ROOT schema with event `r2_0/r2_f/r2_ratio` and particle `x0/y0/emission_weight`
-  - added optional V2 debug density TH2s gated by `debug-gradient-response`
-  - updated QA, regression tests, docs, and `project-state/` ledger
+  - added public CLI/config keys `affine-lambda-in`, `affine-lambda-out`, and `affine-sigma-evo`
+  - moved the V1a affine response defaults onto `BlastWaveConfig` instead of hardcoding them at the generator boundary
+  - kept the previous defaults unchanged: `1.20`, `1.05`, and `0.5 fm`
+  - added validation for invalid affine expansion and smoothing values
+  - updated regression tests, sample configs, user docs, and `project-state/`
 - Current contract snapshot:
-  - `events` carries `b`, `Npart`, `eps2`, `psi2`, `eps2_f`, `psi2_f`, `chi2`, `r2_0`, `r2_f`, `r2_ratio`, `v2`, `centrality`, and `Nch`
-  - `particles` carries the legacy kinematic/source payload plus `x0`, `y0`, and `emission_weight`
-  - mandatory QA objects include `Npart`, `eps2`, `eps2_f`, `psi2`, `psi2_f`, `chi2`, `r2_0`, `r2_f`, `r2_ratio`, `v2`, `cent`, `participant_x-y`, `participant_x-y_canvas`, `x-y`, `px-py`, `pT`, `eta`, and `phi`
-  - optional debug output remains `flow_ellipse_debug` plus `flow_ellipse_participant_norm_x-y`, gated by `debug-flow-ellipse`
-  - optional sampler-specific output remains `density_normal_event_density_x-y`, gated by `flow-velocity-sampler = density-normal`
-  - optional V2 debug output is `gradient_s0_x-y`, `gradient_s_em_x-y`, `gradient_s_dyn_x-y`, and `gradient_s_f_x-y`, gated by `debug-gradient-response`
-  - public flow/runtime knobs now include `rho0`, `kappa2`, `flow-power`, `flow-velocity-sampler`, `density-evolution`, `flow-density-sigma`, V2 `gradient-*` parameters, `debug-flow-ellipse`, `debug-gradient-response`, and `cooper-frye-weight`
-  - legacy `vmax`, `rho2`, and `r-ref` still fail fast with explicit migration guidance
+  - `covariance-ellipse` remains unchanged and still uses the initial-state `kappa2 * eps2` response vector
+  - `density-normal` always derives direction from `emissionDensity` gradient with an `emissionGeometry` fallback
+  - `affine-gaussian + density-normal` still defaults to no explicit `kappa2` modulation
+  - `density-normal-kappa-compensation = true` restores the historical affine density-normal exponential multiplier and is only legal with `density-evolution = affine-gaussian` plus `flow-velocity-sampler = density-normal`
+  - public flow/runtime knobs now include `rho0`, `kappa2`, `flow-power`, `flow-velocity-sampler`, `density-evolution`, `flow-density-sigma`, `affine-lambda-in`, `affine-lambda-out`, `affine-sigma-evo`, `density-normal-kappa-compensation`, V2 `gradient-*` parameters, `debug-flow-ellipse`, `debug-gradient-response`, and `cooper-frye-weight`
+  - ROOT trees and optional histogram payloads are unchanged by this contract update
 - Remaining durable follow-up:
   - regenerate long-lived sample files under `qa/` when a fully current reference artifact set is needed
   - keep using outside-sandbox ROOT smoke runs as the authoritative Codex validation path on this machine
 - project_state_sync_status: `written`
-- verification_status carried forward: `verified`
+- verification_status carried forward: `tested`
 
 ## Next Recommended Step
 
@@ -48,7 +42,9 @@
    - validate with `/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_docsync_smoke.root --output /tmp/blastwave_docsync_smoke_validation.root --expect-nevents 5000`
    - for the legacy comparison path, also run `--density-evolution none`
    - for V2 changes, also run `--density-evolution gradient-response --flow-velocity-sampler gradient-response`
-   - if a non-default sampler changed, also run `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --flow-velocity-sampler density-normal --flow-density-sigma 0.5 --output /tmp/blastwave_density_normal_sampler_smoke.root`
+   - if affine `density-normal` changed, run both:
+    - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --flow-velocity-sampler density-normal --flow-density-sigma 0.5 --output /tmp/blastwave_density_normal_sampler_smoke.root`
+    - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --flow-velocity-sampler density-normal --flow-density-sigma 0.5 --density-normal-kappa-compensation --output /tmp/blastwave_density_normal_sampler_compensated_smoke.root`
 
 ## What The Next Owner Should Not Redo
 
@@ -57,6 +53,7 @@
 - Do not silently couple `flow-density-sigma` back to `smear`; they now carry different responsibilities.
 - Do not reintroduce `FlowFieldContext` / `buildFlowFieldContext` naming; the unified internal language is now `EventMedium`.
 - Do not rebuild the density-normal snapshot from participant records in the writer; serialize `event.medium.emissionDensity`.
+- Do not silently re-enable explicit `kappa2` modulation in affine `density-normal`; compensation is opt-in now.
 - Do not treat `events.eps2_f` as a replacement for `events.eps2`; it is the freeze-out diagnostic, while `eps2` remains initial participant geometry.
 - Do not treat `x0/y0`, `source_x/source_y`, and `x/y` as interchangeable; they are marker initial position, participant anchor, and final emission position respectively.
 - Do not enable only one side of V2 `gradient-response`; density evolution and flow velocity sampler are intentionally coupled.

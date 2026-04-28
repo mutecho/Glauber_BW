@@ -35,6 +35,10 @@ namespace blastwave {
     DensityEvolutionMode densityEvolutionMode = DensityEvolutionMode::AffineGaussianResponse;
     FlowVelocitySamplerMode flowVelocitySamplerMode = FlowVelocitySamplerMode::CovarianceEllipse;
     double flowDensitySigma = 0.5;     // fm
+    double affineLambdaIn = 1.20;
+    double affineLambdaOut = 1.05;
+    double affineSigmaEvo = 0.5;       // fm
+    bool densityNormalKappaCompensation = false;
     bool debugFlowEllipse = false;
     double gradientSigmaEm = 0.0;
     double gradientSigmaDyn = 1.0;

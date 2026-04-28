@@ -31,6 +31,13 @@ namespace {
     return std::min(kBetaTMax, std::tanh(std::max(0.0, rhoRaw)));
   }
 
+  // Recover the shared V1a second-order response multiplier from the initial
+  // participant eccentricity vector, independent of the evolved emission shape.
+  double computeAffineKappaModulation(double phiBLab, const blastwave::EventMedium &medium, const blastwave::FlowFieldParameters &parameters) {
+    const double a2 = parameters.kappa2 * medium.participantGeometry.eps2;
+    return std::exp(2.0 * a2 * std::cos(2.0 * (phiBLab - medium.participantGeometry.psi2)));
+  }
+
   EllipseMetricSample sampleEllipseMetric(const blastwave::FlowEllipseInfo &ellipse, double x, double y) {
     EllipseMetricSample metric;
     if (!ellipse.valid) {
@@ -72,14 +79,13 @@ namespace {
 
     sample.rTilde = metric.rTilde;
     const double phiBLab = std::atan2(metric.normalY, metric.normalX);
-    // The public knob is kappa2 = a2 / eps2_initial. Keep the response tied to
-    // the initial eccentricity vector even when the emission geometry evolves.
-    const double a2 = parameters.kappa2 * medium.participantGeometry.eps2;
     if (medium.densityEvolutionMode == blastwave::DensityEvolutionMode::AffineGaussianResponse) {
-      const double modulation = std::exp(2.0 * a2 * std::cos(2.0 * (phiBLab - medium.participantGeometry.psi2)));
       sample.phiB = phiBLab;
-      sample.rhoRaw = parameters.rho0 * std::pow(sample.rTilde, parameters.flowPower) * modulation;
+      sample.rhoRaw = parameters.rho0 * std::pow(sample.rTilde, parameters.flowPower) * computeAffineKappaModulation(phiBLab, medium, parameters);
     } else {
+      // The public knob is kappa2 = a2 / eps2_initial. Keep the legacy
+      // comparison path tied to the initial eccentricity vector.
+      const double a2 = parameters.kappa2 * medium.participantGeometry.eps2;
       sample.phiB = std::atan2(metric.qMinor, metric.qMajor);
       sample.rhoRaw = std::pow(sample.rTilde, parameters.flowPower) * (parameters.rho0 + a2 * std::cos(2.0 * sample.phiB));
     }
@@ -124,9 +130,13 @@ namespace {
     const double phiBLab = std::atan2(normalY, normalX);
     sample.phiB = phiBLab;
     if (medium.densityEvolutionMode == blastwave::DensityEvolutionMode::AffineGaussianResponse) {
-      const double a2 = parameters.kappa2 * medium.participantGeometry.eps2;
-      const double modulation = std::exp(2.0 * a2 * std::cos(2.0 * (phiBLab - medium.participantGeometry.psi2)));
-      sample.rhoRaw = parameters.rho0 * std::pow(sample.rTilde, parameters.flowPower) * modulation;
+      // In the default affine density-normal mode, anisotropy is carried by
+      // the density-gradient normal itself; the explicit kappa2 multiplier is
+      // now an opt-in compensation knob for matching historical strength.
+      sample.rhoRaw = parameters.rho0 * std::pow(sample.rTilde, parameters.flowPower);
+      if (parameters.densityNormalKappaCompensation) {
+        sample.rhoRaw *= computeAffineKappaModulation(phiBLab, medium, parameters);
+      }
     } else {
       sample.rhoRaw = parameters.rho0 * std::pow(sample.rTilde, parameters.flowPower);
     }

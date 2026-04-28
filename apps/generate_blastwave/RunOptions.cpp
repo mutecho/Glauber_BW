@@ -210,6 +210,14 @@ namespace {
       runOptions.config.densityEvolutionMode = parseDensityEvolutionMode(rawValue, optionName, sourceDescription);
     } else if (optionName == "flow-density-sigma") {
       runOptions.config.flowDensitySigma = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "affine-lambda-in") {
+      runOptions.config.affineLambdaIn = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "affine-lambda-out") {
+      runOptions.config.affineLambdaOut = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "affine-sigma-evo") {
+      runOptions.config.affineSigmaEvo = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "density-normal-kappa-compensation") {
+      runOptions.config.densityNormalKappaCompensation = parseBool(rawValue, optionName, sourceDescription);
     } else if (optionName == "debug-flow-ellipse") {
       runOptions.config.debugFlowEllipse = parseBool(rawValue, optionName, sourceDescription);
     } else if (optionName == "debug-gradient-response") {
@@ -311,7 +319,8 @@ namespace blastwave::app {
               << "  nevents, b, temperature, thermal-sampler, mj-pmax, mj-grid-points,\n"
               << "  tau0, smear, sigma-nn, seed, output, progress,\n"
               << "  rho0, kappa2, flow-power, flow-velocity-sampler, density-evolution,\n"
-              << "  flow-density-sigma,\n"
+              << "  flow-density-sigma, affine-lambda-in, affine-lambda-out,\n"
+              << "  affine-sigma-evo, density-normal-kappa-compensation,\n"
               << "  gradient-sigma-em, gradient-sigma-dyn,\n"
               << "  gradient-density-floor-fraction, gradient-density-cutoff-fraction,\n"
               << "  gradient-displacement-max, gradient-displacement-kappa,\n"
@@ -337,6 +346,8 @@ namespace blastwave::app {
               << "  --no-debug-flow-ellipse\n"
               << "  --debug-gradient-response\n"
               << "  --no-debug-gradient-response\n"
+              << "  --density-normal-kappa-compensation\n"
+              << "  --no-density-normal-kappa-compensation\n"
               << "QA-facing tuning knobs:\n"
               << "  (gradient-response requires matching density/flow modes)\n"
               << "  --rho0 <value>\n"
@@ -345,6 +356,11 @@ namespace blastwave::app {
               << "  --flow-velocity-sampler <covariance-ellipse|density-normal|gradient-response>\n"
               << "  --density-evolution <affine-gaussian|none|gradient-response>\n"
               << "  --flow-density-sigma <fm>\n"
+              << "  --affine-lambda-in <value>\n"
+              << "  --affine-lambda-out <value>\n"
+              << "  --affine-sigma-evo <fm>\n"
+              << "  --density-normal-kappa-compensation\n"
+              << "  --no-density-normal-kappa-compensation\n"
               << "  --gradient-sigma-em <fm>\n"
               << "  --gradient-sigma-dyn <fm>\n"
               << "  --gradient-density-floor-fraction <value>\n"
@@ -375,6 +391,8 @@ namespace blastwave::app {
     bool hasCliDebugFlowEllipseOverride = false;
     bool cliDebugGradientResponse = false;
     bool hasCliDebugGradientResponseOverride = false;
+    bool cliDensityNormalKappaCompensation = false;
+    bool hasCliDensityNormalKappaCompensationOverride = false;
 
     showHelp = false;
 
@@ -429,6 +447,18 @@ namespace blastwave::app {
         continue;
       }
 
+      if (argument == "--density-normal-kappa-compensation") {
+        cliDensityNormalKappaCompensation = true;
+        hasCliDensityNormalKappaCompensationOverride = true;
+        continue;
+      }
+
+      if (argument == "--no-density-normal-kappa-compensation") {
+        cliDensityNormalKappaCompensation = false;
+        hasCliDensityNormalKappaCompensationOverride = true;
+        continue;
+      }
+
       if (argument.rfind("--", 0) == 0) {
         cliOverrides.push_back({argument.substr(2), takeValue(iArg, argc, argv, argument)});
         continue;
@@ -461,6 +491,9 @@ namespace blastwave::app {
     }
     if (hasCliDebugGradientResponseOverride) {
       runOptions.config.debugGradientResponse = cliDebugGradientResponse;
+    }
+    if (hasCliDensityNormalKappaCompensationOverride) {
+      runOptions.config.densityNormalKappaCompensation = cliDensityNormalKappaCompensation;
     }
 
     return runOptions;

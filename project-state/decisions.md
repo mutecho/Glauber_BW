@@ -183,3 +183,44 @@
   - QA now rejects current-contract files that lack the new mandatory `r2` branches/histograms or particle `x0/y0/emission_weight`
   - downstream HBT or source-size studies can distinguish participant anchors, marker initial positions, and final emission points
   - future gradient-response variants should make coupling between medium response and velocity source explicit instead of hiding it behind an apparently orthogonal switch
+
+## DEC-010 Make Affine `density-normal` Kappa Compensation Opt-In
+
+- Status: accepted
+- Date: 2026-04-28
+- Context:
+  - the current V1a `affine-gaussian + density-normal` path already derives the flow direction from the shared `emissionDensity` gradient
+  - it still multiplied the density-normal strength by the same explicit `kappa2` second-order modulation used by `covariance-ellipse`
+  - the user wanted affine density-normal to default to gradient-driven anisotropy, while keeping the old explicit-strength behavior available as an opt-in compatibility switch
+- Decision:
+  - add `density-normal-kappa-compensation = true|false` to the public CLI/config surface, defaulting to `false`
+  - only allow that switch when `density-evolution = affine-gaussian` and `flow-velocity-sampler = density-normal`
+  - keep `covariance-ellipse` behavior unchanged
+  - define the default affine density-normal strength as `rhoRaw = rho0 * pow(rTilde, flowPower)`
+  - when the switch is enabled, restore the existing explicit V1a multiplier:
+    - `exp(2 * kappa2 * eps2_initial * cos(2 * (phiB - psi2_initial)))`
+- Consequences:
+  - affine density-normal validation baselines now split into two cases: default pure-gradient strength and opt-in compensated strength
+  - `kappa2` remains the public second-order response coefficient, but affine density-normal only consumes it when explicit compensation is requested
+  - sample configs, help text, tests, and durable docs must describe the new switch and reject invalid mode combinations
+
+## DEC-011 Expose Affine V1a Evolution Parameters On The Public Config Surface
+
+- Status: accepted
+- Date: 2026-04-28
+- Context:
+  - the default `affine-gaussian` medium mode already used `lambda_in`, `lambda_out`, and `sigma_evo` internally through `EventMediumParameters`
+  - those values were still hardcoded at the generator boundary, which blocked controlled scans and made config-level comparisons harder than necessary
+  - the user explicitly asked to tune the affine evolution response from tracked config files
+- Decision:
+  - add public CLI/config keys `affine-lambda-in`, `affine-lambda-out`, and `affine-sigma-evo`
+  - store the values directly on `BlastWaveConfig` and pass them through `buildMedium()` into `buildEventMedium()`
+  - keep the current V1a defaults unchanged:
+    - `affine-lambda-in = 1.20`
+    - `affine-lambda-out = 1.05`
+    - `affine-sigma-evo = 0.5 fm`
+  - validate `affine-lambda-in > 0`, `affine-lambda-out > 0`, and `affine-sigma-evo >= 0`
+- Consequences:
+  - V1a parameter scans can now be expressed entirely through the public runtime surface without editing source
+  - sample configs, help text, RunOptions regression coverage, and durable docs must list the three knobs
+  - historical notes may still mention the old defaults, but current high-authority docs must describe them as defaults rather than fixed internals

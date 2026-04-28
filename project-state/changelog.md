@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-04-28 Public Affine V1a Evolution Knobs
+
+- Exposed `affine-lambda-in`, `affine-lambda-out`, and `affine-sigma-evo` on the public CLI/config surface.
+- Moved the default V1a affine response values out of generator hardcoding and into `BlastWaveConfig`, while preserving the previous defaults `1.20`, `1.05`, and `0.5 fm`.
+- Added generator validation for positive affine expansion factors and non-negative affine evolution smoothing.
+- Expanded `test_run_options`, updated sample configs, refreshed high-authority docs, and synchronized `project-state/`.
+
+## 2026-04-28 Affine Density-Normal Kappa Compensation Switch
+
+- Added public CLI/config switch `density-normal-kappa-compensation`, defaulting to `false`.
+- Changed `affine-gaussian + density-normal` so the default strength is `rho0 * pow(rTilde, flowPower)` with gradient-derived direction only.
+- Kept the previous `kappa2` exponential multiplier as an opt-in compatibility path behind that switch.
+- Made invalid mode combinations fail fast in generator validation instead of silently ignoring the switch.
+- Updated flow-field regression tests, RunOptions regression tests, sample configs, user docs, and `project-state/`.
+- Recorded fresh build, CTest, covariance baseline, density-normal default-off, density-normal compensated, and invalid-combination validation evidence in `project-state/tests.md`.
+
 ## 2026-04-28 V2 Gradient-Response Medium And Flow
 
 - Added opt-in `density-evolution = gradient-response` and `flow-velocity-sampler = gradient-response`, with generator validation requiring the two modes to be selected together.

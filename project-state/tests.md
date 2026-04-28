@@ -1,5 +1,51 @@
 # Tests
 
+## T-014 Public Affine V1a Evolution Knob Surface
+
+- Status: passed
+- Purpose: verify that the public runtime surface now accepts `affine-lambda-in`, `affine-lambda-out`, and `affine-sigma-evo`, and that the new validation rules do not break the existing ROOT-free regression suite.
+- Execution shape:
+  - rebuild the touched RunOptions regression target
+  - run all registered CTest tests
+  - cover default values, CLI parsing, config-file parsing, CLI override precedence, and invalid affine-value rejection through `test_run_options`
+- Fresh commands executed on 2026-04-28:
+  - `cmake --build /Users/allenzhou/Research_software/Blast_wave/build --target test_run_options -j4`
+  - `cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-failure`
+- Current result:
+  - build: passed
+  - `ctest`: passed, 6/6
+  - implementation note: authoritative ROOT/O2Physics smoke was not rerun for this config-surface-only change; the last verified runtime baseline remains the 2026-04-28 entries below
+- verification_status: `tested`
+
+## T-013 Affine Density-Normal Compensation Contract
+
+- Status: passed
+- Purpose: verify that `affine-gaussian + density-normal` now defaults to pure gradient-driven strength, that explicit `kappa2` compensation is opt-in, and that invalid compensated mode combinations fail fast.
+- Execution shape:
+  - rebuild the touched generator, QA reader, and ROOT-free regression targets
+  - run all registered CTest tests
+  - run authoritative O2Physics generate+QA smokes for default covariance, affine density-normal with compensation disabled, and affine density-normal with compensation enabled
+  - run one authoritative invalid-combination check for `density-evolution none + density-normal + density-normal-kappa-compensation`
+- Fresh commands executed on 2026-04-28:
+  - `cmake --build /Users/allenzhou/Research_software/Blast_wave/build --target test_flow_field_model test_run_options generate_blastwave_events qa_blastwave_output -j4`
+  - `cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-failure`
+  - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --output /tmp/blastwave_density_normal_contract_covariance.root'"`
+  - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_density_normal_contract_covariance.root --output /tmp/blastwave_density_normal_contract_covariance_validation.root --expect-nevents 20'"`
+  - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --flow-velocity-sampler density-normal --flow-density-sigma 0.5 --output /tmp/blastwave_density_normal_contract_default_off.root'"`
+  - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_density_normal_contract_default_off.root --output /tmp/blastwave_density_normal_contract_default_off_validation.root --expect-nevents 20'"`
+  - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --flow-velocity-sampler density-normal --flow-density-sigma 0.5 --density-normal-kappa-compensation --output /tmp/blastwave_density_normal_contract_comp_on.root'"`
+  - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_density_normal_contract_comp_on.root --output /tmp/blastwave_density_normal_contract_comp_on_validation.root --expect-nevents 20'"`
+  - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --density-evolution none --flow-velocity-sampler density-normal --density-normal-kappa-compensation --output /tmp/blastwave_density_normal_contract_invalid.root'"`
+- Current result:
+  - build: passed
+  - `ctest`: passed, 6/6
+  - default V1a covariance QA: `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0714324 max_abs_eta_s=6.67501 max_E=958.06 max_mass_shell_deviation=3.02439e-11`
+  - affine density-normal default-off QA: `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0470409 max_abs_eta_s=6.67501 max_E=948.867 max_mass_shell_deviation=7.25284e-11`
+  - affine density-normal compensated QA: `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0463026 max_abs_eta_s=6.67501 max_E=960.252 max_mass_shell_deviation=7.70089e-11`
+  - invalid compensated comparison path: `generate_blastwave_events failed: densityNormalKappaCompensation requires densityEvolutionMode=affine-gaussian and flowVelocitySamplerMode=density-normal.`
+  - implementation note: the ROOT smokes above were executed through the authoritative outside-sandbox O2Physics path.
+- verification_status: `verified`
+
 ## T-012 V2 Gradient-Response Medium And Flow
 
 - Status: passed

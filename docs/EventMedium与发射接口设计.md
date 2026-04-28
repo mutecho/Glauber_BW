@@ -38,7 +38,7 @@ None                    # 原先 identity 对照模式
 GradientResponse        # opt-in V2 梯度响应
 ```
 
-`AffineGaussianResponse` 在 participant-plane 中对短轴方向用 `lambda_in = 1.20`、长轴方向用 `lambda_out = 1.05`，并加入 `sigma_evo = 0.5 fm` 的 Gaussian evolution smoothing。它只改变 `emissionDensity` 和 `emissionGeometry`，不会 silently 改变 `participantGeometry` 的事件摘要语义。
+`AffineGaussianResponse` 默认在 participant-plane 中对短轴方向用 `lambda_in = 1.20`、长轴方向用 `lambda_out = 1.05`，并加入 `sigma_evo = 0.5 fm` 的 Gaussian evolution smoothing。三个默认值现在都可通过 config/CLI 调整。它只改变 `emissionDensity` 和 `emissionGeometry`，不会 silently 改变 `participantGeometry` 的事件摘要语义。
 
 `GradientResponse` 构造三套密度：`s0`、`s_em` 和 `s_dyn`。发射 sampler 从每个 participant 对应的 `s_em` Gaussian component 抽 marker 初态 `r0`，在 `r0` 查询 `-grad(s_dyn)/(s_dyn + floor)`，再生成位移 `dr` 与横向速度 `beta_T`。本模式必须和 `flow-velocity-sampler = gradient-response` 成对使用，避免 medium response 与 velocity source 混搭。
 

@@ -83,6 +83,15 @@ namespace blastwave {
     if (!isFinite(config_.flowDensitySigma) || config_.flowDensitySigma <= 0.0) {
       throw std::invalid_argument("flowDensitySigma must be finite and positive.");
     }
+    if (!isFinite(config_.affineLambdaIn) || config_.affineLambdaIn <= 0.0) {
+      throw std::invalid_argument("affineLambdaIn must be finite and positive.");
+    }
+    if (!isFinite(config_.affineLambdaOut) || config_.affineLambdaOut <= 0.0) {
+      throw std::invalid_argument("affineLambdaOut must be finite and positive.");
+    }
+    if (!isFinite(config_.affineSigmaEvo) || config_.affineSigmaEvo < 0.0) {
+      throw std::invalid_argument("affineSigmaEvo must be finite and non-negative.");
+    }
     if (!isFinite(config_.gradientSigmaEm) || config_.gradientSigmaEm < 0.0) {
       throw std::invalid_argument("gradientSigmaEm must be finite and non-negative.");
     }
@@ -118,6 +127,12 @@ namespace blastwave {
     }
     if (config_.flowVelocitySamplerMode == FlowVelocitySamplerMode::GradientResponse && config_.densityEvolutionMode != DensityEvolutionMode::GradientResponse) {
       throw std::invalid_argument("flowVelocitySamplerMode=gradient-response requires densityEvolutionMode=gradient-response.");
+    }
+    if (config_.densityNormalKappaCompensation
+        && (config_.densityEvolutionMode != DensityEvolutionMode::AffineGaussianResponse
+            || config_.flowVelocitySamplerMode != FlowVelocitySamplerMode::DensityNormal)) {
+      throw std::invalid_argument(
+          "densityNormalKappaCompensation requires densityEvolutionMode=affine-gaussian and flowVelocitySamplerMode=density-normal.");
     }
   }
 

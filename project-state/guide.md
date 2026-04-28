@@ -20,12 +20,12 @@
   - [include/blastwave/EmissionSampler.h](/Users/allenzhou/Research_software/Blast_wave/include/blastwave/EmissionSampler.h)
   - [src/EventMedium.cpp](/Users/allenzhou/Research_software/Blast_wave/src/EventMedium.cpp)
   - [src/EmissionSampler.cpp](/Users/allenzhou/Research_software/Blast_wave/src/EmissionSampler.cpp)
-  `EventMedium` 现在区分 `participantGeometry`、`initialDensity`、V2 `markerDensity` / `dynamicsDensity`、`emissionDensity` 和 `emissionGeometry`；默认 `DensityEvolutionMode::AffineGaussianResponse` 会用固定 V1a 参数把 `s0` 演化为 freeze-out `sf`，`DensityEvolutionMode::None` 保留原先 identity 对照路径，`DensityEvolutionMode::GradientResponse` 是 opt-in V2 梯度响应。`EmissionSite` 是发射 backend 的统一输出，默认 V1a 从 `emissionDensity` 抽横向发射点，`none` 保持 participant hotspot smear，V2 保存 `r0/rf`、位移、site velocity 和可选权重。
+  `EventMedium` 现在区分 `participantGeometry`、`initialDensity`、V2 `markerDensity` / `dynamicsDensity`、`emissionDensity` 和 `emissionGeometry`；默认 `DensityEvolutionMode::AffineGaussianResponse` 会用公开默认值 `affine-lambda-in = 1.20`、`affine-lambda-out = 1.05`、`affine-sigma-evo = 0.5 fm` 把 `s0` 演化为 freeze-out `sf`，`DensityEvolutionMode::None` 保留原先 identity 对照路径，`DensityEvolutionMode::GradientResponse` 是 opt-in V2 梯度响应。`EmissionSite` 是发射 backend 的统一输出，默认 V1a 从 `emissionDensity` 抽横向发射点，`none` 保持 participant hotspot smear，V2 保存 `r0/rf`、位移、site velocity 和可选权重。
 - 流体元速度抽样模块位于 [include/blastwave/FlowFieldModel.h](/Users/allenzhou/Research_software/Blast_wave/include/blastwave/FlowFieldModel.h) 以及：
   - [src/FlowFieldGeometry.cpp](/Users/allenzhou/Research_software/Blast_wave/src/FlowFieldGeometry.cpp)
   - [src/FlowFieldDensity.cpp](/Users/allenzhou/Research_software/Blast_wave/src/FlowFieldDensity.cpp)
   - [src/FlowFieldModel.cpp](/Users/allenzhou/Research_software/Blast_wave/src/FlowFieldModel.cpp)
-  当前默认速度抽样器是 emission geometry 的协方差椭圆法向流场；并列可选的 `density-normal` 会根据 `emissionDensity` gradient 取法向，再在平坦区回退到 `emissionGeometry` 协方差法向。V2 `gradient-response` 速度抽样器直接使用 `EmissionSite::betaTX/betaTY`，并要求 `density-evolution = gradient-response` 同时启用。公开参数面是 `rho0`、`kappa2`、`flow-power`、`flow-velocity-sampler`、`density-evolution`、`flow-density-sigma`、`debug-flow-ellipse`、V2 `gradient-*` 参数、`debug-gradient-response` 和 `cooper-frye-weight`。`kappa2` 是二阶响应系数，事件级振幅为 `kappa2 * participantGeometry.eps2`，平面为 `participantGeometry.psi2`。
+  当前默认速度抽样器是 emission geometry 的协方差椭圆法向流场；并列可选的 `density-normal` 会根据 `emissionDensity` gradient 取法向，再在平坦区回退到 `emissionGeometry` 协方差法向。对于 `affine-gaussian + density-normal`，默认强度是 `rho0 * pow(rTilde, flowPower)`；只有显式开启 `density-normal-kappa-compensation` 才恢复 `kappa2` 的指数补偿。V2 `gradient-response` 速度抽样器直接使用 `EmissionSite::betaTX/betaTY`，并要求 `density-evolution = gradient-response` 同时启用。公开参数面是 `rho0`、`kappa2`、`flow-power`、`flow-velocity-sampler`、`density-evolution`、`flow-density-sigma`、`affine-lambda-in`、`affine-lambda-out`、`affine-sigma-evo`、`density-normal-kappa-compensation`、`debug-flow-ellipse`、V2 `gradient-*` 参数、`debug-gradient-response` 和 `cooper-frye-weight`。`kappa2` 是二阶响应系数，事件级振幅为 `kappa2 * participantGeometry.eps2`，平面为 `participantGeometry.psi2`。
 - 共享物理工具位于 [include/blastwave/PhysicsUtils.h](/Users/allenzhou/Research_software/Blast_wave/include/blastwave/PhysicsUtils.h) 和 [src/PhysicsUtils.cpp](/Users/allenzhou/Research_software/Blast_wave/src/PhysicsUtils.cpp)。
   这里统一维护 `centrality`、粒子 `phi`、事件级 `v2` 等共享定义，避免生成端与 QA 端重复实现。
 - 热动量大小的预计算查表组件位于 [include/blastwave/MaxwellJuttnerMomentumSampler.h](/Users/allenzhou/Research_software/Blast_wave/include/blastwave/MaxwellJuttnerMomentumSampler.h) 和 [src/MaxwellJuttnerMomentumSampler.cpp](/Users/allenzhou/Research_software/Blast_wave/src/MaxwellJuttnerMomentumSampler.cpp)。
@@ -122,6 +122,10 @@ cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-fail
   - `flow-velocity-sampler`
   - `density-evolution`
   - `flow-density-sigma`
+  - `affine-lambda-in`
+  - `affine-lambda-out`
+  - `affine-sigma-evo`
+  - `density-normal-kappa-compensation`
   - `debug-flow-ellipse`
   - `gradient-sigma-em`
   - `gradient-sigma-dyn`

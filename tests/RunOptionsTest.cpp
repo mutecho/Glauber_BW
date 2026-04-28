@@ -69,6 +69,15 @@ namespace {
     return parsed;
   }
 
+  void requireGeneratorValidationSuccess(const blastwave::BlastWaveConfig &config, const std::string &message) {
+    try {
+      blastwave::BlastWaveGenerator generator(config);
+      static_cast<void>(generator);
+    } catch (const std::exception &error) {
+      throw std::runtime_error(message + " error=" + error.what());
+    }
+  }
+
   void requireGeneratorValidationFailure(const blastwave::BlastWaveConfig &config, const std::string &message) {
     bool threw = false;
     try {
@@ -90,6 +99,9 @@ namespace {
             "Default density evolution mode should stay affine-gaussian.");
     requireNear(parsed.runOptions.config.kappa2, 1.0986122886681098, 1.0e-12, "Default kappa2 should preserve the previous rho2 numeric default.");
     requireNear(parsed.runOptions.config.flowDensitySigma, 0.5, 1.0e-12, "Default flow density sigma should stay 0.5 fm.");
+    requireNear(parsed.runOptions.config.affineLambdaIn, 1.20, 1.0e-12, "Default affine lambda in should stay 1.20.");
+    requireNear(parsed.runOptions.config.affineLambdaOut, 1.05, 1.0e-12, "Default affine lambda out should stay 1.05.");
+    requireNear(parsed.runOptions.config.affineSigmaEvo, 0.5, 1.0e-12, "Default affine sigma evo should stay 0.5 fm.");
     requireNear(parsed.runOptions.config.gradientSigmaEm, 0.0, 1.0e-12, "Default gradient sigma em should stay disabled.");
     requireNear(parsed.runOptions.config.gradientSigmaDyn, 1.0, 1.0e-12, "Default gradient sigma dyn should stay 1.0 fm.");
     requireNear(parsed.runOptions.config.gradientDensityFloorFraction, 1.0e-4, 1.0e-16, "Default gradient density floor fraction mismatch.");
@@ -99,6 +111,7 @@ namespace {
     requireNear(parsed.runOptions.config.gradientDiffusionSigma, 0.0, 1.0e-12, "Default gradient diffusion sigma should stay disabled.");
     requireNear(parsed.runOptions.config.gradientVMax, 0.75, 1.0e-12, "Default gradient vmax mismatch.");
     requireNear(parsed.runOptions.config.gradientVelocityKappa, 1.0, 1.0e-12, "Default gradient velocity kappa mismatch.");
+    require(!parsed.runOptions.config.densityNormalKappaCompensation, "Density-normal kappa compensation should default to false.");
     require(!parsed.runOptions.config.debugGradientResponse, "Debug gradient response should stay disabled by default.");
     require(parsed.runOptions.config.cooperFryeWeightMode == blastwave::CooperFryeWeightMode::None,
             "Cooper-Frye weight should default to none.");
@@ -106,30 +119,66 @@ namespace {
 
   void runCliSamplerAndDensityEvolutionParseTest() {
     const ParsedRunOptions parsed = parseArguments(
-        {"--flow-velocity-sampler", "density-normal", "--density-evolution", "none", "--kappa2", "0.25", "--flow-density-sigma", "0.8"});
+        {"--flow-velocity-sampler",
+         "density-normal",
+         "--density-evolution",
+         "affine-gaussian",
+         "--density-normal-kappa-compensation",
+         "--kappa2",
+         "0.25",
+         "--flow-density-sigma",
+         "0.8",
+         "--affine-lambda-in",
+         "1.14",
+         "--affine-lambda-out",
+         "1.01",
+         "--affine-sigma-evo",
+         "0.35"});
     require(parsed.runOptions.config.flowVelocitySamplerMode == blastwave::FlowVelocitySamplerMode::DensityNormal,
             "CLI sampler parse should accept density-normal.");
-    require(parsed.runOptions.config.densityEvolutionMode == blastwave::DensityEvolutionMode::None,
-            "CLI density-evolution parse should accept none.");
+    require(parsed.runOptions.config.densityEvolutionMode == blastwave::DensityEvolutionMode::AffineGaussianResponse,
+            "CLI density-evolution parse should accept affine-gaussian.");
+    require(parsed.runOptions.config.densityNormalKappaCompensation, "CLI density-normal kappa compensation flag should enable the opt-in modulation.");
     requireNear(parsed.runOptions.config.kappa2, 0.25, 1.0e-12, "CLI kappa2 parse mismatch.");
     requireNear(parsed.runOptions.config.flowDensitySigma, 0.8, 1.0e-12, "CLI flow density sigma parse mismatch.");
+    requireNear(parsed.runOptions.config.affineLambdaIn, 1.14, 1.0e-12, "CLI affine lambda in parse mismatch.");
+    requireNear(parsed.runOptions.config.affineLambdaOut, 1.01, 1.0e-12, "CLI affine lambda out parse mismatch.");
+    requireNear(parsed.runOptions.config.affineSigmaEvo, 0.35, 1.0e-12, "CLI affine sigma evo parse mismatch.");
+    requireGeneratorValidationSuccess(parsed.runOptions.config, "Affine density-normal kappa compensation should be accepted by generator validation.");
   }
 
   void runConfigAndOverrideParseTest() {
     const TemporaryConfigFile configFile(
         "flow-velocity-sampler = density-normal\n"
-        "density-evolution = none\n"
+        "density-evolution = affine-gaussian\n"
         "kappa2 = 0.3\n"
+        "density-normal-kappa-compensation = true\n"
         "flow-density-sigma = 0.7\n"
+        "affine-lambda-in = 1.22\n"
+        "affine-lambda-out = 1.08\n"
+        "affine-sigma-evo = 0.45\n"
         "output = qa/test.root\n");
     const ParsedRunOptions parsed = parseArguments(
-        {configFile.path().string(), "--flow-velocity-sampler", "covariance-ellipse", "--density-evolution", "affine-gaussian", "--kappa2", "0.45"});
+        {configFile.path().string(),
+         "--flow-velocity-sampler",
+         "covariance-ellipse",
+         "--density-evolution",
+         "affine-gaussian",
+         "--no-density-normal-kappa-compensation",
+         "--kappa2",
+         "0.45",
+         "--affine-lambda-out",
+         "1.02"});
     require(parsed.runOptions.config.flowVelocitySamplerMode == blastwave::FlowVelocitySamplerMode::CovarianceEllipse,
             "CLI override should win over config-file sampler value.");
     require(parsed.runOptions.config.densityEvolutionMode == blastwave::DensityEvolutionMode::AffineGaussianResponse,
             "CLI override should win over config-file density-evolution value.");
     requireNear(parsed.runOptions.config.kappa2, 0.45, 1.0e-12, "CLI override should win over config-file kappa2 value.");
+    require(!parsed.runOptions.config.densityNormalKappaCompensation, "CLI --no-density-normal-kappa-compensation should disable the config-file opt-in.");
     requireNear(parsed.runOptions.config.flowDensitySigma, 0.7, 1.0e-12, "Config-file flow density sigma parse mismatch.");
+    requireNear(parsed.runOptions.config.affineLambdaIn, 1.22, 1.0e-12, "Config-file affine lambda in parse mismatch.");
+    requireNear(parsed.runOptions.config.affineLambdaOut, 1.02, 1.0e-12, "CLI override should win over config-file affine lambda out value.");
+    requireNear(parsed.runOptions.config.affineSigmaEvo, 0.45, 1.0e-12, "Config-file affine sigma evo parse mismatch.");
     require(parsed.runOptions.outputPath == (configFile.path().parent_path() / "qa/test.root").lexically_normal().string(),
             "Relative config-file output path should resolve against the config directory.");
   }
@@ -251,6 +300,17 @@ namespace {
     require(threw, "Invalid cooper-frye-weight should be rejected.");
   }
 
+  void runDensityNormalKappaCompensationConfigParseTest() {
+    const TemporaryConfigFile configFile(
+        "flow-velocity-sampler = density-normal\n"
+        "density-evolution = affine-gaussian\n"
+        "density-normal-kappa-compensation = true\n"
+        "flow-density-sigma = 0.6\n");
+    const ParsedRunOptions parsed = parseArguments({configFile.path().string()});
+    require(parsed.runOptions.config.densityNormalKappaCompensation, "Config-file density-normal-kappa-compensation should parse to true.");
+    requireGeneratorValidationSuccess(parsed.runOptions.config, "Config-file density-normal kappa compensation should pass generator validation.");
+  }
+
   void runDensityFlowMismatchRejectsTest() {
     const ParsedRunOptions densityOnly = parseArguments({"--density-evolution", "gradient-response"});
     require(densityOnly.runOptions.config.densityEvolutionMode == blastwave::DensityEvolutionMode::GradientResponse,
@@ -261,6 +321,23 @@ namespace {
     require(flowOnly.runOptions.config.flowVelocitySamplerMode == blastwave::FlowVelocitySamplerMode::GradientResponse,
             "Gradient-response flow-velocity-sampler should parse before generator validation.");
     requireGeneratorValidationFailure(flowOnly.runOptions.config, "Gradient-response flow without gradient density should be rejected by the generator.");
+  }
+
+  void runDensityNormalKappaCompensationValidationRejectsTest() {
+    const ParsedRunOptions noneMode = parseArguments(
+        {"--flow-velocity-sampler", "density-normal", "--density-evolution", "none", "--density-normal-kappa-compensation"});
+    requireGeneratorValidationFailure(
+        noneMode.runOptions.config, "Density-normal kappa compensation must be rejected when density-evolution is none.");
+
+    const ParsedRunOptions covarianceMode = parseArguments(
+        {"--flow-velocity-sampler", "covariance-ellipse", "--density-evolution", "affine-gaussian", "--density-normal-kappa-compensation"});
+    requireGeneratorValidationFailure(
+        covarianceMode.runOptions.config, "Density-normal kappa compensation must be rejected outside the density-normal sampler.");
+
+    const ParsedRunOptions gradientMode = parseArguments(
+        {"--flow-velocity-sampler", "gradient-response", "--density-evolution", "gradient-response", "--density-normal-kappa-compensation"});
+    requireGeneratorValidationFailure(
+        gradientMode.runOptions.config, "Density-normal kappa compensation must be rejected for gradient-response mode.");
   }
 
   void runGradientSigmaOrderingRejectsTest() {
@@ -289,6 +366,17 @@ namespace {
     requireGeneratorValidationFailure(parsed.runOptions.config, "Invalid gradient-vmax should be rejected by the generator.");
   }
 
+  void runInvalidAffineEvolutionParametersRejectsTest() {
+    const ParsedRunOptions invalidLambdaIn = parseArguments({"--affine-lambda-in", "0.0"});
+    requireGeneratorValidationFailure(invalidLambdaIn.runOptions.config, "Non-positive affine-lambda-in should be rejected by the generator.");
+
+    const ParsedRunOptions invalidLambdaOut = parseArguments({"--affine-lambda-out", "-0.1"});
+    requireGeneratorValidationFailure(invalidLambdaOut.runOptions.config, "Non-positive affine-lambda-out should be rejected by the generator.");
+
+    const ParsedRunOptions invalidSigmaEvo = parseArguments({"--affine-sigma-evo", "-0.01"});
+    requireGeneratorValidationFailure(invalidSigmaEvo.runOptions.config, "Negative affine-sigma-evo should be rejected by the generator.");
+  }
+
   void runDeprecatedRho2RejectsTest() {
     bool threw = false;
     try {
@@ -311,9 +399,12 @@ int main() {
     runInvalidSamplerRejectsTest();
     runInvalidDensityEvolutionRejectsTest();
     runInvalidCooperFryeWeightRejectsTest();
+    runDensityNormalKappaCompensationConfigParseTest();
     runDensityFlowMismatchRejectsTest();
+    runDensityNormalKappaCompensationValidationRejectsTest();
     runGradientSigmaOrderingRejectsTest();
     runInvalidGradientVmaxRejectsTest();
+    runInvalidAffineEvolutionParametersRejectsTest();
     runDeprecatedRho2RejectsTest();
     return 0;
   } catch (const std::exception &error) {

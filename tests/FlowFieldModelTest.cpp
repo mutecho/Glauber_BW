@@ -313,9 +313,23 @@ namespace {
     const blastwave::FlowFieldSample densityNormalSample = blastwave::evaluateFlowField(
         medium, 2.0, 0.0, {blastwave::FlowVelocitySamplerMode::DensityNormal, 0.8, 0.4, 1.2});
     require(densityNormalSample.betaT > 0.0, "Affine density-normal sample should produce non-zero betaT.");
-    const double expectedDensityRhoRaw = 0.8 * std::pow(densityNormalSample.rTilde, 1.2)
-                                         * std::exp(2.0 * a2 * std::cos(2.0 * (densityNormalSample.phiB - medium.participantGeometry.psi2)));
-    requireNear(densityNormalSample.rhoRaw, expectedDensityRhoRaw, 1.0e-12, "Affine density-normal kappa2*eps2 rhoRaw formula mismatch.");
+    const double expectedDensityRhoRaw = 0.8 * std::pow(densityNormalSample.rTilde, 1.2);
+    requireNear(densityNormalSample.rhoRaw, expectedDensityRhoRaw, 1.0e-12, "Affine density-normal default rhoRaw formula mismatch.");
+  }
+
+  void runAffineDensityNormalCompensationTest() {
+    blastwave::EventMedium medium = buildAffineAxisAlignedMedium();
+    medium.emissionGeometry.eps2 = 0.05;
+    medium.emissionGeometry.psi2 = medium.participantGeometry.psi2 + 0.37;
+
+    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(
+        medium, 2.0, 0.0, {blastwave::FlowVelocitySamplerMode::DensityNormal, 0.8, 0.4, 1.2, true});
+    require(sample.betaT > 0.0, "Affine density-normal compensation test should produce non-zero betaT.");
+
+    const double a2 = 0.4 * medium.participantGeometry.eps2;
+    const double expectedRhoRaw = 0.8 * std::pow(sample.rTilde, 1.2)
+                                  * std::exp(2.0 * a2 * std::cos(2.0 * (sample.phiB - medium.participantGeometry.psi2)));
+    requireNear(sample.rhoRaw, expectedRhoRaw, 1.0e-12, "Affine density-normal compensation rhoRaw formula mismatch.");
   }
 
   void runLegacyCovarianceKappa2ResponseTest() {
@@ -365,6 +379,7 @@ int main() {
     runDensityNormalCenterFallbackTest();
     runDensityNormalIgnoresKappa2Test();
     runAffineFlowResponseTest();
+    runAffineDensityNormalCompensationTest();
     runLegacyCovarianceKappa2ResponseTest();
     runSharedRTildeTest();
     runGradientResponseSiteOverloadTest();

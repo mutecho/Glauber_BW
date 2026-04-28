@@ -96,9 +96,9 @@ namespace blastwave {
     return buildEventMedium(weightedPoints,
                             {config_.densityEvolutionMode,
                              config_.flowDensitySigma,
-                             1.20,  // fixed V1a in-plane response
-                             1.05,  // fixed V1a out-of-plane response
-                             0.5,   // fm, fixed V1a evolution smoothing
+                             config_.affineLambdaIn,
+                             config_.affineLambdaOut,
+                             config_.affineSigmaEvo,
                              config_.gradientSigmaEm,
                              config_.gradientSigmaDyn,
                              config_.gradientDensityFloorFraction,

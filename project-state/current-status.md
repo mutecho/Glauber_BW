@@ -5,7 +5,7 @@
 - Date: 2026-04-28
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
 - Branch state: `master` with local V2 gradient-response implementation, docs, tests, and project-state updates in the working tree.
-- Active coordination task: keep the opt-in V2 `gradient-response` medium/flow contract, the default V1a path, the legacy `none` comparison path, and the expanded ROOT schema verified.
+- Active coordination task: keep the default V1a path, the public affine evolution knobs, the affine `density-normal` compensation contract, the legacy `none` comparison path, the opt-in V2 path, and the expanded ROOT schema verified.
 
 ## V2 Gradient Response Update
 
@@ -65,11 +65,12 @@
   - `src/FlowFieldModel.cpp`
   - participant covariance is diagonalized analytically into `FlowEllipseInfo`
   - event-level `EventMedium` is built once from the participant cloud and exposes `participantGeometry`, `initialDensity`, `emissionDensity`, and `emissionGeometry`
-  - default `DensityEvolutionMode::AffineGaussianResponse` applies fixed V1a affine expansion plus smoothing to build `emissionDensity` / `emissionGeometry`
+  - default `DensityEvolutionMode::AffineGaussianResponse` applies V1a affine expansion plus smoothing to build `emissionDensity` / `emissionGeometry`, with public defaults `affine-lambda-in = 1.20`, `affine-lambda-out = 1.05`, and `affine-sigma-evo = 0.5 fm`
   - `DensityEvolutionMode::None` keeps the initial and emission-stage fields identical for legacy comparison
   - transverse emission is routed through `EmissionSite`; default V1a uses the density-field backend, while `None` keeps `ParticipantHotspot`
   - the default sampler remains the covariance-ellipse normal field
   - `density-normal` uses the shared `emissionDensity` gradient with an `emissionGeometry` covariance-normal fallback
+  - in `affine-gaussian + density-normal`, the default strength is now `rho0 * pow(rTilde, flowPower)`; optional `density-normal-kappa-compensation` restores the explicit `kappa2` multiplier
 - The public flow config/CLI surface now exposes:
   - `rho0`
   - `kappa2`
@@ -77,6 +78,10 @@
   - `flow-velocity-sampler`
   - `density-evolution`
   - `flow-density-sigma`
+  - `affine-lambda-in`
+  - `affine-lambda-out`
+  - `affine-sigma-evo`
+  - `density-normal-kappa-compensation`
   - `debug-flow-ellipse`
   - V2 `gradient-*` parameters
   - `debug-gradient-response`
@@ -85,6 +90,7 @@
 - The V1a second-order flow response uses the initial participant eccentricity vector:
   - event-wise amplitude `a2 = kappa2 * participantGeometry.eps2`
   - event-wise plane `participantGeometry.psi2`
+  - affine `density-normal` only applies that explicit multiplier when `densityNormalKappaCompensation = true`
   - freeze-out `eps2_f` / `psi2_f` remain diagnostics and emission-geometry descriptors rather than flow-response inputs
 - `GeneratedEvent` now carries the event-level `EventMedium` alongside `EventInfo`, participants, and particles so optional debug serialization and flow sampling share the same density/geometry state.
 - `EventInfo` now carries both initial geometry (`eps2`, `psi2`) and freeze-out geometry diagnostics (`eps2Freezeout`, `psi2Freezeout`, `chi2`).
@@ -207,6 +213,21 @@
     - identity smoke: `mean_r2_0=11.9584 mean_r2_f=11.9584 mean_r2_ratio=1`
   - zero-event V2 debug QA passed without writing empty debug histograms:
     - `validation_passed events=0 particles=0 mean_Npart=0 mean_eps2=0 mean_v2=0 max_abs_eta_s=0 max_E=0 max_mass_shell_deviation=0`
+  - the project was rebuilt, regression-tested, and smoke-validated on 2026-04-28 after making affine `density-normal` kappa compensation opt-in
+  - local build passed for:
+    - `generate_blastwave_events`
+    - `qa_blastwave_output`
+    - `test_flow_field_model`
+    - `test_run_options`
+  - `ctest --output-on-failure` passed all 6 registered tests
+  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-28 for default V1a `affine-gaussian + covariance-ellipse`:
+    - `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0714324 max_abs_eta_s=6.67501 max_E=958.06 max_mass_shell_deviation=3.02439e-11`
+  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-28 for default affine `density-normal` with compensation disabled:
+    - `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0470409 max_abs_eta_s=6.67501 max_E=948.867 max_mass_shell_deviation=7.25284e-11`
+  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-28 for affine `density-normal` with explicit compensation enabled:
+    - `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0463026 max_abs_eta_s=6.67501 max_E=960.252 max_mass_shell_deviation=7.70089e-11`
+  - the invalid compensated `density-normal` comparison path is now rejected with:
+    - `generate_blastwave_events failed: densityNormalKappaCompensation requires densityEvolutionMode=affine-gaussian and flowVelocitySamplerMode=density-normal.`
   - the project was rebuilt, regression-tested, and smoke-validated on 2026-04-28 after replacing the public second-order response input `rho2` with `kappa2`
   - `--rho2` now fails fast with:
     - `generate_blastwave_events failed: Invalid option/key 'rho2' from command line option '--rho2'. Migration: rho2 -> kappa2.`
@@ -214,7 +235,7 @@
     - `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0714324 max_abs_eta_s=6.67501 max_E=958.06 max_mass_shell_deviation=3.02439e-11`
   - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-28 for `kappa2` + `density-evolution none`:
     - `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0924968 max_abs_eta_s=6.67501 max_E=984.787 max_mass_shell_deviation=3.58382e-11`
-  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-28 for V1a `kappa2` + `density-normal`:
+  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-28 for the historical compensated V1a `kappa2` + `density-normal` baseline:
     - `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0463026 max_abs_eta_s=6.67501 max_E=960.252 max_mass_shell_deviation=7.70089e-11`
   - the project was rebuilt, regression-tested, and smoke-validated on 2026-04-28 after adding V1a fixed-parameter affine density response
   - local build passed for:
@@ -237,7 +258,7 @@
     - `/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_v1a_none_smoke.root --output /tmp/blastwave_v1a_none_smoke_validation.root --expect-nevents 20`
   - the `none` comparison QA summary was:
     - `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0924968 max_abs_eta_s=6.67501 max_E=984.787 max_mass_shell_deviation=3.58382e-11`
-  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-28 for default V1a + `density-normal`:
+  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-28 for the pre-DEC-010 default V1a + `density-normal` baseline:
     - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --flow-velocity-sampler density-normal --flow-density-sigma 0.5 --output /tmp/blastwave_v1a_density_normal_smoke.root`
     - `/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_v1a_density_normal_smoke.root --output /tmp/blastwave_v1a_density_normal_smoke_validation.root --expect-nevents 20`
   - the V1a density-normal QA summary was:
