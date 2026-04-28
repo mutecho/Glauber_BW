@@ -238,6 +238,11 @@ target_compile_options(test_run_options
     -Wsign-conversion
 )
 
+target_link_libraries(test_run_options
+  PRIVATE
+    blastwave_core
+)
+
 add_test(
   NAME test_run_options
   COMMAND $<TARGET_FILE:test_run_options>

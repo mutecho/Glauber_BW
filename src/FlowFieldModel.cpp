@@ -4,6 +4,7 @@
 #include <cmath>
 #include <limits>
 
+#include "blastwave/EmissionSampler.h"
 #include "blastwave/EventMedium.h"
 
 namespace {
@@ -135,6 +136,33 @@ namespace {
     return sample;
   }
 
+  // Interpret sampler-provided V2 gradient-response beta values as the full
+  // transverse flow state for this emission site.
+  blastwave::FlowFieldSample evaluateGradientResponseFlow(const blastwave::EmissionSite &site) {
+    blastwave::FlowFieldSample sample;
+    sample.betaX = site.betaTX;
+    sample.betaY = site.betaTY;
+    sample.betaT = std::hypot(sample.betaX, sample.betaY);
+    if (!std::isfinite(sample.betaT) || sample.betaT <= 0.0) {
+      sample.betaX = 0.0;
+      sample.betaY = 0.0;
+      sample.betaT = 0.0;
+      sample.phiB = 0.0;
+      sample.rhoRaw = 0.0;
+      return sample;
+    }
+
+    if (sample.betaT >= 1.0) {
+      const double scale = std::nextafter(1.0, 0.0) / sample.betaT;
+      sample.betaX *= scale;
+      sample.betaY *= scale;
+      sample.betaT = std::nextafter(1.0, 0.0);
+    }
+    sample.phiB = std::atan2(sample.betaY, sample.betaX);
+    sample.rhoRaw = std::atanh(sample.betaT);
+    return sample;
+  }
+
 }  // namespace
 
 namespace blastwave {
@@ -145,6 +173,20 @@ namespace blastwave {
         return evaluateCovarianceEllipseFlow(medium, x, y, parameters);
       case FlowVelocitySamplerMode::DensityNormal:
         return evaluateDensityNormalFlow(medium, x, y, parameters);
+      case FlowVelocitySamplerMode::GradientResponse:
+        return {};
+    }
+
+    return {};
+  }
+
+  FlowFieldSample evaluateFlowField(const EventMedium &medium, const EmissionSite &site, const FlowFieldParameters &parameters) {
+    switch (parameters.velocitySamplerMode) {
+      case FlowVelocitySamplerMode::CovarianceEllipse:
+      case FlowVelocitySamplerMode::DensityNormal:
+        return evaluateFlowField(medium, site.position.x, site.position.y, parameters);
+      case FlowVelocitySamplerMode::GradientResponse:
+        return evaluateGradientResponseFlow(site);
     }
 
     return {};

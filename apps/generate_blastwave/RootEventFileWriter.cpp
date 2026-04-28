@@ -49,6 +49,15 @@ namespace {
     return histogram;
   }
 
+  std::unique_ptr<TH2F> makeGradientDensityHistogram(const char *name, const char *title, const blastwave::BlastWaveConfig &config) {
+    const double extent = computeParticipantDisplayExtent(config);
+    auto histogram = std::make_unique<TH2F>(name, title, 200, -extent, extent, 200, -extent, extent);
+    histogram->SetStats(false);
+    histogram->SetOption("COLZ");
+    histogram->SetDirectory(nullptr);
+    return histogram;
+  }
+
   // Serialize the generator-owned emission-stage density so optional debug
   // output reflects the same medium state used by flow sampling.
   void fillDensityNormalEventDensityHistogram(TH2F &histogram, const blastwave::GeneratedEvent &event) {
@@ -66,6 +75,25 @@ namespace {
     }
   }
 
+  // Rasterize one analytic density field into a TH2 for optional debug output.
+  void fillDensityHistogramFromField(TH2F &histogram, const blastwave::DensityField &field) {
+    for (int iBinX = 1; iBinX <= histogram.GetNbinsX(); ++iBinX) {
+      const double x = histogram.GetXaxis()->GetBinCenter(iBinX);
+      for (int iBinY = 1; iBinY <= histogram.GetNbinsY(); ++iBinY) {
+        const double y = histogram.GetYaxis()->GetBinCenter(iBinY);
+        const blastwave::DensityFieldSample densitySample = blastwave::evaluateDensityField(field, x, y);
+        histogram.SetBinContent(iBinX, iBinY, std::max(0.0, densitySample.density));
+      }
+    }
+  }
+
+  // Fill a discrete freeze-out cloud proxy directly from accepted particle x-y.
+  void fillDensityHistogramFromParticleCloud(TH2F &histogram, const blastwave::GeneratedEvent &event) {
+    for (const blastwave::ParticleRecord &particle : event.particles) {
+      histogram.Fill(particle.x, particle.y, 1.0);
+    }
+  }
+
   blastwave::io::EventBranches toEventBranches(const blastwave::EventInfo &info) {
     blastwave::io::EventBranches branches;
     branches.eventId = static_cast<Int_t>(info.eventId);
@@ -76,6 +104,9 @@ namespace {
     branches.psi2 = info.psi2;
     branches.psi2Freezeout = info.psi2Freezeout;
     branches.chi2 = info.chi2;
+    branches.r2Initial = info.r2Initial;
+    branches.r2Final = info.r2Final;
+    branches.r2Ratio = info.r2Ratio;
     branches.v2 = info.v2;
     branches.centrality = info.centrality;
     branches.nCharged = static_cast<Int_t>(info.nCharged);
@@ -108,6 +139,9 @@ namespace {
     branches.etaS = particle.etaS;
     branches.sourceX = particle.sourceX;
     branches.sourceY = particle.sourceY;
+    branches.x0 = particle.x0;
+    branches.y0 = particle.y0;
+    branches.emissionWeight = particle.emissionWeight;
     branches.energy = std::sqrt(branches.mass * branches.mass + branches.px * branches.px + branches.py * branches.py + branches.pz * branches.pz);
     return branches;
   }
@@ -158,6 +192,9 @@ namespace blastwave::app {
           hPsi2(blastwave::io::kPsi2HistogramName, "Participant-plane angle;#Psi_{2} [rad];Events", 128, -1.7, 1.7),
           hPsi2Freezeout(blastwave::io::kPsi2FreezeoutHistogramName, "Freeze-out participant-plane angle;#Psi_{2}^{f} [rad];Events", 128, -1.7, 1.7),
           hChi2(blastwave::io::kChi2HistogramName, "Response ratio;#chi_{2};Events", 150, 0.0, 3.0),
+          hR2Initial(blastwave::io::kR2InitialHistogramName, "Centered initial marker radius moment;#LT (r_{0}-#LT r_{0}#GT)^{2} #GT [fm^{2}];Events", 160, 0.0, 80.0),
+          hR2Final(blastwave::io::kR2FinalHistogramName, "Centered final emission radius moment;#LT (r_{f}-#LT r_{f}#GT)^{2} #GT [fm^{2}];Events", 160, 0.0, 80.0),
+          hR2Ratio(blastwave::io::kR2RatioHistogramName, "Radius moment response;#LT r_{f}^{2} #GT / #LT r_{0}^{2} #GT;Events", 200, 0.0, 4.0),
           hV2(blastwave::io::kV2HistogramName, "Event-by-event final-state v_{2};v_{2};Events", 120, 0.0, 1.0),
           hCentrality(blastwave::io::kCentralityHistogramName, "Centrality;centrality [%];Events", 11, 0.0, 110.0),
           hParticipantXY(blastwave::io::kParticipantXYHistogramName,
@@ -192,6 +229,22 @@ namespace blastwave::app {
         hFlowEllipseParticipantNormXY = std::make_unique<TH2F>(
             blastwave::io::kFlowEllipseParticipantNormXYHistogramName, "Flow ellipse normalized participant map;x' / R_{major};y' / R_{minor}", 240, -6.0, 6.0, 240, -6.0, 6.0);
       }
+
+      // Keep V2 gradient diagnostics opt-in and first-event-only.
+      if (config.debugGradientResponse) {
+        hGradientS0 = makeGradientDensityHistogram(blastwave::io::kGradientS0HistogramName,
+                                                   "Gradient response s_{0} density;x [fm];y [fm];s_{0}(x,y)",
+                                                   config);
+        hGradientSEm = makeGradientDensityHistogram(blastwave::io::kGradientSEmHistogramName,
+                                                    "Gradient response s_{em} density;x [fm];y [fm];s_{em}(x,y)",
+                                                    config);
+        hGradientSDyn = makeGradientDensityHistogram(blastwave::io::kGradientSDynHistogramName,
+                                                     "Gradient response s_{dyn} density;x [fm];y [fm];s_{dyn}(x,y)",
+                                                     config);
+        hGradientSF = makeGradientDensityHistogram(blastwave::io::kGradientSFHistogramName,
+                                                   "Gradient response sampled s_{f} cloud;x [fm];y [fm];counts",
+                                                   config);
+      }
     }
 
     // Fill the persistent ROOT trees and QA histograms from the generator-owned
@@ -206,6 +259,9 @@ namespace blastwave::app {
       hPsi2.Fill(eventBranches.psi2);
       hPsi2Freezeout.Fill(eventBranches.psi2Freezeout);
       hChi2.Fill(eventBranches.chi2);
+      hR2Initial.Fill(eventBranches.r2Initial);
+      hR2Final.Fill(eventBranches.r2Final);
+      hR2Ratio.Fill(eventBranches.r2Ratio);
       hV2.Fill(eventBranches.v2);
       hCentrality.Fill(eventBranches.centrality);
 
@@ -215,6 +271,7 @@ namespace blastwave::app {
       }
 
       maybeCaptureDensityNormalEventDensity(event);
+      maybeCaptureGradientResponseDebug(event);
 
       for (const blastwave::ParticipantRecord &participant : event.participants) {
         participantBranches = toParticipantBranches(participant);
@@ -257,6 +314,23 @@ namespace blastwave::app {
 
       hDensityNormalEventDensity = makeDensityNormalEventDensityHistogram(config);
       fillDensityNormalEventDensityHistogram(*hDensityNormalEventDensity, event);
+    }
+
+    // Capture optional V2 gradient-response debug payload from the first event
+    // with participants so files stay bounded and deterministic.
+    void maybeCaptureGradientResponseDebug(const blastwave::GeneratedEvent &event) {
+      if (!config.debugGradientResponse || event.participants.empty() || event.particles.empty() || gradientDebugCaptured) {
+        return;
+      }
+      if (hGradientS0 == nullptr || hGradientSEm == nullptr || hGradientSDyn == nullptr || hGradientSF == nullptr) {
+        return;
+      }
+
+      fillDensityHistogramFromField(*hGradientS0, event.medium.initialDensity);
+      fillDensityHistogramFromField(*hGradientSEm, event.medium.markerDensity);
+      fillDensityHistogramFromField(*hGradientSDyn, event.medium.dynamicsDensity);
+      fillDensityHistogramFromParticleCloud(*hGradientSF, event);
+      gradientDebugCaptured = true;
     }
 
     // Finalize the embedded QA objects and persist the full output contract into
@@ -308,6 +382,9 @@ namespace blastwave::app {
       hPsi2.Write();
       hPsi2Freezeout.Write();
       hChi2.Write();
+      hR2Initial.Write();
+      hR2Final.Write();
+      hR2Ratio.Write();
       hV2.Write();
       hCentrality.Write();
       hParticipantXY.Write();
@@ -319,6 +396,22 @@ namespace blastwave::app {
         hDensityNormalEventDensity->Write();
         hDensityNormalEventDensity->SetDirectory(nullptr);
       }
+      if (gradientDebugCaptured && hGradientS0 != nullptr) {
+        hGradientS0->Write();
+        hGradientS0->SetDirectory(nullptr);
+      }
+      if (gradientDebugCaptured && hGradientSEm != nullptr) {
+        hGradientSEm->Write();
+        hGradientSEm->SetDirectory(nullptr);
+      }
+      if (gradientDebugCaptured && hGradientSDyn != nullptr) {
+        hGradientSDyn->Write();
+        hGradientSDyn->SetDirectory(nullptr);
+      }
+      if (gradientDebugCaptured && hGradientSF != nullptr) {
+        hGradientSF->Write();
+        hGradientSF->SetDirectory(nullptr);
+      }
       hXY.Write();
       hPxPy.Write();
       hPt.Write();
@@ -329,12 +422,17 @@ namespace blastwave::app {
       flowEllipseDebugTree.reset();
       hFlowEllipseParticipantNormXY.reset();
       hDensityNormalEventDensity.reset();
+      hGradientS0.reset();
+      hGradientSEm.reset();
+      hGradientSDyn.reset();
+      hGradientSF.reset();
       finished = true;
     }
 
     blastwave::BlastWaveConfig config;
     std::string outputPath;
     bool finished = false;
+    bool gradientDebugCaptured = false;
 
     TFile outputFile;
     TTree eventsTree;
@@ -353,11 +451,18 @@ namespace blastwave::app {
     TH1F hPsi2;
     TH1F hPsi2Freezeout;
     TH1F hChi2;
+    TH1F hR2Initial;
+    TH1F hR2Final;
+    TH1F hR2Ratio;
     TH1F hV2;
     TH1F hCentrality;
     TH2F hParticipantXY;
     std::unique_ptr<TH2F> hFlowEllipseParticipantNormXY;
     std::unique_ptr<TH2F> hDensityNormalEventDensity;
+    std::unique_ptr<TH2F> hGradientS0;
+    std::unique_ptr<TH2F> hGradientSEm;
+    std::unique_ptr<TH2F> hGradientSDyn;
+    std::unique_ptr<TH2F> hGradientSF;
     TH2F hXY;
     TH2F hPxPy;
     TH1F hPt;

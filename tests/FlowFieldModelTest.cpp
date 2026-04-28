@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "blastwave/EventMedium.h"
+#include "blastwave/EmissionSampler.h"
 #include "blastwave/FlowFieldModel.h"
 
 namespace {
@@ -131,6 +132,7 @@ namespace {
     requireNear(sample.density, expectedDensity, 1.0e-12, "Single-Gaussian density mismatch.");
     requireNear(sample.gradientX, -expectedDensity * 0.4 / sigma2, 1.0e-12, "Single-Gaussian gradientX mismatch.");
     requireNear(sample.gradientY, -expectedDensity * -0.3 / sigma2, 1.0e-12, "Single-Gaussian gradientY mismatch.");
+    require(sample.gradientX * 0.4 + sample.gradientY * -0.3 < 0.0, "Single-Gaussian gradient should point back toward the origin.");
   }
 
   void runInvalidDensitySigmaTest() {
@@ -246,6 +248,31 @@ namespace {
     requireNear(covarianceSample.rTilde, densitySample.rTilde, 1.0e-12, "Both samplers should share the same covariance-based rTilde.");
   }
 
+  void runGradientResponseSiteOverloadTest() {
+    const blastwave::EventMedium medium = buildAxisAlignedMedium();
+    blastwave::EmissionSite site;
+    site.betaTX = 0.3;
+    site.betaTY = 0.4;
+
+    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(
+        medium,
+        site,
+        {blastwave::FlowVelocitySamplerMode::GradientResponse, 0.8, 0.4, 1.2});
+    requireNear(sample.betaX, 0.3, kTolerance, "Gradient-response overload should preserve site betaX.");
+    requireNear(sample.betaY, 0.4, kTolerance, "Gradient-response overload should preserve site betaY.");
+    requireNear(sample.betaT, 0.5, kTolerance, "Gradient-response overload should preserve the transverse beta magnitude.");
+    requireNear(sample.phiB, std::atan2(0.4, 0.3), kTolerance, "Gradient-response overload should preserve phiB.");
+    requireNear(sample.rhoRaw, std::atanh(0.5), kTolerance, "Gradient-response overload should map betaT through atanh.");
+
+    blastwave::EmissionSite fastSite;
+    fastSite.betaTX = 0.97;
+    const blastwave::FlowFieldSample fastSample = blastwave::evaluateFlowField(
+        medium,
+        fastSite,
+        {blastwave::FlowVelocitySamplerMode::GradientResponse, 0.8, 0.4, 1.2});
+    requireNear(fastSample.betaT, 0.97, kTolerance, "Gradient-response overload should not apply the legacy 0.95 clip.");
+  }
+
   void runAffineMediumGeometryTest() {
     const blastwave::EventMedium medium = buildAffineAxisAlignedMedium();
     requireNear(medium.participantGeometry.sigmaX2, 4.0, 1.0e-12, "Participant sigmaX2 must preserve initial geometry.");
@@ -340,6 +367,7 @@ int main() {
     runAffineFlowResponseTest();
     runLegacyCovarianceKappa2ResponseTest();
     runSharedRTildeTest();
+    runGradientResponseSiteOverloadTest();
     runVelocityClippingTest();
 
     std::cout << "Flow field model tests passed.\n";

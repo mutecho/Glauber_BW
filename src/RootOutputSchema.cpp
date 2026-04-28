@@ -14,6 +14,9 @@ namespace blastwave::io {
     constexpr char kPsi2BranchName[] = "psi2";
     constexpr char kPsi2FreezeoutBranchName[] = "psi2_f";
     constexpr char kChi2BranchName[] = "chi2";
+    constexpr char kR2InitialBranchName[] = "r2_0";
+    constexpr char kR2FinalBranchName[] = "r2_f";
+    constexpr char kR2RatioBranchName[] = "r2_ratio";
     constexpr char kV2BranchName[] = "v2";
     constexpr char kCentralityBranchName[] = "centrality";
     constexpr char kNchBranchName[] = "Nch";
@@ -33,6 +36,9 @@ namespace blastwave::io {
     constexpr char kEtaSBranchName[] = "eta_s";
     constexpr char kSourceXBranchName[] = "source_x";
     constexpr char kSourceYBranchName[] = "source_y";
+    constexpr char kX0BranchName[] = "x0";
+    constexpr char kY0BranchName[] = "y0";
+    constexpr char kEmissionWeightBranchName[] = "emission_weight";
     constexpr char kCenterXBranchName[] = "center_x";
     constexpr char kCenterYBranchName[] = "center_y";
     constexpr char kSigmaX2BranchName[] = "sigma_x2";
@@ -58,6 +64,9 @@ namespace blastwave::io {
     tree.Branch(kPsi2BranchName, &branches.psi2, "psi2/D");
     tree.Branch(kPsi2FreezeoutBranchName, &branches.psi2Freezeout, "psi2_f/D");
     tree.Branch(kChi2BranchName, &branches.chi2, "chi2/D");
+    tree.Branch(kR2InitialBranchName, &branches.r2Initial, "r2_0/D");
+    tree.Branch(kR2FinalBranchName, &branches.r2Final, "r2_f/D");
+    tree.Branch(kR2RatioBranchName, &branches.r2Ratio, "r2_ratio/D");
     tree.Branch(kV2BranchName, &branches.v2, "v2/D");
     tree.Branch(kCentralityBranchName, &branches.centrality, "centrality/D");
     tree.Branch(kNchBranchName, &branches.nCharged, "Nch/I");
@@ -79,6 +88,9 @@ namespace blastwave::io {
     tree.Branch(kEtaSBranchName, &branches.etaS, "eta_s/D");
     tree.Branch(kSourceXBranchName, &branches.sourceX, "source_x/D");
     tree.Branch(kSourceYBranchName, &branches.sourceY, "source_y/D");
+    tree.Branch(kX0BranchName, &branches.x0, "x0/D");
+    tree.Branch(kY0BranchName, &branches.y0, "y0/D");
+    tree.Branch(kEmissionWeightBranchName, &branches.emissionWeight, "emission_weight/D");
   }
 
   void declareParticipantBranches(TTree &tree, ParticipantBranches &branches) {
@@ -118,6 +130,9 @@ namespace blastwave::io {
     tree.SetBranchAddress(kPsi2BranchName, &branches.psi2);
     tree.SetBranchAddress(kPsi2FreezeoutBranchName, &branches.psi2Freezeout);
     tree.SetBranchAddress(kChi2BranchName, &branches.chi2);
+    tree.SetBranchAddress(kR2InitialBranchName, &branches.r2Initial);
+    tree.SetBranchAddress(kR2FinalBranchName, &branches.r2Final);
+    tree.SetBranchAddress(kR2RatioBranchName, &branches.r2Ratio);
     tree.SetBranchAddress(kV2BranchName, &branches.v2);
     tree.SetBranchAddress(kCentralityBranchName, &branches.centrality);
     tree.SetBranchAddress(kNchBranchName, &branches.nCharged);
@@ -139,6 +154,9 @@ namespace blastwave::io {
     tree.SetBranchAddress(kEtaSBranchName, &branches.etaS);
     tree.SetBranchAddress(kSourceXBranchName, &branches.sourceX);
     tree.SetBranchAddress(kSourceYBranchName, &branches.sourceY);
+    tree.SetBranchAddress(kX0BranchName, &branches.x0);
+    tree.SetBranchAddress(kY0BranchName, &branches.y0);
+    tree.SetBranchAddress(kEmissionWeightBranchName, &branches.emissionWeight);
   }
 
   void bindParticipantBranches(TTree &tree, ParticipantBranches &branches) {

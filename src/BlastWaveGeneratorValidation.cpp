@@ -19,7 +19,8 @@ namespace blastwave {
   // layer so broken kinematics never become part of the serialized contract.
   void BlastWaveGenerator::validateParticle(const ParticleRecord &particle) const {
     const double fields[] = {
-        particle.mass, particle.x, particle.y, particle.z, particle.t, particle.px, particle.py, particle.pz, particle.energy, particle.etaS, particle.sourceX, particle.sourceY};
+        particle.mass, particle.x, particle.y, particle.z, particle.t, particle.px, particle.py, particle.pz, particle.energy, particle.etaS, particle.sourceX, particle.sourceY,
+        particle.x0, particle.y0, particle.emissionWeight};
 
     for (double field : fields) {
       if (!isFinite(field)) {
@@ -31,6 +32,9 @@ namespace blastwave {
         particle.energy * particle.energy - (particle.px * particle.px + particle.py * particle.py + particle.pz * particle.pz) - particle.mass * particle.mass;
     if (std::abs(massShell) > kFiniteTolerance) {
       throw std::runtime_error("Generator produced an invalid on-shell particle.");
+    }
+    if (particle.emissionWeight < 0.0) {
+      throw std::runtime_error("Generator produced a negative emission weight.");
     }
   }
 
@@ -78,6 +82,42 @@ namespace blastwave {
     }
     if (!isFinite(config_.flowDensitySigma) || config_.flowDensitySigma <= 0.0) {
       throw std::invalid_argument("flowDensitySigma must be finite and positive.");
+    }
+    if (!isFinite(config_.gradientSigmaEm) || config_.gradientSigmaEm < 0.0) {
+      throw std::invalid_argument("gradientSigmaEm must be finite and non-negative.");
+    }
+    if (!isFinite(config_.gradientSigmaDyn) || config_.gradientSigmaDyn < 0.0) {
+      throw std::invalid_argument("gradientSigmaDyn must be finite and non-negative.");
+    }
+    if (!isFinite(config_.gradientDensityFloorFraction) || config_.gradientDensityFloorFraction < 0.0) {
+      throw std::invalid_argument("gradientDensityFloorFraction must be finite and non-negative.");
+    }
+    if (!isFinite(config_.gradientDensityCutoffFraction) || config_.gradientDensityCutoffFraction < 0.0) {
+      throw std::invalid_argument("gradientDensityCutoffFraction must be finite and non-negative.");
+    }
+    if (!isFinite(config_.gradientDisplacementMax) || config_.gradientDisplacementMax < 0.0) {
+      throw std::invalid_argument("gradientDisplacementMax must be finite and non-negative.");
+    }
+    if (!isFinite(config_.gradientDisplacementKappa) || config_.gradientDisplacementKappa < 0.0) {
+      throw std::invalid_argument("gradientDisplacementKappa must be finite and non-negative.");
+    }
+    if (!isFinite(config_.gradientDiffusionSigma) || config_.gradientDiffusionSigma < 0.0) {
+      throw std::invalid_argument("gradientDiffusionSigma must be finite and non-negative.");
+    }
+    if (!isFinite(config_.gradientVMax) || config_.gradientVMax < 0.0 || config_.gradientVMax >= 1.0) {
+      throw std::invalid_argument("gradientVMax must be finite and satisfy 0 <= gradientVMax < 1.");
+    }
+    if (!isFinite(config_.gradientVelocityKappa) || config_.gradientVelocityKappa < 0.0) {
+      throw std::invalid_argument("gradientVelocityKappa must be finite and non-negative.");
+    }
+    if (config_.gradientSigmaDyn <= config_.gradientSigmaEm) {
+      throw std::invalid_argument("gradientSigmaDyn must be greater than gradientSigmaEm.");
+    }
+    if (config_.densityEvolutionMode == DensityEvolutionMode::GradientResponse && config_.flowVelocitySamplerMode != FlowVelocitySamplerMode::GradientResponse) {
+      throw std::invalid_argument("densityEvolutionMode=gradient-response requires flowVelocitySamplerMode=gradient-response.");
+    }
+    if (config_.flowVelocitySamplerMode == FlowVelocitySamplerMode::GradientResponse && config_.densityEvolutionMode != DensityEvolutionMode::GradientResponse) {
+      throw std::invalid_argument("flowVelocitySamplerMode=gradient-response requires densityEvolutionMode=gradient-response.");
     }
   }
 

@@ -6,7 +6,8 @@
 
 namespace blastwave {
 
-  enum class FlowVelocitySamplerMode { CovarianceEllipse, DensityNormal };
+  enum class FlowVelocitySamplerMode { CovarianceEllipse, DensityNormal, GradientResponse };
+  struct EmissionSite;
   struct EventMedium;
 
   /**
@@ -64,5 +65,6 @@ namespace blastwave {
 
   [[nodiscard]] FlowEllipseInfo computeFlowEllipseInfo(const std::vector<WeightedTransversePoint> &points);
   [[nodiscard]] FlowFieldSample evaluateFlowField(const EventMedium &medium, double x, double y, const FlowFieldParameters &parameters);
+  [[nodiscard]] FlowFieldSample evaluateFlowField(const EventMedium &medium, const EmissionSite &site, const FlowFieldParameters &parameters);
 
 }  // namespace blastwave

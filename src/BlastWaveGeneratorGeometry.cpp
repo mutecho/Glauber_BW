@@ -98,7 +98,11 @@ namespace blastwave {
                              config_.flowDensitySigma,
                              1.20,  // fixed V1a in-plane response
                              1.05,  // fixed V1a out-of-plane response
-                             0.5}); // fm, fixed V1a evolution smoothing
+                             0.5,   // fm, fixed V1a evolution smoothing
+                             config_.gradientSigmaEm,
+                             config_.gradientSigmaDyn,
+                             config_.gradientDensityFloorFraction,
+                             config_.gradientDensityCutoffFraction});
   }
 
 }  // namespace blastwave

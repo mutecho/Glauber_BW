@@ -20,11 +20,18 @@ namespace blastwave::io {
   inline constexpr char kPsi2HistogramName[] = "psi2";
   inline constexpr char kPsi2FreezeoutHistogramName[] = "psi2_f";
   inline constexpr char kChi2HistogramName[] = "chi2";
+  inline constexpr char kR2InitialHistogramName[] = "r2_0";
+  inline constexpr char kR2FinalHistogramName[] = "r2_f";
+  inline constexpr char kR2RatioHistogramName[] = "r2_ratio";
   inline constexpr char kV2HistogramName[] = "v2";
   inline constexpr char kCentralityHistogramName[] = "cent";
   inline constexpr char kParticipantXYHistogramName[] = "participant_x-y";
   inline constexpr char kFlowEllipseParticipantNormXYHistogramName[] = "flow_ellipse_participant_norm_x-y";
   inline constexpr char kDensityNormalEventDensityHistogramName[] = "density_normal_event_density_x-y";
+  inline constexpr char kGradientS0HistogramName[] = "gradient_s0_x-y";
+  inline constexpr char kGradientSEmHistogramName[] = "gradient_s_em_x-y";
+  inline constexpr char kGradientSDynHistogramName[] = "gradient_s_dyn_x-y";
+  inline constexpr char kGradientSFHistogramName[] = "gradient_s_f_x-y";
   inline constexpr char kParticipantXYCanvasName[] = "participant_x-y_canvas";
   inline constexpr char kXYHistogramName[] = "x-y";
   inline constexpr char kPxPyHistogramName[] = "px-py";
@@ -41,6 +48,9 @@ namespace blastwave::io {
     Double_t psi2 = 0.0;
     Double_t psi2Freezeout = 0.0;
     Double_t chi2 = 0.0;
+    Double_t r2Initial = 0.0;
+    Double_t r2Final = 0.0;
+    Double_t r2Ratio = 0.0;
     Double_t v2 = 0.0;
     Double_t centrality = 0.0;
     Int_t nCharged = 0;
@@ -62,6 +72,9 @@ namespace blastwave::io {
     Double_t etaS = 0.0;
     Double_t sourceX = 0.0;
     Double_t sourceY = 0.0;
+    Double_t x0 = 0.0;
+    Double_t y0 = 0.0;
+    Double_t emissionWeight = 1.0;
   };
 
   struct ParticipantBranches {

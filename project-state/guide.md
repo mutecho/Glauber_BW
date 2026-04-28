@@ -20,12 +20,12 @@
   - [include/blastwave/EmissionSampler.h](/Users/allenzhou/Research_software/Blast_wave/include/blastwave/EmissionSampler.h)
   - [src/EventMedium.cpp](/Users/allenzhou/Research_software/Blast_wave/src/EventMedium.cpp)
   - [src/EmissionSampler.cpp](/Users/allenzhou/Research_software/Blast_wave/src/EmissionSampler.cpp)
-  `EventMedium` 现在区分 `participantGeometry`、`initialDensity`、`emissionDensity` 和 `emissionGeometry`；默认 `DensityEvolutionMode::AffineGaussianResponse` 会用固定 V1a 参数把 `s0` 演化为 freeze-out `sf`，`DensityEvolutionMode::None` 保留原先 identity 对照路径。`EmissionSite` 是发射 backend 的统一输出，默认 V1a 从 `emissionDensity` 抽横向发射点，`none` 保持 participant hotspot smear。
+  `EventMedium` 现在区分 `participantGeometry`、`initialDensity`、V2 `markerDensity` / `dynamicsDensity`、`emissionDensity` 和 `emissionGeometry`；默认 `DensityEvolutionMode::AffineGaussianResponse` 会用固定 V1a 参数把 `s0` 演化为 freeze-out `sf`，`DensityEvolutionMode::None` 保留原先 identity 对照路径，`DensityEvolutionMode::GradientResponse` 是 opt-in V2 梯度响应。`EmissionSite` 是发射 backend 的统一输出，默认 V1a 从 `emissionDensity` 抽横向发射点，`none` 保持 participant hotspot smear，V2 保存 `r0/rf`、位移、site velocity 和可选权重。
 - 流体元速度抽样模块位于 [include/blastwave/FlowFieldModel.h](/Users/allenzhou/Research_software/Blast_wave/include/blastwave/FlowFieldModel.h) 以及：
   - [src/FlowFieldGeometry.cpp](/Users/allenzhou/Research_software/Blast_wave/src/FlowFieldGeometry.cpp)
   - [src/FlowFieldDensity.cpp](/Users/allenzhou/Research_software/Blast_wave/src/FlowFieldDensity.cpp)
   - [src/FlowFieldModel.cpp](/Users/allenzhou/Research_software/Blast_wave/src/FlowFieldModel.cpp)
-  当前默认速度抽样器是 emission geometry 的协方差椭圆法向流场；并列可选的 `density-normal` 会根据 `emissionDensity` gradient 取法向，再在平坦区回退到 `emissionGeometry` 协方差法向。公开参数面是 `rho0`、`kappa2`、`flow-power`、`flow-velocity-sampler`、`density-evolution`、`flow-density-sigma`、`debug-flow-ellipse`。`kappa2` 是二阶响应系数，事件级振幅为 `kappa2 * participantGeometry.eps2`，平面为 `participantGeometry.psi2`。
+  当前默认速度抽样器是 emission geometry 的协方差椭圆法向流场；并列可选的 `density-normal` 会根据 `emissionDensity` gradient 取法向，再在平坦区回退到 `emissionGeometry` 协方差法向。V2 `gradient-response` 速度抽样器直接使用 `EmissionSite::betaTX/betaTY`，并要求 `density-evolution = gradient-response` 同时启用。公开参数面是 `rho0`、`kappa2`、`flow-power`、`flow-velocity-sampler`、`density-evolution`、`flow-density-sigma`、`debug-flow-ellipse`、V2 `gradient-*` 参数、`debug-gradient-response` 和 `cooper-frye-weight`。`kappa2` 是二阶响应系数，事件级振幅为 `kappa2 * participantGeometry.eps2`，平面为 `participantGeometry.psi2`。
 - 共享物理工具位于 [include/blastwave/PhysicsUtils.h](/Users/allenzhou/Research_software/Blast_wave/include/blastwave/PhysicsUtils.h) 和 [src/PhysicsUtils.cpp](/Users/allenzhou/Research_software/Blast_wave/src/PhysicsUtils.cpp)。
   这里统一维护 `centrality`、粒子 `phi`、事件级 `v2` 等共享定义，避免生成端与 QA 端重复实现。
 - 热动量大小的预计算查表组件位于 [include/blastwave/MaxwellJuttnerMomentumSampler.h](/Users/allenzhou/Research_software/Blast_wave/include/blastwave/MaxwellJuttnerMomentumSampler.h) 和 [src/MaxwellJuttnerMomentumSampler.cpp](/Users/allenzhou/Research_software/Blast_wave/src/MaxwellJuttnerMomentumSampler.cpp)。
@@ -36,18 +36,25 @@
   - `events.v2`
   - `events.centrality`
   - `events.eps2_f`、`events.psi2_f`、`events.chi2`
-  - `Npart`、`eps2`、`eps2_f`、`psi2`、`psi2_f`、`chi2`、`v2`、`cent`、`participant_x-y`、`participant_x-y_canvas`、`x-y`、`px-py`、`pT`、`eta`、`phi`
+  - `events.r2_0`、`events.r2_f`、`events.r2_ratio`
+  - `particles.x0`、`particles.y0`、`particles.emission_weight`
+  - `Npart`、`eps2`、`eps2_f`、`psi2`、`psi2_f`、`chi2`、`r2_0`、`r2_f`、`r2_ratio`、`v2`、`cent`、`participant_x-y`、`participant_x-y_canvas`、`x-y`、`px-py`、`pT`、`eta`、`phi`
   仅当 `debug-flow-ellipse = true` 时，才额外输出：
   - `flow_ellipse_debug`
   - `flow_ellipse_participant_norm_x-y`
   仅当 `flow-velocity-sampler = density-normal` 时，才额外输出：
   - `density_normal_event_density_x-y`
+  仅当 `debug-gradient-response = true` 且运行中有可捕获事件时，才额外输出：
+  - `gradient_s0_x-y`
+  - `gradient_s_em_x-y`
+  - `gradient_s_dyn_x-y`
+  - `gradient_s_f_x-y`
 - 生成端入口位于 [apps/generate_blastwave_events.cpp](/Users/allenzhou/Research_software/Blast_wave/apps/generate_blastwave_events.cpp)，其 app 层实现拆分在：
   - [apps/generate_blastwave/RunOptions.cpp](/Users/allenzhou/Research_software/Blast_wave/apps/generate_blastwave/RunOptions.cpp)
   - [apps/generate_blastwave/RootEventFileWriter.cpp](/Users/allenzhou/Research_software/Blast_wave/apps/generate_blastwave/RootEventFileWriter.cpp)
   这里负责 CLI/config 解析、进度条和 ROOT 写出。
 - 独立 QA 读取端位于 [apps/qa_blastwave_output.cpp](/Users/allenzhou/Research_software/Blast_wave/apps/qa_blastwave_output.cpp)。
-  它负责重新读取 ROOT 文件并检查树结构、participant 契约、质量壳、事件级 `v2`、`centrality` 映射，以及可选 flow-ellipse debug 对象的附加约束。
+  它负责重新读取 ROOT 文件并检查树结构、participant 契约、质量壳、事件级 `v2`、`centrality` 映射、`r2` 诊断、粒子权重，以及可选 flow-ellipse / density-normal / V2 gradient debug 对象的附加约束。
 - 受版本控制的配置文件位于 [config/test_b8.cfg](/Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg) 和 [config/b8.cfg](/Users/allenzhou/Research_software/Blast_wave/config/b8.cfg)。
   运行辅助脚本位于 [scripts/run_example_config.sh](/Users/allenzhou/Research_software/Blast_wave/scripts/run_example_config.sh)，从 `config/` 中读取示例配置。
   该脚本现在会在进入 `alienv` 后核对当前 `ROOTSYS` 与缓存/二进制绑定的 ROOT 前缀；若发现 build/runtime ROOT 不一致，会先重配并重建 `generate_blastwave_events`，避免 mixed-ROOT 噪声。
@@ -106,6 +113,8 @@ cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-fail
 - 当前默认速度抽样器已经不是实验室原点径向流，而是协方差椭圆法向流场。
 - 当前内部介质接口已经统一为 `EventMedium`；不要重新引入旧的 flow-context 命名或 writer 侧密度重建。
 - `events.eps2` / `events.psi2` 仍来自 `participantGeometry`；`events.eps2_f` / `events.psi2_f` / `events.chi2` 来自 `emissionGeometry`。未来 density evolution 只能改变 `emissionDensity` / `emissionGeometry`，除非明确版本化事件摘要语义。
+- V2 `gradient-response` 是 opt-in，不替换默认 V1a；它要求 `density-evolution` 与 `flow-velocity-sampler` 同时设置为 `gradient-response`。
+- V2 的 `s_em` 和 `s_dyn` 是不同密度：`s_em` 抽 marker 初态 `r0`，`s_dyn` 决定位移和 site velocity；`gradient-sigma-dyn` 必须大于 `gradient-sigma-em`。
 - 当前流体元速度抽样公开参数面是：
   - `rho0`
   - `kappa2`
@@ -114,6 +123,17 @@ cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-fail
   - `density-evolution`
   - `flow-density-sigma`
   - `debug-flow-ellipse`
+  - `gradient-sigma-em`
+  - `gradient-sigma-dyn`
+  - `gradient-density-floor-fraction`
+  - `gradient-density-cutoff-fraction`
+  - `gradient-displacement-max`
+  - `gradient-displacement-kappa`
+  - `gradient-diffusion-sigma`
+  - `gradient-vmax`
+  - `gradient-velocity-kappa`
+  - `cooper-frye-weight`
+  - `debug-gradient-response`
   旧参数 `vmax`、`rho2`、`r-ref` 会直接报错并给出迁移提示。
 - 当前强制 ROOT 契约已经包含：
   - `events.centrality`
@@ -127,6 +147,12 @@ cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-fail
 - 当前 sampler-specific ROOT 契约是：
   - `density_normal_event_density_x-y`
   QA 对该对象也采用“存在则验证，不存在则忽略”的策略，但当前 writer 只会在 `density-normal` 抽样器下写出它。
+- 当前 V2 debug ROOT 契约是：
+  - `gradient_s0_x-y`
+  - `gradient_s_em_x-y`
+  - `gradient_s_dyn_x-y`
+  - `gradient_s_f_x-y`
+  QA 对该组对象采用 all-or-none 验证策略。
 - `project-state/` 是当前采用的协调台账路径；不要再使用旧写法 `.project-state/`。
 - `config/test_b8.cfg` 现在仍是高权威文档、运行脚本和耐久验证记录一致使用的规范示例路径。
 - 在 Codex 里跑 ROOT smoke 时，沙箱内 `alienv`/ROOT PCM 访问仍然不可靠；若出现模块/PCM 报错，应改用沙箱外命令重跑，那个结果才是权威验证。

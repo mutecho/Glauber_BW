@@ -1,12 +1,14 @@
 #include <cmath>
 #include <exception>
 #include <iostream>
+#include <limits>
 #include <random>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 #include "blastwave/EmissionSampler.h"
+#include "blastwave/PhysicsUtils.h"
 
 namespace {
 
@@ -29,6 +31,45 @@ namespace {
   blastwave::EventMedium makeAffineMedium() {
     return blastwave::buildEventMedium(
         {{-1.0, 0.0, 1.0}, {1.0, 0.0, 1.0}}, {blastwave::DensityEvolutionMode::AffineGaussianResponse, 0.5, 1.20, 1.05, 0.5});
+  }
+
+  blastwave::EventMedium makeGradientResponseMedium() {
+    return blastwave::buildEventMedium(
+        {{-2.0, -1.0, 1.0}, {-2.0, 1.0, 1.0}, {2.0, -1.0, 1.0}, {2.0, 1.0, 1.0}},
+        {blastwave::DensityEvolutionMode::GradientResponse, 0.5, 1.20, 1.05, 0.5, 0.0, 1.0, 1.0e-4, 1.0e-6});
+  }
+
+  blastwave::EmissionParameters makeGradientResponseParameters(double gradientDisplacementMax,
+                                                               double gradientDiffusionSigma,
+                                                               double gradientVMax,
+                                                               blastwave::CooperFryeWeightMode cooperFryeWeightMode = blastwave::CooperFryeWeightMode::None) {
+    return {blastwave::EmissionSamplerMode::GradientResponse,
+            0.5,
+            30.0,
+            20.0,
+            1.0e-4,
+            1.0e-6,
+            gradientDisplacementMax,
+            1.0,
+            gradientDiffusionSigma,
+            gradientVMax,
+            1.0,
+            cooperFryeWeightMode};
+  }
+
+  void requireSitesEqual(const blastwave::EmissionSite &actual, const blastwave::EmissionSite &expected, double tolerance, const std::string &messagePrefix) {
+    requireNear(actual.initialPosition.x, expected.initialPosition.x, tolerance, messagePrefix + " initialPosition.x mismatch.");
+    requireNear(actual.initialPosition.y, expected.initialPosition.y, tolerance, messagePrefix + " initialPosition.y mismatch.");
+    requireNear(actual.position.x, expected.position.x, tolerance, messagePrefix + " position.x mismatch.");
+    requireNear(actual.position.y, expected.position.y, tolerance, messagePrefix + " position.y mismatch.");
+    requireNear(actual.sourceAnchor.x, expected.sourceAnchor.x, tolerance, messagePrefix + " sourceAnchor.x mismatch.");
+    requireNear(actual.sourceAnchor.y, expected.sourceAnchor.y, tolerance, messagePrefix + " sourceAnchor.y mismatch.");
+    requireNear(actual.gradientMagnitude, expected.gradientMagnitude, tolerance, messagePrefix + " gradientMagnitude mismatch.");
+    requireNear(actual.displacementX, expected.displacementX, tolerance, messagePrefix + " displacementX mismatch.");
+    requireNear(actual.displacementY, expected.displacementY, tolerance, messagePrefix + " displacementY mismatch.");
+    requireNear(actual.betaTX, expected.betaTX, tolerance, messagePrefix + " betaTX mismatch.");
+    requireNear(actual.betaTY, expected.betaTY, tolerance, messagePrefix + " betaTY mismatch.");
+    requireNear(actual.emissionWeight, expected.emissionWeight, tolerance, messagePrefix + " emissionWeight mismatch.");
   }
 
   void runZeroMultiplicityTest() {
@@ -69,6 +110,93 @@ namespace {
     }
   }
 
+  void runGradientResponseReproducibilityTest() {
+    const blastwave::EventMedium medium = makeGradientResponseMedium();
+    const blastwave::EmissionParameters parameters = makeGradientResponseParameters(1.5, 0.0, 0.75, blastwave::CooperFryeWeightMode::MtCosh);
+    std::mt19937_64 rngA(112233);
+    std::mt19937_64 rngB(112233);
+    const std::vector<blastwave::EmissionSite> sitesA = blastwave::sampleEmissionSites(medium, parameters, rngA);
+    const std::vector<blastwave::EmissionSite> sitesB = blastwave::sampleEmissionSites(medium, parameters, rngB);
+
+    require(sitesA.size() == sitesB.size(), "Gradient-response emission should be reproducible for a fixed RNG seed.");
+    require(!sitesA.empty(), "Gradient-response reproducibility test needs non-empty output.");
+    for (std::size_t iSite = 0; iSite < sitesA.size(); ++iSite) {
+      requireSitesEqual(sitesA[iSite], sitesB[iSite], 1.0e-12, "Gradient-response reproducible site");
+      require(std::isfinite(sitesA[iSite].emissionWeight) && sitesA[iSite].emissionWeight >= 0.0,
+              "Gradient-response emission weights should stay finite and non-negative.");
+    }
+  }
+
+  void runGradientResponseIdentityTest() {
+    const blastwave::EventMedium medium = makeGradientResponseMedium();
+    const blastwave::EmissionParameters parameters = makeGradientResponseParameters(0.0, 0.0, 0.75);
+    std::mt19937_64 rng(445566);
+    const std::vector<blastwave::EmissionSite> sites = blastwave::sampleEmissionSites(medium, parameters, rng);
+
+    require(!sites.empty(), "Identity test needs at least one gradient-response site.");
+    for (const blastwave::EmissionSite &site : sites) {
+      requireNear(site.position.x, site.initialPosition.x, 1.0e-12, "Zero gradient displacement should keep x unchanged.");
+      requireNear(site.position.y, site.initialPosition.y, 1.0e-12, "Zero gradient displacement should keep y unchanged.");
+      requireNear(site.displacementX, 0.0, 1.0e-12, "Zero gradient displacement should produce zero displacementX.");
+      requireNear(site.displacementY, 0.0, 1.0e-12, "Zero gradient displacement should produce zero displacementY.");
+      require(std::isfinite(site.emissionWeight) && site.emissionWeight >= 0.0, "Emission weight should stay finite and non-negative.");
+    }
+  }
+
+  void runGradientResponseZeroBetaTest() {
+    const blastwave::EventMedium medium = makeGradientResponseMedium();
+    const blastwave::EmissionParameters parameters = makeGradientResponseParameters(1.5, 0.0, 0.0);
+    std::mt19937_64 rng(778899);
+    const std::vector<blastwave::EmissionSite> sites = blastwave::sampleEmissionSites(medium, parameters, rng);
+
+    require(!sites.empty(), "Zero-beta test needs at least one gradient-response site.");
+    for (const blastwave::EmissionSite &site : sites) {
+      requireNear(site.betaTX, 0.0, 1.0e-12, "gradientVMax=0 should produce zero betaTX.");
+      requireNear(site.betaTY, 0.0, 1.0e-12, "gradientVMax=0 should produce zero betaTY.");
+      require(std::isfinite(site.emissionWeight) && site.emissionWeight >= 0.0, "Emission weight should stay finite and non-negative.");
+    }
+  }
+
+  void runGradientResponseDisplacementBoundAndAnchorTest() {
+    const blastwave::EventMedium medium = makeGradientResponseMedium();
+    const blastwave::EmissionParameters parameters = makeGradientResponseParameters(1.5, 0.0, 0.75);
+    std::mt19937_64 rng(991122);
+    const std::vector<blastwave::EmissionSite> sites = blastwave::sampleEmissionSites(medium, parameters, rng);
+
+    require(!sites.empty(), "Displacement-bound test needs at least one gradient-response site.");
+    bool foundInitialShift = false;
+    for (const blastwave::EmissionSite &site : sites) {
+      const double displacementLength = std::hypot(site.displacementX, site.displacementY);
+      require(displacementLength <= 1.5 + 1.0e-12, "Diffusion-free gradient displacement should not exceed Lmax.");
+      require(std::isfinite(site.emissionWeight) && site.emissionWeight >= 0.0, "Emission weight should stay finite and non-negative.");
+      if (std::abs(site.initialPosition.x - site.sourceAnchor.x) > 1.0e-8 || std::abs(site.initialPosition.y - site.sourceAnchor.y) > 1.0e-8) {
+        foundInitialShift = true;
+      }
+    }
+    require(foundInitialShift, "At least one gradient-response site should shift from the participant anchor to the marker initial position.");
+  }
+
+  void runGradientResponseMeanR2ExpansionTest() {
+    const blastwave::EventMedium medium = makeGradientResponseMedium();
+    const blastwave::EmissionParameters parameters = makeGradientResponseParameters(1.5, 0.0, 0.75);
+    std::mt19937_64 rng(223344);
+    const std::vector<blastwave::EmissionSite> sites = blastwave::sampleEmissionSites(medium, parameters, rng);
+
+    require(!sites.empty(), "Mean-r2 test needs at least one gradient-response site.");
+    std::vector<blastwave::TransversePoint> initialPoints;
+    std::vector<blastwave::TransversePoint> finalPoints;
+    initialPoints.reserve(sites.size());
+    finalPoints.reserve(sites.size());
+    for (const blastwave::EmissionSite &site : sites) {
+      initialPoints.push_back(site.initialPosition);
+      finalPoints.push_back(site.position);
+    }
+
+    const double meanR2Initial = blastwave::computeMeanRadiusSquared(initialPoints);
+    const double meanR2Final = blastwave::computeMeanRadiusSquared(finalPoints);
+    require(meanR2Final > meanR2Initial, "Gradient displacement should expand the mean r^2 for this deterministic ellipse probe.");
+  }
+
   void runDensityFieldSourceAnchorAndReproducibilityTest() {
     const blastwave::EventMedium medium = makeAffineMedium();
     const blastwave::EmissionParameters parameters{blastwave::EmissionSamplerMode::DensityField, 0.5, 20.0, 5.0};
@@ -102,6 +230,11 @@ int main() {
     runZeroMultiplicityTest();
     runNoSmearKeepsAnchorTest();
     runReproducibilityTest();
+    runGradientResponseReproducibilityTest();
+    runGradientResponseIdentityTest();
+    runGradientResponseZeroBetaTest();
+    runGradientResponseDisplacementBoundAndAnchorTest();
+    runGradientResponseMeanR2ExpansionTest();
     runDensityFieldSourceAnchorAndReproducibilityTest();
 
     std::cout << "Emission sampler tests passed.\n";

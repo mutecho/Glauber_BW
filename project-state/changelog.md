@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-04-28 V2 Gradient-Response Medium And Flow
+
+- Added opt-in `density-evolution = gradient-response` and `flow-velocity-sampler = gradient-response`, with generator validation requiring the two modes to be selected together.
+- Built separate V2 densities:
+  - `s_em` for marker initial positions using `gradient-sigma-em`
+  - `s_dyn` for gradient response using `gradient-sigma-dyn`
+- Implemented gradient-driven marker displacement, optional diffusion, and site transverse velocity in `EmissionSampler`.
+- Extended `EmissionSite`, `ParticleRecord`, and the ROOT schema with `x0`, `y0`, and `emission_weight`.
+- Added event-level centered radius diagnostics `r2_0`, `r2_f`, and `r2_ratio`, plus matching QA histograms.
+- Added optional `cooper-frye-weight = none|mt-cosh`; default `none` preserves unit weights, while `mt-cosh` stores `m_T cosh(y - eta_s)` and feeds weighted event-`v2`.
+- Added optional V2 debug histograms:
+  - `gradient_s0_x-y`
+  - `gradient_s_em_x-y`
+  - `gradient_s_dyn_x-y`
+  - `gradient_s_f_x-y`
+- Extended QA to validate the new branches, histograms, centered `r2` values, particle weights, V2 debug TH2 payload, and zero-event debug behavior.
+- Updated the V2 sample config comments, docs, and `project-state/` ledger.
+- Recorded fresh build, CTest, default V1a, legacy `none`, V2 gradient, V2 identity, V2 debug, and zero-event debug validation evidence in `project-state/tests.md`.
+
 ## 2026-04-28 Kappa2 Flow Response Contract
 
 - Replaced public `rho2` with `kappa2` in CLI/config parsing, help text, sample configs, tests, and current docs.

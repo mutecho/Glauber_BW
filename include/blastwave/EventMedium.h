@@ -7,7 +7,7 @@
 
 namespace blastwave {
 
-  enum class DensityEvolutionMode { None, AffineGaussianResponse };
+  enum class DensityEvolutionMode { None, AffineGaussianResponse, GradientResponse };
 
   /**
    * Parameters for constructing the event-level medium. Identity and affine
@@ -20,6 +20,10 @@ namespace blastwave {
     double affineLambdaIn = 1.20;
     double affineLambdaOut = 1.05;
     double affineSigmaEvo = 0.5;  // fm
+    double gradientSigmaEm = 0.0;              // fm
+    double gradientSigmaDyn = 1.0;             // fm
+    double gradientDensityFloorFraction = 1.0e-4;
+    double gradientDensityCutoffFraction = 1.0e-6;
   };
 
   /**
@@ -33,6 +37,10 @@ namespace blastwave {
     std::vector<WeightedTransversePoint> participantPoints;
     FlowEllipseInfo participantGeometry;
     DensityField initialDensity;
+    DensityField markerDensity;
+    DensityField dynamicsDensity;
+    double markerDensityScale = 0.0;
+    double dynamicsDensityScale = 0.0;
     DensityField emissionDensity;
     FlowEllipseInfo emissionGeometry;
   };

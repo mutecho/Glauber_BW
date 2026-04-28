@@ -157,3 +157,29 @@
   - docs, help text, configs, and tests must use `kappa2` for current flow tuning
   - historical references to `rho2` may remain only in explicitly historical planning records
   - future higher-harmonic extensions should follow the response-coefficient pattern rather than exposing harmonic amplitudes directly
+
+## DEC-009 Add Opt-In V2 Gradient-Response Medium And Flow
+
+- Status: accepted
+- Date: 2026-04-28
+- Context:
+  - `docs/演化V2_梯度演化计划.md` defines the next evolution step as a coupled gradient response where participant-density gradients drive both transverse source displacement and transverse flow velocity
+  - V1a must remain the default so existing runs and validation baselines do not silently change
+  - the existing `EventMedium`, `EmissionSite`, `DensityFieldModel`, and `FlowFieldModel` boundaries already provide the right extension points
+- Decision:
+  - add `density-evolution = gradient-response` and `flow-velocity-sampler = gradient-response`
+  - require the two `gradient-response` mode selections to be used together
+  - define V2 with separate Gaussian point-cloud densities:
+    - `s_em` for marker initial positions, using `sqrt(flowDensitySigma^2 + gradientSigmaEm^2)`
+    - `s_dyn` for gradients, using `sqrt(flowDensitySigma^2 + gradientSigmaDyn^2)`
+  - require `gradientSigmaDyn > gradientSigmaEm`
+  - sample `r0` from each participant's `s_em` component, then use `-grad(s_dyn)/(s_dyn + floor)` to determine bounded displacement, optional diffusion, and site transverse velocity
+  - keep participant anchors in `source_x/source_y`, write marker positions to `x0/y0`, final emission positions to `x/y`, and write `emission_weight` for optional analysis weighting
+  - keep `cooper-frye-weight = none` as the default and expose `mt-cosh` only as an optional analysis-weight proxy
+  - add event-level centered source-size diagnostics `r2_0`, `r2_f`, and `r2_ratio`
+  - keep `debug-gradient-response` optional and serialize the four V2 density TH2s as one all-or-none payload
+- Consequences:
+  - V2 can be validated without changing the default V1a physics path
+  - QA now rejects current-contract files that lack the new mandatory `r2` branches/histograms or particle `x0/y0/emission_weight`
+  - downstream HBT or source-size studies can distinguish participant anchors, marker initial positions, and final emission points
+  - future gradient-response variants should make coupling between medium response and velocity source explicit instead of hiding it behind an apparently orthogonal switch

@@ -4,8 +4,17 @@
 
 - Date: 2026-04-28
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
-- Branch state: `master` with local V1a affine-density-response and `kappa2` response-contract implementation work in the working tree.
-- Active coordination task: keep the `kappa2 = a2 / eps2_initial` public flow contract, the new `density-evolution` mode, freeze-out geometry schema, and legacy `none` comparison path verified.
+- Branch state: `master` with local V2 gradient-response implementation, docs, tests, and project-state updates in the working tree.
+- Active coordination task: keep the opt-in V2 `gradient-response` medium/flow contract, the default V1a path, the legacy `none` comparison path, and the expanded ROOT schema verified.
+
+## V2 Gradient Response Update
+
+- `DensityEvolutionMode::GradientResponse` and `FlowVelocitySamplerMode::GradientResponse` are implemented as a coupled opt-in mode; selecting either one without the other is rejected by generator-side validation.
+- V2 builds `s0`, `s_em`, and `s_dyn` from participant point clouds. `s_em` samples marker initial positions `r0`; `s_dyn` drives `-grad ln s_dyn` displacement and site velocity. `gradientSigmaDyn > gradientSigmaEm` is required.
+- `EmissionSite` now carries `initialPosition`, final `position`, `sourceAnchor`, gradient magnitude, displacement, site `betaTX/Y`, and `emissionWeight`.
+- The ROOT schema now includes event-level `r2_0`, `r2_f`, and `r2_ratio`, plus particle-level `x0`, `y0`, and `emission_weight`.
+- Optional V2 debug output writes `gradient_s0_x-y`, `gradient_s_em_x-y`, `gradient_s_dyn_x-y`, and `gradient_s_f_x-y` as a four-histogram payload when `debug-gradient-response` captures a populated event.
+- `cooper-frye-weight = none|mt-cosh` is parsed; the default `none` preserves previous unit weights, while `mt-cosh` stores `m_T cosh(y - eta_s)` and feeds weighted event-`v2` reconstruction.
 
 ## Confirmed Baseline
 
@@ -16,9 +25,12 @@
   - `events.centrality` derived from the configured fixed `b`
   - `events.v2` derived from the final-state second-harmonic Q-vector magnitude
   - `events.eps2_f`, `events.psi2_f`, and `events.chi2` derived from freeze-out `emissionGeometry`
+  - `events.r2_0`, `events.r2_f`, and `events.r2_ratio` derived from centered particle marker/final-position moments
+  - `particles.x0`, `particles.y0`, and `particles.emission_weight`
   - QA objects `Npart`, `eps2`, `psi2`, `v2`, `cent`, `participant_x-y`, `participant_x-y_canvas`, `x-y`, `px-py`, `pT`, `eta`, and `phi`
-  - QA objects `eps2_f`, `psi2_f`, and `chi2`
+  - QA objects `eps2_f`, `psi2_f`, `chi2`, `r2_0`, `r2_f`, and `r2_ratio`
   - sampler-specific `density_normal_event_density_x-y` when `flow-velocity-sampler = density-normal`
+  - V2 debug histograms `gradient_s0_x-y`, `gradient_s_em_x-y`, `gradient_s_dyn_x-y`, and `gradient_s_f_x-y` when `debug-gradient-response` captures a populated event
 - The QA reader now validates:
   - participant tree presence and multiplicity consistency
   - participant histogram/canvas presence
@@ -27,6 +39,8 @@
   - `centrality` staying within `[0, 100]`
   - consistency between `events.centrality` and the current fixed-`b` mapping
   - fixed-`b` runs keeping one constant centrality value across the events tree
+  - event-level `r2_0/r2_f/r2_ratio` against centered particle-tree moments
+  - finite non-negative `particles.emission_weight`
 - The config-file CLI remains part of the public interface:
   - `generate_blastwave_events --config <path> [options]`
   - `generate_blastwave_events <config-path> [options]`
@@ -64,6 +78,9 @@
   - `density-evolution`
   - `flow-density-sigma`
   - `debug-flow-ellipse`
+  - V2 `gradient-*` parameters
+  - `debug-gradient-response`
+  - `cooper-frye-weight`
   - legacy `vmax`, `rho2`, and `r-ref` now fail fast with migration guidance
 - The V1a second-order flow response uses the initial participant eccentricity vector:
   - event-wise amplitude `a2 = kappa2 * participantGeometry.eps2`
@@ -73,7 +90,7 @@
 - `EventInfo` now carries both initial geometry (`eps2`, `psi2`) and freeze-out geometry diagnostics (`eps2Freezeout`, `psi2Freezeout`, `chi2`).
 - The on-disk ROOT contract still keeps the default mandatory payload at:
   - `events`, `participants`, and `particles`
-  - `Npart`, `eps2`, `eps2_f`, `psi2`, `psi2_f`, `chi2`, `v2`, `cent`, `participant_x-y`, `participant_x-y_canvas`, `x-y`, `px-py`, `pT`, `eta`, and `phi`
+  - `Npart`, `eps2`, `eps2_f`, `psi2`, `psi2_f`, `chi2`, `r2_0`, `r2_f`, `r2_ratio`, `v2`, `cent`, `participant_x-y`, `participant_x-y_canvas`, `x-y`, `px-py`, `pT`, `eta`, and `phi`
 - When `debug-flow-ellipse` is enabled, the ROOT writer now additionally emits:
   - `flow_ellipse_debug`
   - `flow_ellipse_participant_norm_x-y`
@@ -85,6 +102,10 @@
 - The QA reader also treats the density-normal snapshot histogram as optional:
   - absent: ignored
   - present: validated for finite non-negative bin contents, at least one positive-density bin, and a 3D default draw option (`LEGO`/`SURF`)
+- The QA reader treats the V2 gradient debug histograms as an optional all-or-none group:
+  - absent: ignored
+  - partially present: rejected
+  - present: validated for finite non-negative bin contents and positive support
 - The build now registers a ROOT-free core regression test target:
   - `test_maxwell_juttner_sampler`
 - The build now also registers:
@@ -166,6 +187,7 @@
   - older files may miss `participants`, `participant_x-y`, or `participant_x-y_canvas`
   - files generated before the centrality extension may also miss `events.centrality` and `cent`
   - files generated before the event-`v2` extension may also miss `events.v2` and `v2`
+  - files generated before the V2 gradient-response extension may also miss `events.r2_0/r2_f/r2_ratio`, particle `x0/y0/emission_weight`, and `r2_*` histograms
   - files generated before the Maxwell-Juttner switch may also reflect the older Gamma-only thermal default
 - ROOT smoke commands launched inside the Codex sandbox are still not authoritative on this machine:
   - the 2026-04-14 sandboxed `alienv` ROOT runs emitted PCM/module errors
@@ -176,6 +198,15 @@
 
 - verification_status: `verified`
 - Rationale:
+  - the project was rebuilt, regression-tested, and smoke-validated on 2026-04-28 after adding opt-in V2 gradient-response medium/flow evolution
+  - local build passed for `generate_blastwave_events`, `qa_blastwave_output`, and all registered ROOT-free regression targets
+  - `ctest --output-on-failure` passed all 6 registered tests
+  - fresh authoritative O2Physics generate+QA smokes passed for default V1a, legacy `density-evolution none`, V2 gradient-response, V2 identity, and V2 debug modes
+  - V2 centered-radius evidence:
+    - gradient smoke: `mean_r2_0=11.9584 mean_r2_f=15.7415 mean_r2_ratio=1.31917`
+    - identity smoke: `mean_r2_0=11.9584 mean_r2_f=11.9584 mean_r2_ratio=1`
+  - zero-event V2 debug QA passed without writing empty debug histograms:
+    - `validation_passed events=0 particles=0 mean_Npart=0 mean_eps2=0 mean_v2=0 max_abs_eta_s=0 max_E=0 max_mass_shell_deviation=0`
   - the project was rebuilt, regression-tested, and smoke-validated on 2026-04-28 after replacing the public second-order response input `rho2` with `kappa2`
   - `--rho2` now fails fast with:
     - `generate_blastwave_events failed: Invalid option/key 'rho2' from command line option '--rho2'. Migration: rho2 -> kappa2.`

@@ -96,6 +96,9 @@ int main(int argc, char **argv) {
                                      blastwave::io::kPsi2HistogramName,
                                      blastwave::io::kPsi2FreezeoutHistogramName,
                                      blastwave::io::kChi2HistogramName,
+                                     blastwave::io::kR2InitialHistogramName,
+                                     blastwave::io::kR2FinalHistogramName,
+                                     blastwave::io::kR2RatioHistogramName,
                                      blastwave::io::kV2HistogramName,
                                      blastwave::io::kCentralityHistogramName,
                                      blastwave::io::kParticipantXYHistogramName,
@@ -135,6 +138,18 @@ int main(int argc, char **argv) {
     if (chi2Input == nullptr) {
       throw std::runtime_error("Input object 'chi2' is not a TH1.");
     }
+    auto *r2InitialInput = dynamic_cast<TH1 *>(inputFile.Get(blastwave::io::kR2InitialHistogramName));
+    if (r2InitialInput == nullptr) {
+      throw std::runtime_error("Input object 'r2_0' is not a TH1.");
+    }
+    auto *r2FinalInput = dynamic_cast<TH1 *>(inputFile.Get(blastwave::io::kR2FinalHistogramName));
+    if (r2FinalInput == nullptr) {
+      throw std::runtime_error("Input object 'r2_f' is not a TH1.");
+    }
+    auto *r2RatioInput = dynamic_cast<TH1 *>(inputFile.Get(blastwave::io::kR2RatioHistogramName));
+    if (r2RatioInput == nullptr) {
+      throw std::runtime_error("Input object 'r2_ratio' is not a TH1.");
+    }
     auto *v2Input = dynamic_cast<TH1 *>(inputFile.Get(blastwave::io::kV2HistogramName));
     if (v2Input == nullptr) {
       throw std::runtime_error("Input object 'v2' is not a TH1.");
@@ -152,6 +167,26 @@ int main(int argc, char **argv) {
     auto *densityNormalEventDensityInput = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kDensityNormalEventDensityHistogramName));
     if (inputFile.Get(blastwave::io::kDensityNormalEventDensityHistogramName) != nullptr && densityNormalEventDensityInput == nullptr) {
       throw std::runtime_error("Input object 'density_normal_event_density_x-y' is not a TH2.");
+    }
+    auto *gradientS0Input = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kGradientS0HistogramName));
+    auto *gradientSEmInput = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kGradientSEmHistogramName));
+    auto *gradientSDynInput = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kGradientSDynHistogramName));
+    auto *gradientSFInput = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kGradientSFHistogramName));
+    if (inputFile.Get(blastwave::io::kGradientS0HistogramName) != nullptr && gradientS0Input == nullptr) {
+      throw std::runtime_error("Input object 'gradient_s0_x-y' is not a TH2.");
+    }
+    if (inputFile.Get(blastwave::io::kGradientSEmHistogramName) != nullptr && gradientSEmInput == nullptr) {
+      throw std::runtime_error("Input object 'gradient_s_em_x-y' is not a TH2.");
+    }
+    if (inputFile.Get(blastwave::io::kGradientSDynHistogramName) != nullptr && gradientSDynInput == nullptr) {
+      throw std::runtime_error("Input object 'gradient_s_dyn_x-y' is not a TH2.");
+    }
+    if (inputFile.Get(blastwave::io::kGradientSFHistogramName) != nullptr && gradientSFInput == nullptr) {
+      throw std::runtime_error("Input object 'gradient_s_f_x-y' is not a TH2.");
+    }
+    const bool hasAnyGradientDebugHistogram = gradientS0Input != nullptr || gradientSEmInput != nullptr || gradientSDynInput != nullptr || gradientSFInput != nullptr;
+    if (hasAnyGradientDebugHistogram && (gradientS0Input == nullptr || gradientSEmInput == nullptr || gradientSDynInput == nullptr || gradientSFInput == nullptr)) {
+      throw std::runtime_error("Gradient debug payload must contain all four histograms: gradient_s0_x-y, gradient_s_em_x-y, gradient_s_dyn_x-y, gradient_s_f_x-y.");
     }
     if (flowEllipseDebugTree != nullptr && flowEllipseParticipantNormXYInput == nullptr) {
       throw std::runtime_error("Input tree 'flow_ellipse_debug' exists without companion 'flow_ellipse_participant_norm_x-y' histogram.");
@@ -186,6 +221,13 @@ int main(int argc, char **argv) {
     std::unordered_map<int, bool> flowEllipseValidByEvent;
     std::unordered_map<int, double> q2xByEvent;
     std::unordered_map<int, double> q2yByEvent;
+    std::unordered_map<int, double> q2WeightByEvent;
+    std::unordered_map<int, double> x0SumByEvent;
+    std::unordered_map<int, double> y0SumByEvent;
+    std::unordered_map<int, double> r2InitialSumByEvent;
+    std::unordered_map<int, double> xSumByEvent;
+    std::unordered_map<int, double> ySumByEvent;
+    std::unordered_map<int, double> r2FinalSumByEvent;
     double maxMassShellDeviation = 0.0;
     double maxAbsEtaS = 0.0;
     double maxEnergy = 0.0;
@@ -221,11 +263,17 @@ int main(int argc, char **argv) {
                                particleBranches.energy,
                                particleBranches.etaS,
                                particleBranches.sourceX,
-                               particleBranches.sourceY};
+                               particleBranches.sourceY,
+                               particleBranches.x0,
+                               particleBranches.y0,
+                               particleBranches.emissionWeight};
       for (double field : fields) {
         if (!isFinite(field)) {
           throw std::runtime_error("Detected NaN/Inf in particle tree.");
         }
+      }
+      if (particleBranches.emissionWeight < 0.0) {
+        throw std::runtime_error("particle.emission_weight must be non-negative.");
       }
 
       const double massShellDeviation =
@@ -238,8 +286,15 @@ int main(int argc, char **argv) {
 
       ++particleCountsByEvent[particleBranches.eventId];
       const double phi = blastwave::computeAzimuth(particleBranches.px, particleBranches.py);
-      q2xByEvent[particleBranches.eventId] += std::cos(2.0 * phi);
-      q2yByEvent[particleBranches.eventId] += std::sin(2.0 * phi);
+      q2xByEvent[particleBranches.eventId] += particleBranches.emissionWeight * std::cos(2.0 * phi);
+      q2yByEvent[particleBranches.eventId] += particleBranches.emissionWeight * std::sin(2.0 * phi);
+      q2WeightByEvent[particleBranches.eventId] += particleBranches.emissionWeight;
+      x0SumByEvent[particleBranches.eventId] += particleBranches.x0;
+      y0SumByEvent[particleBranches.eventId] += particleBranches.y0;
+      r2InitialSumByEvent[particleBranches.eventId] += particleBranches.x0 * particleBranches.x0 + particleBranches.y0 * particleBranches.y0;
+      xSumByEvent[particleBranches.eventId] += particleBranches.x;
+      ySumByEvent[particleBranches.eventId] += particleBranches.y;
+      r2FinalSumByEvent[particleBranches.eventId] += particleBranches.x * particleBranches.x + particleBranches.y * particleBranches.y;
       hXY.Fill(particleBranches.x, particleBranches.y);
       hPxPy.Fill(particleBranches.px, particleBranches.py);
       hPt.Fill(std::hypot(particleBranches.px, particleBranches.py));
@@ -275,7 +330,10 @@ int main(int argc, char **argv) {
       if (observedParticleCount != eventBranches.nCharged) {
         throw std::runtime_error("Nch does not match particle multiplicity for an event.");
       }
-      const double expectedV2 = blastwave::computeSecondHarmonicEventV2(q2xByEvent[eventBranches.eventId], q2yByEvent[eventBranches.eventId], observedParticleCount);
+      const double expectedV2 =
+          q2WeightByEvent[eventBranches.eventId] > 0.0
+              ? std::hypot(q2xByEvent[eventBranches.eventId], q2yByEvent[eventBranches.eventId]) / q2WeightByEvent[eventBranches.eventId]
+              : 0.0;
       if (!isFinite(eventBranches.v2) || eventBranches.v2 < 0.0 || eventBranches.v2 > 1.0) {
         throw std::runtime_error("v2 must stay within [0, 1].");
       }
@@ -297,6 +355,36 @@ int main(int argc, char **argv) {
       const double expectedChi2 = eventBranches.eps2 > 1.0e-12 ? eventBranches.eps2Freezeout / eventBranches.eps2 : 0.0;
       if (!nearlyEqual(eventBranches.chi2, expectedChi2, 1.0e-9)) {
         throw std::runtime_error("chi2 must equal eps2_f / eps2 when eps2 > 1e-12, otherwise 0.");
+      }
+      if (!isFinite(eventBranches.r2Initial) || eventBranches.r2Initial < 0.0) {
+        throw std::runtime_error("r2_0 must be finite and non-negative.");
+      }
+      if (!isFinite(eventBranches.r2Final) || eventBranches.r2Final < 0.0) {
+        throw std::runtime_error("r2_f must be finite and non-negative.");
+      }
+      if (!isFinite(eventBranches.r2Ratio) || eventBranches.r2Ratio < 0.0) {
+        throw std::runtime_error("r2_ratio must be finite and non-negative.");
+      }
+      double observedR2Initial = 0.0;
+      double observedR2Final = 0.0;
+      if (observedParticleCount > 0) {
+        const double inverseCount = 1.0 / static_cast<double>(observedParticleCount);
+        const double meanX0 = x0SumByEvent[eventBranches.eventId] * inverseCount;
+        const double meanY0 = y0SumByEvent[eventBranches.eventId] * inverseCount;
+        const double meanX = xSumByEvent[eventBranches.eventId] * inverseCount;
+        const double meanY = ySumByEvent[eventBranches.eventId] * inverseCount;
+        observedR2Initial = std::max(0.0, r2InitialSumByEvent[eventBranches.eventId] * inverseCount - meanX0 * meanX0 - meanY0 * meanY0);
+        observedR2Final = std::max(0.0, r2FinalSumByEvent[eventBranches.eventId] * inverseCount - meanX * meanX - meanY * meanY);
+      }
+      const double observedR2Ratio = observedR2Initial > 1.0e-12 ? observedR2Final / observedR2Initial : 0.0;
+      if (!nearlyEqual(eventBranches.r2Initial, observedR2Initial, 1.0e-9)) {
+        throw std::runtime_error("events.r2_0 does not match particle-level x0/y0 second moment.");
+      }
+      if (!nearlyEqual(eventBranches.r2Final, observedR2Final, 1.0e-9)) {
+        throw std::runtime_error("events.r2_f does not match particle-level x/y second moment.");
+      }
+      if (!nearlyEqual(eventBranches.r2Ratio, observedR2Ratio, 1.0e-9)) {
+        throw std::runtime_error("events.r2_ratio does not match particle-level r2_f/r2_0.");
       }
 
       const double expectedCentrality = computeExpectedCentrality(eventBranches.impactParameter);
@@ -445,8 +533,43 @@ int main(int argc, char **argv) {
     if (std::abs(chi2Input->GetEntries() - eventCount) > 1.0e-9) {
       throw std::runtime_error("chi2 histogram entry count does not match events tree.");
     }
+    if (std::abs(r2InitialInput->GetEntries() - eventCount) > 1.0e-9) {
+      throw std::runtime_error("r2_0 histogram entry count does not match events tree.");
+    }
+    if (std::abs(r2FinalInput->GetEntries() - eventCount) > 1.0e-9) {
+      throw std::runtime_error("r2_f histogram entry count does not match events tree.");
+    }
+    if (std::abs(r2RatioInput->GetEntries() - eventCount) > 1.0e-9) {
+      throw std::runtime_error("r2_ratio histogram entry count does not match events tree.");
+    }
     if (eventCount > 0.0 && !nearlyEqual(v2Input->GetMean(), meanV2, 1.0e-9)) {
       throw std::runtime_error("v2 histogram mean does not match the events.v2 mean.");
+    }
+
+    // Validate optional gradient debug histograms when present.
+    if (hasAnyGradientDebugHistogram) {
+      auto validateGradientHistogram = [](const TH2 *histogram, const std::string &name) {
+        bool sawPositiveBin = false;
+        for (int iBinX = 1; iBinX <= histogram->GetNbinsX(); ++iBinX) {
+          for (int iBinY = 1; iBinY <= histogram->GetNbinsY(); ++iBinY) {
+            const double binContent = histogram->GetBinContent(iBinX, iBinY);
+            if (!std::isfinite(binContent)) {
+              throw std::runtime_error(name + " contains NaN/Inf bin content.");
+            }
+            if (binContent < 0.0) {
+              throw std::runtime_error(name + " contains a negative bin.");
+            }
+            sawPositiveBin = sawPositiveBin || binContent > 0.0;
+          }
+        }
+        if (!sawPositiveBin) {
+          throw std::runtime_error(name + " must contain at least one positive bin.");
+        }
+      };
+      validateGradientHistogram(gradientS0Input, "gradient_s0_x-y");
+      validateGradientHistogram(gradientSEmInput, "gradient_s_em_x-y");
+      validateGradientHistogram(gradientSDynInput, "gradient_s_dyn_x-y");
+      validateGradientHistogram(gradientSFInput, "gradient_s_f_x-y");
     }
 
     // Make QA output behavior match the generator: create missing parent

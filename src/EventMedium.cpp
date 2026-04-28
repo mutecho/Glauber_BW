@@ -1,5 +1,6 @@
 #include "blastwave/EventMedium.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <vector>
@@ -20,6 +21,19 @@ namespace {
       }
     }
     return count;
+  }
+
+  // Recover a stable density normalization from finite positive support-point
+  // values so gradient samplers can use robust event-level floors/cutoffs.
+  double computeSupportDensityScale(const blastwave::DensityField &field) {
+    double scale = 0.0;
+    for (const blastwave::WeightedTransversePoint &point : field.supportPoints) {
+      const blastwave::DensityFieldSample sample = blastwave::evaluateDensityField(field, point.x, point.y);
+      if (std::isfinite(sample.density) && sample.density > scale) {
+        scale = sample.density;
+      }
+    }
+    return scale;
   }
 
   // Recompute all cached ellipse invariants after covariance updates so
@@ -135,6 +149,8 @@ namespace blastwave {
 
     switch (parameters.densityEvolutionMode) {
       case DensityEvolutionMode::None:
+        medium.markerDensity = medium.initialDensity;
+        medium.dynamicsDensity = medium.initialDensity;
         medium.emissionDensity = medium.initialDensity;
         medium.emissionGeometry = medium.participantGeometry;
         break;
@@ -145,6 +161,8 @@ namespace blastwave {
             medium.participantGeometry, parameters.densitySigma, parameters.affineLambdaIn, parameters.affineLambdaOut, parameters.affineSigmaEvo);
         medium.emissionDensity =
             buildGaussianPointCloudDensityField(transformedPoints, kernelCovariance[0], kernelCovariance[1], kernelCovariance[2]);
+        medium.markerDensity = medium.emissionDensity;
+        medium.dynamicsDensity = medium.emissionDensity;
 
         // Fold the support cloud covariance and shared kernel covariance into
         // a freeze-out geometry proxy used by flow modulation and diagnostics.
@@ -155,7 +173,24 @@ namespace blastwave {
         finalizeEllipseFromCovariance(medium.emissionGeometry, countContributingPoints(transformedPoints));
         break;
       }
+      case DensityEvolutionMode::GradientResponse: {
+        const double sigmaDep2 = parameters.densitySigma * parameters.densitySigma;
+        const double sigmaEmEff = std::sqrt(std::max(0.0, sigmaDep2 + parameters.gradientSigmaEm * parameters.gradientSigmaEm));
+        const double sigmaDynEff = std::sqrt(std::max(0.0, sigmaDep2 + parameters.gradientSigmaDyn * parameters.gradientSigmaDyn));
+
+        // Keep marker and dynamics densities as separate smoothings of s0.
+        medium.markerDensity = buildGaussianPointCloudDensityField(points, sigmaEmEff);
+        medium.dynamicsDensity = buildGaussianPointCloudDensityField(points, sigmaDynEff);
+
+        // Preserve legacy consumers by exposing the marker density as s_f seed.
+        medium.emissionDensity = medium.markerDensity;
+        medium.emissionGeometry = medium.participantGeometry;
+        break;
+      }
     }
+
+    medium.markerDensityScale = computeSupportDensityScale(medium.markerDensity);
+    medium.dynamicsDensityScale = computeSupportDensityScale(medium.dynamicsDensity);
 
     return medium;
   }

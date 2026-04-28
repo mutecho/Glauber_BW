@@ -1,5 +1,45 @@
 # Tests
 
+## T-012 V2 Gradient-Response Medium And Flow
+
+- Status: passed
+- Purpose: verify that the opt-in V2 `gradient-response` density evolution and flow sampler are coupled correctly, that the expanded ROOT schema is validated, and that default V1a plus legacy `none` behavior remain intact.
+- Execution shape:
+  - rebuild the generator, QA reader, and ROOT-free regression targets
+  - run all registered CTest tests
+  - run authoritative O2Physics generate+QA smokes for default V1a, legacy `none`, V2 gradient-response, V2 identity, and V2 debug
+  - inspect V2 `r2_0/r2_f/r2_ratio` behavior for gradient and identity configurations
+  - run a zero-event V2 debug regression to ensure empty optional debug histograms are not written
+- Fresh commands executed on 2026-04-28:
+  - `cmake --build /Users/allenzhou/Research_software/Blast_wave/build --target generate_blastwave_events qa_blastwave_output test_flow_field_model test_emission_sampler test_run_options test_physics_utils test_maxwell_juttner_sampler test_output_path_utils -j4`
+  - `cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-failure`
+  - `generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --output /tmp/blastwave_v2_affine_regression.root`
+  - `qa_blastwave_output --input /tmp/blastwave_v2_affine_regression.root --output /tmp/blastwave_v2_affine_regression_validation.root --expect-nevents 20`
+  - `generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --density-evolution none --output /tmp/blastwave_v2_none_regression.root`
+  - `qa_blastwave_output --input /tmp/blastwave_v2_none_regression.root --output /tmp/blastwave_v2_none_regression_validation.root --expect-nevents 20`
+  - `generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --density-evolution gradient-response --flow-velocity-sampler gradient-response --output /tmp/blastwave_v2_gradient_smoke.root`
+  - `qa_blastwave_output --input /tmp/blastwave_v2_gradient_smoke.root --output /tmp/blastwave_v2_gradient_smoke_validation.root --expect-nevents 20`
+  - `generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --density-evolution gradient-response --flow-velocity-sampler gradient-response --gradient-displacement-max 0 --gradient-diffusion-sigma 0 --gradient-vmax 0 --output /tmp/blastwave_v2_identity.root`
+  - `qa_blastwave_output --input /tmp/blastwave_v2_identity.root --output /tmp/blastwave_v2_identity_validation.root --expect-nevents 20`
+  - `generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --density-evolution gradient-response --flow-velocity-sampler gradient-response --debug-gradient-response --output /tmp/blastwave_v2_debug.root`
+  - `qa_blastwave_output --input /tmp/blastwave_v2_debug.root --output /tmp/blastwave_v2_debug_validation.root --expect-nevents 20`
+  - `generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 0 --density-evolution gradient-response --flow-velocity-sampler gradient-response --debug-gradient-response --output /tmp/blastwave_v2_debug_zero.root`
+  - `qa_blastwave_output --input /tmp/blastwave_v2_debug_zero.root --output /tmp/blastwave_v2_debug_zero_validation.root --expect-nevents 0`
+- Current result:
+  - build: passed
+  - `ctest`: passed, 6/6
+  - default V1a QA: `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0714324 max_abs_eta_s=6.67501 max_E=958.06 max_mass_shell_deviation=3.02439e-11`
+  - `density-evolution none` QA: `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0924968 max_abs_eta_s=6.67501 max_E=984.787 max_mass_shell_deviation=3.58382e-11`
+  - V2 gradient QA: `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0400975 max_abs_eta_s=6.67501 max_E=718.205 max_mass_shell_deviation=9.37029e-11`
+  - V2 identity QA: `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0453893 max_abs_eta_s=6.67501 max_E=705.339 max_mass_shell_deviation=1.39483e-11`
+  - V2 debug QA: `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0400975 max_abs_eta_s=6.67501 max_E=718.205 max_mass_shell_deviation=9.37029e-11`
+  - V2 centered-radius check:
+    - gradient: `mean_r2_0=11.9584 mean_r2_f=15.7415 mean_r2_ratio=1.31917`
+    - identity: `mean_r2_0=11.9584 mean_r2_f=11.9584 mean_r2_ratio=1`
+  - zero-event V2 debug QA: `validation_passed events=0 particles=0 mean_Npart=0 mean_eps2=0 mean_v2=0 max_abs_eta_s=0 max_E=0 max_mass_shell_deviation=0`
+  - implementation note: a sandboxed ROOT smoke emitted the known PCM/module noise and is not counted; the listed ROOT smokes were rerun through the authoritative outside-sandbox O2Physics path.
+- verification_status: `verified`
+
 ## T-011 Kappa2 Public Flow Response Contract
 
 - Status: passed

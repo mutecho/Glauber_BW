@@ -48,4 +48,43 @@ namespace blastwave {
     return std::hypot(q2x, q2y) / static_cast<double>(multiplicity);
   }
 
+  // Compute the centered transverse source-size moment from finite points.
+  double computeMeanRadiusSquared(const std::vector<TransversePoint> &points) {
+    if (points.empty()) {
+      return 0.0;
+    }
+
+    double sumX = 0.0;
+    double sumY = 0.0;
+    double sumR2 = 0.0;
+    std::size_t finiteCount = 0;
+    for (const TransversePoint &point : points) {
+      if (!std::isfinite(point.x) || !std::isfinite(point.y)) {
+        continue;
+      }
+      sumX += point.x;
+      sumY += point.y;
+      sumR2 += point.x * point.x + point.y * point.y;
+      ++finiteCount;
+    }
+    if (finiteCount == 0) {
+      return 0.0;
+    }
+    const double inverseCount = 1.0 / static_cast<double>(finiteCount);
+    const double meanX = sumX * inverseCount;
+    const double meanY = sumY * inverseCount;
+    return std::max(0.0, sumR2 * inverseCount - meanX * meanX - meanY * meanY);
+  }
+
+  // Provide an opt-in Cooper-Frye inspired weight proxy on tau=const slices.
+  double computeMtCoshWeight(double mass, double px, double py, double pz, double etaS) {
+    const double mT = std::sqrt(std::max(0.0, mass * mass + px * px + py * py));
+    const double momentumRapidity = mT > 0.0 ? std::asinh(pz / mT) : 0.0;
+    const double weight = mT * std::cosh(momentumRapidity - etaS);
+    if (!std::isfinite(weight) || weight < 0.0) {
+      return 0.0;
+    }
+    return weight;
+  }
+
 }  // namespace blastwave

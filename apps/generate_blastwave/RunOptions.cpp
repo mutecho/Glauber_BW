@@ -121,8 +121,12 @@ namespace {
     if (rawValue == "density-normal") {
       return blastwave::FlowVelocitySamplerMode::DensityNormal;
     }
+    if (rawValue == "gradient-response") {
+      return blastwave::FlowVelocitySamplerMode::GradientResponse;
+    }
 
-    throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'covariance-ellipse' or 'density-normal'.");
+    throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription
+                                + ". Expected 'covariance-ellipse', 'density-normal', or 'gradient-response'.");
   }
 
   blastwave::DensityEvolutionMode parseDensityEvolutionMode(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
@@ -132,8 +136,23 @@ namespace {
     if (rawValue == "none") {
       return blastwave::DensityEvolutionMode::None;
     }
+    if (rawValue == "gradient-response") {
+      return blastwave::DensityEvolutionMode::GradientResponse;
+    }
 
-    throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'affine-gaussian' or 'none'.");
+    throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription
+                                + ". Expected 'affine-gaussian', 'none', or 'gradient-response'.");
+  }
+
+  blastwave::CooperFryeWeightMode parseCooperFryeWeightMode(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
+    if (rawValue == "none") {
+      return blastwave::CooperFryeWeightMode::None;
+    }
+    if (rawValue == "mt-cosh") {
+      return blastwave::CooperFryeWeightMode::MtCosh;
+    }
+
+    throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'none' or 'mt-cosh'.");
   }
 
   std::string resolveOutputPath(const std::string &rawValue, const std::filesystem::path &baseDirectory) {
@@ -193,6 +212,8 @@ namespace {
       runOptions.config.flowDensitySigma = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "debug-flow-ellipse") {
       runOptions.config.debugFlowEllipse = parseBool(rawValue, optionName, sourceDescription);
+    } else if (optionName == "debug-gradient-response") {
+      runOptions.config.debugGradientResponse = parseBool(rawValue, optionName, sourceDescription);
     } else if (optionName == "sigma-eta") {
       runOptions.config.sigmaEta = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "eta-plateau") {
@@ -201,6 +222,26 @@ namespace {
       runOptions.config.nbdMu = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "nbd-k") {
       runOptions.config.nbdK = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "gradient-sigma-em") {
+      runOptions.config.gradientSigmaEm = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "gradient-sigma-dyn") {
+      runOptions.config.gradientSigmaDyn = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "gradient-density-floor-fraction") {
+      runOptions.config.gradientDensityFloorFraction = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "gradient-density-cutoff-fraction") {
+      runOptions.config.gradientDensityCutoffFraction = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "gradient-displacement-max") {
+      runOptions.config.gradientDisplacementMax = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "gradient-displacement-kappa") {
+      runOptions.config.gradientDisplacementKappa = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "gradient-diffusion-sigma") {
+      runOptions.config.gradientDiffusionSigma = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "gradient-vmax") {
+      runOptions.config.gradientVMax = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "gradient-velocity-kappa") {
+      runOptions.config.gradientVelocityKappa = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "cooper-frye-weight") {
+      runOptions.config.cooperFryeWeightMode = parseCooperFryeWeightMode(rawValue, optionName, sourceDescription);
     } else if (optionName == "vmax" || optionName == "rho2" || optionName == "r-ref") {
       throwDeprecatedFlowOptionError(optionName, sourceDescription);
     } else {
@@ -271,7 +312,12 @@ namespace blastwave::app {
               << "  tau0, smear, sigma-nn, seed, output, progress,\n"
               << "  rho0, kappa2, flow-power, flow-velocity-sampler, density-evolution,\n"
               << "  flow-density-sigma,\n"
-              << "  debug-flow-ellipse,\n"
+              << "  gradient-sigma-em, gradient-sigma-dyn,\n"
+              << "  gradient-density-floor-fraction, gradient-density-cutoff-fraction,\n"
+              << "  gradient-displacement-max, gradient-displacement-kappa,\n"
+              << "  gradient-diffusion-sigma, gradient-vmax, gradient-velocity-kappa,\n"
+              << "  cooper-frye-weight,\n"
+              << "  debug-flow-ellipse, debug-gradient-response,\n"
               << "  sigma-eta, eta-plateau, nbd-mu, nbd-k\n"
               << "Primary options:\n"
               << "  --nevents <int>\n"
@@ -289,14 +335,26 @@ namespace blastwave::app {
               << "  --no-progress\n"
               << "  --debug-flow-ellipse\n"
               << "  --no-debug-flow-ellipse\n"
+              << "  --debug-gradient-response\n"
+              << "  --no-debug-gradient-response\n"
               << "QA-facing tuning knobs:\n"
-              << "  (density-evolution and flow-velocity-sampler are orthogonal controls)\n"
+              << "  (gradient-response requires matching density/flow modes)\n"
               << "  --rho0 <value>\n"
               << "  --kappa2 <value>\n"
               << "  --flow-power <value>\n"
-              << "  --flow-velocity-sampler <covariance-ellipse|density-normal>\n"
-              << "  --density-evolution <affine-gaussian|none>\n"
+              << "  --flow-velocity-sampler <covariance-ellipse|density-normal|gradient-response>\n"
+              << "  --density-evolution <affine-gaussian|none|gradient-response>\n"
               << "  --flow-density-sigma <fm>\n"
+              << "  --gradient-sigma-em <fm>\n"
+              << "  --gradient-sigma-dyn <fm>\n"
+              << "  --gradient-density-floor-fraction <value>\n"
+              << "  --gradient-density-cutoff-fraction <value>\n"
+              << "  --gradient-displacement-max <fm>\n"
+              << "  --gradient-displacement-kappa <fm>\n"
+              << "  --gradient-diffusion-sigma <fm>\n"
+              << "  --gradient-vmax <value>\n"
+              << "  --gradient-velocity-kappa <fm>\n"
+              << "  --cooper-frye-weight <none|mt-cosh>\n"
               << "  --sigma-eta <value>\n"
               << "  --eta-plateau <value>\n"
               << "  --nbd-mu <value>\n"
@@ -315,6 +373,8 @@ namespace blastwave::app {
     bool hasCliProgressOverride = false;
     bool cliDebugFlowEllipse = false;
     bool hasCliDebugFlowEllipseOverride = false;
+    bool cliDebugGradientResponse = false;
+    bool hasCliDebugGradientResponseOverride = false;
 
     showHelp = false;
 
@@ -357,6 +417,18 @@ namespace blastwave::app {
         continue;
       }
 
+      if (argument == "--debug-gradient-response") {
+        cliDebugGradientResponse = true;
+        hasCliDebugGradientResponseOverride = true;
+        continue;
+      }
+
+      if (argument == "--no-debug-gradient-response") {
+        cliDebugGradientResponse = false;
+        hasCliDebugGradientResponseOverride = true;
+        continue;
+      }
+
       if (argument.rfind("--", 0) == 0) {
         cliOverrides.push_back({argument.substr(2), takeValue(iArg, argc, argv, argument)});
         continue;
@@ -386,6 +458,9 @@ namespace blastwave::app {
     }
     if (hasCliDebugFlowEllipseOverride) {
       runOptions.config.debugFlowEllipse = cliDebugFlowEllipse;
+    }
+    if (hasCliDebugGradientResponseOverride) {
+      runOptions.config.debugGradientResponse = cliDebugGradientResponse;
     }
 
     return runOptions;

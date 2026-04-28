@@ -1,6 +1,7 @@
 #include <cmath>
 #include <exception>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 
@@ -42,6 +43,27 @@ namespace {
     requireNear(blastwave::computeSecondHarmonicEventV2(1.0, std::sqrt(3.0), 4), 0.5, kTolerance, "Q-vector magnitude normalization mismatch.");
   }
 
+  void runMeanRadiusSquaredTest() {
+    requireNear(blastwave::computeMeanRadiusSquared({}), 0.0, kTolerance, "Empty point cloud should have zero mean r^2.");
+    requireNear(blastwave::computeMeanRadiusSquared({{1.0, 2.0}, {-3.0, 4.0}, {std::numeric_limits<double>::quiet_NaN(), 1.0}}),
+                5.0,
+                kTolerance,
+                "Mean r^2 helper should center finite transverse points.");
+  }
+
+  void runMtCoshWeightTest() {
+    const double mass = 0.5;
+    const double px = 0.3;
+    const double py = 0.4;
+    const double pz = 0.2;
+    const double etaS = 0.25;
+    const double transverseMass = std::sqrt(mass * mass + px * px + py * py);
+    const double momentumRapidity = std::asinh(pz / transverseMass);
+    const double expected = transverseMass * std::cosh(momentumRapidity - etaS);
+    requireNear(blastwave::computeMtCoshWeight(mass, px, py, pz, etaS), expected, kTolerance, "mt-cosh weight mismatch.");
+    requireNear(blastwave::computeMtCoshWeight(0.0, 0.0, 0.0, 0.0, 0.0), 0.0, kTolerance, "Zero-momentum mt-cosh weight should stay zero.");
+  }
+
 }  // namespace
 
 int main() {
@@ -50,6 +72,8 @@ int main() {
     runAzimuthConventionTest();
     runPseudorapidityFallbackTest();
     runEventV2DefinitionTest();
+    runMeanRadiusSquaredTest();
+    runMtCoshWeightTest();
     std::cout << "Physics utility tests passed.\n";
     return 0;
   } catch (const std::exception &error) {
