@@ -37,12 +37,14 @@ namespace blastwave {
   };
 
   /**
-   * Public parameters controlling the fluid-element velocity sampler.
+   * Public parameters controlling the fluid-element velocity sampler. kappa2 is
+   * a response coefficient; the event-wise second-order amplitude is recovered
+   * as kappa2 times the initial participant eccentricity.
    */
   struct FlowFieldParameters {
     FlowVelocitySamplerMode velocitySamplerMode = FlowVelocitySamplerMode::CovarianceEllipse;
     double rho0 = 0.0;
-    double rho2 = 0.0;
+    double kappa2 = 0.0;
     double flowPower = 1.0;
   };
 

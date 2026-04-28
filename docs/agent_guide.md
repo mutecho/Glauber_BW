@@ -153,8 +153,11 @@ Configuration files use a lightweight `key = value` format:
   - `output`
   - `progress`
   - `rho0`
-  - `rho2`
+  - `kappa2`
   - `flow-power`
+  - `flow-velocity-sampler`
+  - `density-evolution`
+  - `flow-density-sigma`
   - `debug-flow-ellipse`
   - `sigma-eta`
   - `eta-plateau`
@@ -176,6 +179,7 @@ progress = true
 # mj-grid-points = 4096
 tau0 = 10.0
 smear = 0.5
+density-evolution = affine-gaussian
 output = test_b8_from_config.root
 ```
 
@@ -195,8 +199,11 @@ The same parameters remain available as explicit CLI flags:
 - `--progress`: force-enable the progress bar
 - `--no-progress`: force-disable the progress bar
 - `--rho0 <value>`: isotropic rapidity baseline of the covariance-ellipse flow field
-- `--rho2 <value>`: second-order rapidity amplitude multiplied by event `eps2`
+- `--kappa2 <value>`: second-order response coefficient; the event-wise amplitude is `kappa2 * eps2_initial`
 - `--flow-power <value>`: power of the normalized ellipse radius `rTilde`
+- `--flow-velocity-sampler <covariance-ellipse|density-normal>`: transverse flow-direction sampler
+- `--density-evolution <affine-gaussian|none>`: medium evolution mode. The default `affine-gaussian` enables the fixed-parameter V1a response; `none` preserves the previous identity medium and participant-hotspot emission path.
+- `--flow-density-sigma <fm>`: Gaussian point-cloud deposition width for the density field
 - `--debug-flow-ellipse`: write `flow_ellipse_debug` and `flow_ellipse_participant_norm_x-y`
 - `--no-debug-flow-ellipse`: force-disable the optional debug payload
 - `--sigma-eta <value>`: Gaussian tail width of source `eta_s`
@@ -207,7 +214,7 @@ The same parameters remain available as explicit CLI flags:
 Deprecated flow knobs now fail fast with migration guidance:
 
 - `vmax -> rho0 = atanh(vmax)`
-- `kappa2 -> re-tuned rho2`
+- `rho2 -> kappa2`
 - `r-ref -> absorbed by event-ellipse semi-axes`
 
 If `progress` is not set in the config file and neither CLI flag is present, the
@@ -247,7 +254,7 @@ Key data contracts:
 - `GeneratedEvent`
   Bundles one `EventInfo`, one `EventMedium`, participant records, and particle records.
 - `EventMedium`
-  Per-event ROOT-free medium state with participant geometry, initial density, emission-stage density, and emission-stage geometry. The current density evolution mode is the identity map, so initial and emission-stage fields are equal.
+  Per-event ROOT-free medium state with participant geometry, initial density, emission-stage density, and emission-stage geometry. The default density evolution mode now applies the fixed V1a affine Gaussian response; `none` keeps the identity map for comparison.
 - `EmissionSite`
   Internal transverse emission sample with `position` written to particle `x/y` and `sourceAnchor` written to legacy `source_x/source_y`.
 - `BlastWaveGenerator`
@@ -274,7 +281,10 @@ Branches:
 - `b`
 - `Npart`
 - `eps2`
+- `eps2_f`
 - `psi2`
+- `psi2_f`
+- `chi2`
 - `v2`
 - `centrality`
 - `Nch`
@@ -313,7 +323,10 @@ Branches:
 
 - `Npart`
 - `eps2`
+- `eps2_f`
 - `psi2`
+- `psi2_f`
+- `chi2`
 - `v2`
 - `cent`
 - `participant_x-y`
@@ -384,12 +397,13 @@ Interpretation:
 ### 4. Event Medium And Emission Coordinates
 
 - The generator first builds an `EventMedium` from participant points.
-- The medium keeps separate names for `initialDensity` and `emissionDensity`; they are currently identical because density evolution is `None`.
+- The medium keeps separate names for `initialDensity` and `emissionDensity`; by default `affine-gaussian` evolves `s0` into a freeze-out density `sf`.
 - The participant geometry continues to define `events.eps2` and `events.psi2`.
-- The emission geometry and emission density are the flow/emission query surfaces future density-expansion backends should replace.
-- The current emission sampler is still `ParticipantHotspot`.
+- The emission geometry defines `events.eps2_f`, `events.psi2_f`, and `events.chi2`.
+- `density-evolution = none` keeps the older identity medium and `ParticipantHotspot` emission backend.
 
-- The hotspot position is transversely smeared with a Gaussian of width `smearSigma`.
+- In V1a, participant points are expanded in the participant-plane basis with fixed `lambda_in = 1.20`, `lambda_out = 1.05`, then smoothed with fixed `sigma_evo = 0.5 fm`.
+- In V1a, emission positions are sampled from `emissionDensity`; in `none`, hotspot positions are transversely smeared with `smearSigma`.
 - The sampled `EmissionSite::position` becomes particle `x/y`.
 - The unsmeared participant anchor becomes particle `source_x/source_y`.
 - Emission proper time is fixed:
@@ -419,15 +433,17 @@ This keeps the core ROOT-free while upgrading the default thermal spectrum beyon
 ### 7. Flow Field
 
 - Build the participant covariance ellipse from the event centroid and second moments.
-- Store that ellipse as both `participantGeometry` and, for the current identity evolution, `emissionGeometry`.
+- Store that ellipse as `participantGeometry`; in V1a, build a distinct `emissionGeometry` from the freeze-out density moments.
 - Diagonalize it analytically to recover `lambdaMajor`, `lambdaMinor`, `radiusMajor`, `radiusMinor`, and a deterministic right-handed principal-axis basis.
-- For each emission point:
+- For `density-evolution = none`, the covariance-ellipse sampler keeps the previous response:
   - shift by the event centroid
   - project onto the principal-axis basis
   - evaluate `rTilde = sqrt(x'^2 / radiusMajor^2 + y'^2 / radiusMinor^2)`
   - evaluate the ellipse-normal angle `phiB = atan2(y' / radiusMinor^2, x' / radiusMajor^2)`
-  - evaluate `rhoRaw = pow(rTilde, flowPower) * (rho0 + rho2 * eps2 * cos(2 * phiB))`
+  - evaluate `rhoRaw = pow(rTilde, flowPower) * (rho0 + kappa2 * eps2_initial * cos(2 * phiB))`
   - convert to `betaT = tanh(max(0, rhoRaw))`, clipped to `0.95`
+- For V1a, both velocity samplers use the freeze-out geometry for `rTilde` and direction, but the second-order response vector is initial-state:
+  - `rhoRaw = rho0 * pow(rTilde, flowPower) * exp(2 * kappa2 * eps2_initial * cos(2 * (phiB - psi2_initial)))`
 - Combine the transverse ellipse-normal flow with `eta_s` in a Bjorken-like flow field.
 - The `density-normal` sampler reads the shared `emissionDensity` gradient and falls back to `emissionGeometry` in flat or degenerate regions.
 
@@ -453,6 +469,7 @@ The QA executable additionally validates:
 - event IDs are continuous
 - `Nch` matches the particle count per event
 - `events.v2` matches the particle-level second-harmonic Q-vector
+- `events.eps2_f`, `events.psi2_f`, and `events.chi2` are finite and `chi2` matches `eps2_f / eps2`
 - the `v2` histogram entry count and mean match the `events.v2` payload
 - `centrality` stays within `[0, 100]` and matches the fixed-`b` mapping
 - tree values contain no `NaN` or `Inf`
@@ -468,7 +485,7 @@ The QA executable additionally validates:
 - `eta` is controlled by the source `eta_s` profile, but the final particle `eta` is not expected to match experimental charged-hadron data exactly because the model has only one direct pion species and no resonance feed-down.
 - A raw inclusive `px-py` histogram is a weak anisotropy diagnostic because low-`pT` thermal particles dominate the density. Use `phi`, `v2`, or high-`pT` cuts if directional anisotropy needs to be diagnosed more sharply.
 - `eps2` is an initial-state participant-shape observable, while `v2` is a final-state event observable reconstructed from particle azimuths. They are related but not interchangeable.
-- The code now separates `participantGeometry` from `emissionGeometry` so future density evolution can alter the emission medium without changing the event-summary `eps2/psi2` definition.
+- The code separates initial participant observables (`eps2/psi2`) from freeze-out geometry diagnostics (`eps2_f/psi2_f/chi2`).
 - `Nch` in v1 means the number of generated particles in the event, not a realistic detector-level charged multiplicity.
 - Events with `Npart = 0` or `Npart = 1` are legal and remain in the `events` tree.
 

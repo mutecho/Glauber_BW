@@ -2,11 +2,11 @@
 
 ## 目标
 
-本次重构只建立后续扩展需要的内部语言，不改变当前物理输出：
+当前实现已经在这套接口上落地 V1a 固定参数 density response：
 
-- 当前行为仍是 participant hotspot 抽 multiplicity、横向 Gaussian smear、再查询流体速度并 boost。
-- 不新增 CLI/config key。
-- 不改变 ROOT 输出树、分支或默认直方图契约。
+- 默认 `density-evolution = affine-gaussian` 会执行 `s_0 -> s_f` 的仿射膨胀和平滑。
+- `density-evolution = none` 保留原先 participant hotspot 抽 multiplicity、横向 Gaussian smear、再查询流体速度并 boost 的对照路径。
+- ROOT 默认契约新增 freeze-out 几何诊断 `eps2_f`、`psi2_f`、`chi2`。
 - 后续 density-field emission 或 density evolution backend 应接入 `buildEventMedium()` 或 `sampleEmissionSites()`，而不是改写 `BlastWaveGenerator::generateEvent()` 的主循环。
 
 ## 事件介质
@@ -22,16 +22,16 @@
 - `emissionDensity`
   粒子发射与 density-normal flow 查询使用的发射阶段 density。
 - `emissionGeometry`
-  发射阶段 density 对应的几何代理，当前与 `participantGeometry` 相同。
+  发射阶段 density 对应的几何代理；默认 V1a 下由 `s_f` 的二阶矩给出。
 
-当前唯一 `DensityEvolutionMode` 是 `None`，所以：
+当前支持两种 `DensityEvolutionMode`：
 
 ```text
-initialDensity == emissionDensity
-participantGeometry == emissionGeometry
+AffineGaussianResponse  # 默认 V1a 固定参数响应
+None                    # 原先 identity 对照模式
 ```
 
-未来若实现密度场膨胀，只应改变 `emissionDensity` 和必要的 `emissionGeometry`；不要 silently 改变 `participantGeometry` 的事件摘要语义。
+`AffineGaussianResponse` 在 participant-plane 中对短轴方向用 `lambda_in = 1.20`、长轴方向用 `lambda_out = 1.05`，并加入 `sigma_evo = 0.5 fm` 的 Gaussian evolution smoothing。它只改变 `emissionDensity` 和 `emissionGeometry`，不会 silently 改变 `participantGeometry` 的事件摘要语义。
 
 ## 密度场接口
 
@@ -43,7 +43,7 @@ participantGeometry == emissionGeometry
 - `buildGaussianPointCloudDensityField()`
 - `evaluateDensityField()`
 
-`evaluateDensityField()` 返回解析 density 和 gradient。`density-normal` flow、可选 ROOT density snapshot、未来 density-field emission 都应共享这个接口，避免各处重复重建密度。
+`DensityField` 支持等方 Gaussian kernel 和共享全二维 covariance kernel。`evaluateDensityField()` 返回解析 density 和 gradient。`density-normal` flow、可选 ROOT density snapshot、V1a density-field emission 都共享这个接口，避免各处重复重建密度。
 
 ## 发射接口
 
@@ -54,9 +54,9 @@ participantGeometry == emissionGeometry
 - `EmissionSite::sourceAnchor`
   源锚点，当前是未 smear 的 participant 坐标，继续写入 `particles.source_x/source_y`。
 - `EmissionParameters`
-  当前包含 `ParticipantHotspot` backend、`smearSigma`、`nbdMu`、`nbdK`。
+  当前包含 `ParticipantHotspot` 和 `DensityField` backend、`smearSigma`、`nbdMu`、`nbdK`。
 
-未来若加入从膨胀后 density field 抽样发射点，应新增 `EmissionSamplerMode` backend，并保持 `EmissionSite` 作为 generator 主循环的输入。
+默认 V1a 使用 `DensityField` backend，从 `emissionDensity` 抽样发射点，同时保留原始 participant 作为 `sourceAnchor`。`density-evolution = none` 使用 `ParticipantHotspot` backend，以保持旧路径可对照。
 
 ## 当前事件流程
 
@@ -71,9 +71,9 @@ sampleParticipants()
   -> ParticleRecord / EventInfo
 ```
 
-这使得后续两个并行方向可以独立演进：
+这使得两个方向可以继续独立演进：
 
-- density evolution：替换 `buildEventMedium()` 里的 `emissionDensity/emissionGeometry`
-- emission sampling：新增 `sampleEmissionSites()` backend
+- density evolution：替换或扩展 `buildEventMedium()` 里的 `emissionDensity/emissionGeometry`
+- emission sampling：继续通过 `sampleEmissionSites()` backend 切换
 
-只要 ROOT schema 没有明确版本化，`ParticleRecord` 和 `RootEventFileWriter` 不应改变默认分支含义。
+只要 ROOT schema 没有明确版本化，`ParticleRecord` 的默认分支含义不应改变；事件摘要新增量应继续集中在 `EventInfo` 和 ROOT schema 层同步。

@@ -1,5 +1,59 @@
 # Tests
 
+## T-011 Kappa2 Public Flow Response Contract
+
+- Status: passed
+- Purpose: verify that the public second-order response input is now `kappa2`, that `rho2` fails fast with migration guidance, and that V1a uses the initial participant eccentricity vector for the second-order flow response.
+- Execution shape:
+  - rebuild the touched generator, QA, and ROOT-free regression targets
+  - run all registered CTest tests
+  - confirm `--rho2` is rejected with `rho2 -> kappa2`
+  - run authoritative default V1a generate+QA smoke
+  - run authoritative `density-evolution none` generate+QA smoke
+  - run authoritative V1a + `density-normal` generate+QA smoke
+- Fresh commands executed on 2026-04-28:
+  - `cmake --build /Users/allenzhou/Research_software/Blast_wave/build --target generate_blastwave_events qa_blastwave_output test_flow_field_model test_emission_sampler test_run_options test_maxwell_juttner_sampler -j4`
+  - `cmake --build /Users/allenzhou/Research_software/Blast_wave/build --target test_flow_field_model test_run_options generate_blastwave_events qa_blastwave_output -j4`
+  - `cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-failure`
+  - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events --rho2 0.06`
+  - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --output /tmp/blastwave_kappa2_v1a_smoke.root && /Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_kappa2_v1a_smoke.root --output /tmp/blastwave_kappa2_v1a_smoke_validation.root --expect-nevents 20 && /Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --density-evolution none --output /tmp/blastwave_kappa2_none_smoke.root && /Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_kappa2_none_smoke.root --output /tmp/blastwave_kappa2_none_smoke_validation.root --expect-nevents 20 && /Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --flow-velocity-sampler density-normal --flow-density-sigma 0.5 --output /tmp/blastwave_kappa2_density_normal_smoke.root && /Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_kappa2_density_normal_smoke.root --output /tmp/blastwave_kappa2_density_normal_smoke_validation.root --expect-nevents 20'"`
+- Current result:
+  - build: passed
+  - `ctest`: passed, 6/6
+  - deprecated `rho2`: `generate_blastwave_events failed: Invalid option/key 'rho2' from command line option '--rho2'. Migration: rho2 -> kappa2.`
+  - default V1a covariance QA: `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0714324 max_abs_eta_s=6.67501 max_E=958.06 max_mass_shell_deviation=3.02439e-11`
+  - `density-evolution none` QA: `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0924968 max_abs_eta_s=6.67501 max_E=984.787 max_mass_shell_deviation=3.58382e-11`
+  - V1a `density-normal` QA: `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0463026 max_abs_eta_s=6.67501 max_E=960.252 max_mass_shell_deviation=7.70089e-11`
+- verification_status: `verified`
+
+## T-010 V1a Affine Gaussian Density Response
+
+- Status: passed
+- Purpose: verify that the default medium mode now runs the V1a `s0 -> sf` affine Gaussian response, that the legacy `density-evolution none` path remains available, and that the new freeze-out geometry ROOT contract is validated by QA.
+- Execution shape:
+  - rebuild the checkout
+  - run ROOT-free regression tests
+  - run authoritative default V1a generate+QA smoke
+  - run authoritative `density-evolution none` generate+QA smoke
+  - run authoritative V1a + `density-normal` generate+QA smoke
+- Fresh commands executed on 2026-04-28:
+  - `cmake --build /Users/allenzhou/Research_software/Blast_wave/build --target generate_blastwave_events qa_blastwave_output test_flow_field_model test_emission_sampler test_run_options test_physics_utils test_maxwell_juttner_sampler test_output_path_utils -j4`
+  - `cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-failure`
+  - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --output /tmp/blastwave_v1a_affine_smoke.root'"`
+  - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_v1a_affine_smoke.root --output /tmp/blastwave_v1a_affine_smoke_validation.root --expect-nevents 20'"`
+  - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --density-evolution none --output /tmp/blastwave_v1a_none_smoke.root'"`
+  - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_v1a_none_smoke.root --output /tmp/blastwave_v1a_none_smoke_validation.root --expect-nevents 20'"`
+  - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --flow-velocity-sampler density-normal --flow-density-sigma 0.5 --output /tmp/blastwave_v1a_density_normal_smoke.root'"`
+  - `/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_v1a_density_normal_smoke.root --output /tmp/blastwave_v1a_density_normal_smoke_validation.root --expect-nevents 20'"`
+- Current result:
+  - build: passed
+  - `ctest`: passed, 6/6
+  - default V1a covariance QA: `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0694394 max_abs_eta_s=6.67501 max_E=951.03 max_mass_shell_deviation=4.83993e-11`
+  - `density-evolution none` QA: `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0924968 max_abs_eta_s=6.67501 max_E=984.787 max_mass_shell_deviation=3.58382e-11`
+  - V1a `density-normal` QA: `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0468845 max_abs_eta_s=6.67501 max_E=951.539 max_mass_shell_deviation=6.03567e-11`
+  - implementation note: the first sandboxed ROOT attempt emitted the known PCM/module noise, so only the outside-sandbox reruns above are counted as authoritative
+- verification_status: `verified`
+
 ## T-001 Baseline Build And Smoke Validation
 
 - Status: passed
@@ -123,6 +177,7 @@
 
 - Status: passed
 - Purpose: verify that the default flow field now uses the participant covariance ellipse, that the public flow knobs have migrated to `rho0/rho2/flow-power`, and that the optional debug payload writes and validates correctly.
+- Historical note: this 2026-04-22 record predates DEC-008. In the current contract, the second-order public knob is `kappa2` and legacy `rho2` fails fast.
 - Execution shape:
   - rebuild the checkout
   - run `ctest --output-on-failure`

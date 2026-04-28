@@ -92,7 +92,10 @@ int main(int argc, char **argv) {
 
     const char *requiredObjects[] = {blastwave::io::kNpartHistogramName,
                                      blastwave::io::kEps2HistogramName,
+                                     blastwave::io::kEps2FreezeoutHistogramName,
                                      blastwave::io::kPsi2HistogramName,
+                                     blastwave::io::kPsi2FreezeoutHistogramName,
+                                     blastwave::io::kChi2HistogramName,
                                      blastwave::io::kV2HistogramName,
                                      blastwave::io::kCentralityHistogramName,
                                      blastwave::io::kParticipantXYHistogramName,
@@ -119,6 +122,18 @@ int main(int argc, char **argv) {
     auto *centralityInput = dynamic_cast<TH1 *>(inputFile.Get(blastwave::io::kCentralityHistogramName));
     if (centralityInput == nullptr) {
       throw std::runtime_error("Input object 'cent' is not a TH1.");
+    }
+    auto *eps2FreezeoutInput = dynamic_cast<TH1 *>(inputFile.Get(blastwave::io::kEps2FreezeoutHistogramName));
+    if (eps2FreezeoutInput == nullptr) {
+      throw std::runtime_error("Input object 'eps2_f' is not a TH1.");
+    }
+    auto *psi2FreezeoutInput = dynamic_cast<TH1 *>(inputFile.Get(blastwave::io::kPsi2FreezeoutHistogramName));
+    if (psi2FreezeoutInput == nullptr) {
+      throw std::runtime_error("Input object 'psi2_f' is not a TH1.");
+    }
+    auto *chi2Input = dynamic_cast<TH1 *>(inputFile.Get(blastwave::io::kChi2HistogramName));
+    if (chi2Input == nullptr) {
+      throw std::runtime_error("Input object 'chi2' is not a TH1.");
     }
     auto *v2Input = dynamic_cast<TH1 *>(inputFile.Get(blastwave::io::kV2HistogramName));
     if (v2Input == nullptr) {
@@ -270,6 +285,19 @@ int main(int argc, char **argv) {
       if (!isFinite(eventBranches.centrality) || eventBranches.centrality < 0.0 || eventBranches.centrality > 100.0) {
         throw std::runtime_error("centrality must stay within [0, 100].");
       }
+      if (!isFinite(eventBranches.eps2Freezeout) || eventBranches.eps2Freezeout < 0.0 || eventBranches.eps2Freezeout > 1.0) {
+        throw std::runtime_error("eps2_f must stay within [0, 1].");
+      }
+      if (!isFinite(eventBranches.psi2Freezeout)) {
+        throw std::runtime_error("psi2_f must be finite.");
+      }
+      if (!isFinite(eventBranches.chi2) || eventBranches.chi2 < 0.0) {
+        throw std::runtime_error("chi2 must be finite and non-negative.");
+      }
+      const double expectedChi2 = eventBranches.eps2 > 1.0e-12 ? eventBranches.eps2Freezeout / eventBranches.eps2 : 0.0;
+      if (!nearlyEqual(eventBranches.chi2, expectedChi2, 1.0e-9)) {
+        throw std::runtime_error("chi2 must equal eps2_f / eps2 when eps2 > 1e-12, otherwise 0.");
+      }
 
       const double expectedCentrality = computeExpectedCentrality(eventBranches.impactParameter);
       if (std::abs(eventBranches.centrality - expectedCentrality) > 1.0e-9) {
@@ -407,6 +435,15 @@ int main(int argc, char **argv) {
     }
     if (std::abs(v2Input->GetEntries() - eventCount) > 1.0e-9) {
       throw std::runtime_error("v2 histogram entry count does not match events tree.");
+    }
+    if (std::abs(eps2FreezeoutInput->GetEntries() - eventCount) > 1.0e-9) {
+      throw std::runtime_error("eps2_f histogram entry count does not match events tree.");
+    }
+    if (std::abs(psi2FreezeoutInput->GetEntries() - eventCount) > 1.0e-9) {
+      throw std::runtime_error("psi2_f histogram entry count does not match events tree.");
+    }
+    if (std::abs(chi2Input->GetEntries() - eventCount) > 1.0e-9) {
+      throw std::runtime_error("chi2 histogram entry count does not match events tree.");
     }
     if (eventCount > 0.0 && !nearlyEqual(v2Input->GetMean(), meanV2, 1.0e-9)) {
       throw std::runtime_error("v2 histogram mean does not match the events.v2 mean.");

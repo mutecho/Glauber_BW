@@ -1,8 +1,15 @@
 # 新增可切换的 `density-normal` 流体元速度模型
 
+## 状态说明
+
+- 本文档记录的是 `density-normal` sampler 加入前的方案草稿，部分公开名称已经过时。
+- 当前权威运行时名称是 `flow-velocity-sampler = covariance-ellipse | density-normal`，不是旧文中的 `flow-model`。
+- 当前默认介质演化已经是 `density-evolution = affine-gaussian`；若需要旧 identity 介质和 participant-hotspot 发射路径，显式设置 `density-evolution = none`。
+- 当前二阶响应公开参数是 `kappa2`，事件级二阶振幅为 `kappa2 * eps2_initial`；旧文中的 `rho2` 只属于历史方案语境。
+
 ## Summary
 
-- 在保留当前默认 `covariance-ellipse` 流场的前提下，新增一套基于 smeared participant density 的 `density-normal` 横向流模型，公开为可切换的 `flow-model`，避免直接替换当前稳定基线。
+- 在保留 `covariance-ellipse` 流速方向的前提下，新增一套基于 emission density 的 `density-normal` 横向流速方向，当前公开为可切换的 `flow-velocity-sampler`。
 - 结构上不把新逻辑塞回生成器；保持生成器只做“构建事件级流场上下文 + 查询单点流速”，把几何恢复、density/gradient 计算、流场分派拆到 ROOT-free 核心层。
 - 文档里的物理意图保留，但按代码现状修正两个关键点：`Σ^{-1}` fallback 必须使用相对事件质心的坐标 `delta = x - center`，且 `flow-density-sigma` 不与当前 `smearSigma` 直接绑死，避免把“发射点展宽”和“流场重建核宽度”耦合成一个参数。
 
@@ -11,15 +18,15 @@
 ### 公共接口与配置
 
 - 在 `BlastWaveConfig` 增加：
-  - `flowModel`，取值 `covariance-ellipse | density-normal`，默认 `covariance-ellipse`
+  - `flowVelocitySamplerMode`，取值 `covariance-ellipse | density-normal`，默认 `covariance-ellipse`
   - `flowDensitySigma`，默认 `0.5 fm`，独立于 `smearSigma`
 - CLI/config 新增：
-  - `--flow-model <covariance-ellipse|density-normal>`
+  - `--flow-velocity-sampler <covariance-ellipse|density-normal>`
   - `--flow-density-sigma <fm>`
-  - 配置键 `flow-model`、`flow-density-sigma`
-- 现有 `rho0`、`rho2`、`flow-power` 保留：
-  - `covariance-ellipse` 继续使用 `rho0 + rho2 * eps2 * cos(2phiB)`
-  - `density-normal` 首版只使用 `rho0 * rTilde^flowPower`，`rho2` 在该模型下解析但不参与计算，并在文档中明确为该模型暂未使用
+  - 配置键 `flow-velocity-sampler`、`flow-density-sigma`
+- 现有 `rho0`、`kappa2`、`flow-power` 保留：
+  - `covariance-ellipse` 的 legacy `none` 路径继续使用 `rho0 + kappa2 * eps2_initial * cos(2phiB)`
+  - `density-normal` 的 legacy `none` 路径只使用 `rho0 * rTilde^flowPower`，`kappa2` 在该路径下解析但不参与计算
 
 ### 核心结构
 
@@ -72,5 +79,5 @@
 
 - 默认模型不变，避免破坏现有示例配置、QA 基线和现有文档主叙述。
 - `flow-density-sigma` 与 `smearSigma` 分离；两者数值默认都可为 `0.5`，但物理职责不同。
-- 首版不引入 `rho2 cos(2phi)` 到 `density-normal`，也不做网格插值/缓存表；每次查询直接对 participant 点云求和，复杂度以当前 `Npart` 规模可接受为前提。
+- 首版不引入 legacy `none` 路径的 `kappa2 * eps2_initial * cos(2phi)` 调制到 `density-normal`，也不做网格插值/缓存表；每次查询直接对 participant 点云求和，复杂度以当前 `Npart` 规模可接受为前提。
 - 实施时需要同步更新人写文档与 `project-state/` 台账，至少覆盖算法语义、配置契约、测试记录和当前状态。

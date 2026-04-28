@@ -7,7 +7,8 @@
   - a ROOT-free physics core in `include/` and `src/`
   - a ROOT-writing generation app in `apps/generate_blastwave_events.cpp` plus `apps/generate_blastwave/`
   - an independent ROOT-reading QA app in `apps/qa_blastwave_output.cpp`
-- The default transverse flow model is the participant covariance-ellipse normal field implemented in:
+- The default medium model is now V1a `AffineGaussianResponse`: participant density `s0` is transformed into freeze-out density `sf` through fixed affine expansion and smoothing before emission.
+- The default transverse flow direction remains the covariance-ellipse normal sampler implemented in:
   - `include/blastwave/FlowFieldModel.h`
   - `src/FlowFieldModel.cpp`
 - The internal event-medium and emission extension points are implemented in:
@@ -18,17 +19,22 @@
   - `src/EmissionSampler.cpp`
 - The current public flow surface is:
   - `rho0`
-  - `rho2`
+  - `kappa2`
   - `flow-power`
   - `flow-velocity-sampler`
+  - `density-evolution`
   - `flow-density-sigma`
   - `debug-flow-ellipse`
-- Legacy flow knobs `vmax`, `kappa2`, and `r-ref` are no longer accepted; they fail fast with migration guidance.
+- `density-evolution` and `flow-velocity-sampler` are orthogonal:
+  - `affine-gaussian|none` controls the medium/emission stage
+  - `covariance-ellipse|density-normal` controls the transverse flow direction
+- Legacy flow knobs `vmax`, `rho2`, and `r-ref` are no longer accepted; they fail fast with migration guidance.
 - Event summaries now carry both:
   - initial-state geometry observables `eps2` and `psi2`
+  - freeze-out geometry observables `eps2_f`, `psi2_f`, and `chi2`
   - final-state event observable `v2`
   - fixed-`b` mapping observable `centrality`
-- `GeneratedEvent` now carries `EventMedium`, whose `participantGeometry` defines event-summary `eps2/psi2` while `emissionDensity` and `emissionGeometry` are the future density-evolution insertion points.
+- `GeneratedEvent` carries `EventMedium`; `participantGeometry` defines event-summary `eps2/psi2`, while `emissionDensity` and `emissionGeometry` define the V1a freeze-out source and diagnostics.
 
 ## Key Source Evidence
 
@@ -66,8 +72,10 @@
   - relative `output` paths resolve relative to the config file directory
 - Flow-facing public knobs:
   - `--rho0`
-  - `--rho2`
+  - `--kappa2`
   - `--flow-power`
+  - `--flow-velocity-sampler <covariance-ellipse|density-normal>`
+  - `--density-evolution <affine-gaussian|none>`
   - `--debug-flow-ellipse`
   - `--no-debug-flow-ellipse`
 - Thermal-facing public knobs:
@@ -89,14 +97,20 @@
   - `b`
   - `Npart`
   - `eps2`
+  - `eps2_f`
   - `psi2`
+  - `psi2_f`
+  - `chi2`
   - `v2`
   - `centrality`
   - `Nch`
 - Mandatory QA objects:
   - `Npart`
   - `eps2`
+  - `eps2_f`
   - `psi2`
+  - `psi2_f`
+  - `chi2`
   - `v2`
   - `cent`
   - `participant_x-y`
@@ -117,6 +131,8 @@
 - The QA reader always validates:
   - tree presence and event ID continuity
   - participant and particle multiplicity consistency
+  - `events.eps2_f`, `events.psi2_f`, and `events.chi2`
+  - `chi2` consistency with `eps2_f / eps2`
   - `events.v2` against the particle-level second-harmonic Q-vector
   - `v2` histogram entry count and mean against the `events.v2` payload
   - `centrality` range and consistency with the fixed-`b` mapping
@@ -144,6 +160,6 @@
 
 - Regenerate long-lived sample files in `qa/` when one fully current reference artifact set is needed for reuse.
 - Preserve the explicit `ROOT::HistPainter` link and the launcher ROOT-alignment preflight while `participant_x-y_canvas` remains part of the mandatory output contract.
-- Add future density evolution in `buildEventMedium()` by updating `emissionDensity` / `emissionGeometry`, not by changing the `participantGeometry` event-summary contract.
-- Add future emission backends behind `sampleEmissionSites()` and continue returning `EmissionSite`.
+- Future density evolution variants should extend `buildEventMedium()` without changing the `participantGeometry` event-summary contract.
+- Future emission backends should continue to live behind `sampleEmissionSites()` and return `EmissionSite`.
 - When future changes touch output schema or public knobs, update `docs/agent_guide.md`, `docs/项目说明.md`, and `project-state/guide.md` in the same patch so coordination docs do not drift again.

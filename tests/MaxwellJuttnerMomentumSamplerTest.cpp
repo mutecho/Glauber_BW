@@ -185,7 +185,7 @@ namespace {
     config.temperature = 0.0;
     config.thermalSamplerMode = mode;
     config.rho0 = 0.0;
-    config.rho2 = 0.0;
+    config.kappa2 = 0.0;
     config.sigmaEta = 0.0;
     config.etaPlateauHalfWidth = 0.0;
     config.smearSigma = 0.0;

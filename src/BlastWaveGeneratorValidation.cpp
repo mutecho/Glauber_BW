@@ -70,8 +70,8 @@ namespace blastwave {
     if (!isFinite(config_.rho0) || config_.rho0 < 0.0) {
       throw std::invalid_argument("rho0 must be finite and non-negative.");
     }
-    if (!isFinite(config_.rho2)) {
-      throw std::invalid_argument("rho2 must be finite.");
+    if (!isFinite(config_.kappa2)) {
+      throw std::invalid_argument("kappa2 must be finite.");
     }
     if (!isFinite(config_.flowPower) || config_.flowPower <= 0.0) {
       throw std::invalid_argument("flowPower must be finite and positive.");

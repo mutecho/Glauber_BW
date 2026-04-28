@@ -12,7 +12,7 @@
   - config-file entrypoints and tracked example configs
   - a `participants` tree plus participant QA objects
   - mandatory `events.centrality`, `events.v2`, `cent`, and `v2`
-  - the covariance-ellipse flow surface `rho0/rho2/flow-power/debug-flow-ellipse`
+  - the covariance-ellipse flow surface `rho0/kappa2/flow-power/debug-flow-ellipse`
 
 ## Summary
 - 新实现使用独立的 C++ 代码，不复制 `reference/legacy-root-macros/` 目录中的参考实现，只借鉴其“Glauber 几何 + 逐粒子输出”的目标形态。

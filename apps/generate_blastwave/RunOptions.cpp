@@ -23,8 +23,8 @@ namespace {
     if (optionName == "vmax") {
       throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription + ". Migration: vmax -> rho0 = atanh(vmax).");
     }
-    if (optionName == "kappa2") {
-      throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription + ". Migration: kappa2 -> re-tuned rho2.");
+    if (optionName == "rho2") {
+      throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription + ". Migration: rho2 -> kappa2.");
     }
 
     throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription + ". Migration: r-ref -> absorbed by event-ellipse semi-axes.");
@@ -125,6 +125,17 @@ namespace {
     throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'covariance-ellipse' or 'density-normal'.");
   }
 
+  blastwave::DensityEvolutionMode parseDensityEvolutionMode(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
+    if (rawValue == "affine-gaussian") {
+      return blastwave::DensityEvolutionMode::AffineGaussianResponse;
+    }
+    if (rawValue == "none") {
+      return blastwave::DensityEvolutionMode::None;
+    }
+
+    throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'affine-gaussian' or 'none'.");
+  }
+
   std::string resolveOutputPath(const std::string &rawValue, const std::filesystem::path &baseDirectory) {
     if (rawValue.empty()) {
       throw std::invalid_argument("Output path must not be empty.");
@@ -170,12 +181,14 @@ namespace {
       runOptions.progressMode = parseBool(rawValue, optionName, sourceDescription) ? blastwave::app::ProgressMode::Enabled : blastwave::app::ProgressMode::Disabled;
     } else if (optionName == "rho0") {
       runOptions.config.rho0 = parseDouble(rawValue, optionName, sourceDescription);
-    } else if (optionName == "rho2") {
-      runOptions.config.rho2 = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "kappa2") {
+      runOptions.config.kappa2 = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "flow-power") {
       runOptions.config.flowPower = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "flow-velocity-sampler") {
       runOptions.config.flowVelocitySamplerMode = parseFlowVelocitySamplerMode(rawValue, optionName, sourceDescription);
+    } else if (optionName == "density-evolution") {
+      runOptions.config.densityEvolutionMode = parseDensityEvolutionMode(rawValue, optionName, sourceDescription);
     } else if (optionName == "flow-density-sigma") {
       runOptions.config.flowDensitySigma = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "debug-flow-ellipse") {
@@ -188,7 +201,7 @@ namespace {
       runOptions.config.nbdMu = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "nbd-k") {
       runOptions.config.nbdK = parseDouble(rawValue, optionName, sourceDescription);
-    } else if (optionName == "vmax" || optionName == "kappa2" || optionName == "r-ref") {
+    } else if (optionName == "vmax" || optionName == "rho2" || optionName == "r-ref") {
       throwDeprecatedFlowOptionError(optionName, sourceDescription);
     } else {
       throw std::invalid_argument("Unknown option/key '" + optionName + "' from " + sourceDescription);
@@ -256,7 +269,8 @@ namespace blastwave::app {
               << "Configuration keys:\n"
               << "  nevents, b, temperature, thermal-sampler, mj-pmax, mj-grid-points,\n"
               << "  tau0, smear, sigma-nn, seed, output, progress,\n"
-              << "  rho0, rho2, flow-power, flow-velocity-sampler, flow-density-sigma,\n"
+              << "  rho0, kappa2, flow-power, flow-velocity-sampler, density-evolution,\n"
+              << "  flow-density-sigma,\n"
               << "  debug-flow-ellipse,\n"
               << "  sigma-eta, eta-plateau, nbd-mu, nbd-k\n"
               << "Primary options:\n"
@@ -276,10 +290,12 @@ namespace blastwave::app {
               << "  --debug-flow-ellipse\n"
               << "  --no-debug-flow-ellipse\n"
               << "QA-facing tuning knobs:\n"
+              << "  (density-evolution and flow-velocity-sampler are orthogonal controls)\n"
               << "  --rho0 <value>\n"
-              << "  --rho2 <value>\n"
+              << "  --kappa2 <value>\n"
               << "  --flow-power <value>\n"
               << "  --flow-velocity-sampler <covariance-ellipse|density-normal>\n"
+              << "  --density-evolution <affine-gaussian|none>\n"
               << "  --flow-density-sigma <fm>\n"
               << "  --sigma-eta <value>\n"
               << "  --eta-plateau <value>\n"

@@ -73,24 +73,37 @@ namespace {
     require(!parsed.showHelp, "Default parse should not request help.");
     require(parsed.runOptions.config.flowVelocitySamplerMode == blastwave::FlowVelocitySamplerMode::CovarianceEllipse,
             "Default flow velocity sampler should stay covariance-ellipse.");
+    require(parsed.runOptions.config.densityEvolutionMode == blastwave::DensityEvolutionMode::AffineGaussianResponse,
+            "Default density evolution mode should stay affine-gaussian.");
+    requireNear(parsed.runOptions.config.kappa2, 1.0986122886681098, 1.0e-12, "Default kappa2 should preserve the previous rho2 numeric default.");
     requireNear(parsed.runOptions.config.flowDensitySigma, 0.5, 1.0e-12, "Default flow density sigma should stay 0.5 fm.");
   }
 
-  void runCliSamplerParseTest() {
-    const ParsedRunOptions parsed = parseArguments({"--flow-velocity-sampler", "density-normal", "--flow-density-sigma", "0.8"});
+  void runCliSamplerAndDensityEvolutionParseTest() {
+    const ParsedRunOptions parsed = parseArguments(
+        {"--flow-velocity-sampler", "density-normal", "--density-evolution", "none", "--kappa2", "0.25", "--flow-density-sigma", "0.8"});
     require(parsed.runOptions.config.flowVelocitySamplerMode == blastwave::FlowVelocitySamplerMode::DensityNormal,
             "CLI sampler parse should accept density-normal.");
+    require(parsed.runOptions.config.densityEvolutionMode == blastwave::DensityEvolutionMode::None,
+            "CLI density-evolution parse should accept none.");
+    requireNear(parsed.runOptions.config.kappa2, 0.25, 1.0e-12, "CLI kappa2 parse mismatch.");
     requireNear(parsed.runOptions.config.flowDensitySigma, 0.8, 1.0e-12, "CLI flow density sigma parse mismatch.");
   }
 
-  void runConfigAndOverrideTest() {
+  void runConfigAndOverrideParseTest() {
     const TemporaryConfigFile configFile(
         "flow-velocity-sampler = density-normal\n"
+        "density-evolution = none\n"
+        "kappa2 = 0.3\n"
         "flow-density-sigma = 0.7\n"
         "output = qa/test.root\n");
-    const ParsedRunOptions parsed = parseArguments({configFile.path().string(), "--flow-velocity-sampler", "covariance-ellipse"});
+    const ParsedRunOptions parsed = parseArguments(
+        {configFile.path().string(), "--flow-velocity-sampler", "covariance-ellipse", "--density-evolution", "affine-gaussian", "--kappa2", "0.45"});
     require(parsed.runOptions.config.flowVelocitySamplerMode == blastwave::FlowVelocitySamplerMode::CovarianceEllipse,
             "CLI override should win over config-file sampler value.");
+    require(parsed.runOptions.config.densityEvolutionMode == blastwave::DensityEvolutionMode::AffineGaussianResponse,
+            "CLI override should win over config-file density-evolution value.");
+    requireNear(parsed.runOptions.config.kappa2, 0.45, 1.0e-12, "CLI override should win over config-file kappa2 value.");
     requireNear(parsed.runOptions.config.flowDensitySigma, 0.7, 1.0e-12, "Config-file flow density sigma parse mismatch.");
     require(parsed.runOptions.outputPath == (configFile.path().parent_path() / "qa/test.root").lexically_normal().string(),
             "Relative config-file output path should resolve against the config directory.");
@@ -106,14 +119,36 @@ namespace {
     require(threw, "Invalid flow velocity sampler should be rejected.");
   }
 
+  void runInvalidDensityEvolutionRejectsTest() {
+    bool threw = false;
+    try {
+      static_cast<void>(parseArguments({"--density-evolution", "not-a-mode"}));
+    } catch (const std::invalid_argument &) {
+      threw = true;
+    }
+    require(threw, "Invalid density-evolution mode should be rejected.");
+  }
+
+  void runDeprecatedRho2RejectsTest() {
+    bool threw = false;
+    try {
+      static_cast<void>(parseArguments({"--rho2", "0.1"}));
+    } catch (const std::invalid_argument &error) {
+      threw = std::string(error.what()).find("rho2 -> kappa2") != std::string::npos;
+    }
+    require(threw, "Deprecated rho2 should be rejected with kappa2 migration guidance.");
+  }
+
 }  // namespace
 
 int main() {
   try {
     runDefaultSamplerTest();
-    runCliSamplerParseTest();
-    runConfigAndOverrideTest();
+    runCliSamplerAndDensityEvolutionParseTest();
+    runConfigAndOverrideParseTest();
     runInvalidSamplerRejectsTest();
+    runInvalidDensityEvolutionRejectsTest();
+    runDeprecatedRho2RejectsTest();
     return 0;
   } catch (const std::exception &error) {
     std::cerr << "Run options test failed: " << error.what() << '\n';

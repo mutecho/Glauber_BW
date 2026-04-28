@@ -31,6 +31,9 @@ namespace blastwave {
   struct DensityField {
     std::vector<WeightedTransversePoint> supportPoints;
     double gaussianSigma = 0.5;  // fm
+    double kernelCovXX = 0.25;   // fm^2
+    double kernelCovXY = 0.0;    // fm^2
+    double kernelCovYY = 0.25;   // fm^2
   };
 
   /**
@@ -43,6 +46,10 @@ namespace blastwave {
   };
 
   [[nodiscard]] DensityField buildGaussianPointCloudDensityField(const std::vector<WeightedTransversePoint> &points, double gaussianSigma);
+  [[nodiscard]] DensityField buildGaussianPointCloudDensityField(const std::vector<WeightedTransversePoint> &points,
+                                                                 double kernelCovXX,
+                                                                 double kernelCovXY,
+                                                                 double kernelCovYY);
   [[nodiscard]] DensityFieldSample evaluateDensityField(const DensityField &field, double x, double y);
 
 }  // namespace blastwave

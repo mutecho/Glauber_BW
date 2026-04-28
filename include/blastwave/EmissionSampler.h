@@ -8,7 +8,7 @@
 
 namespace blastwave {
 
-  enum class EmissionSamplerMode { ParticipantHotspot };
+  enum class EmissionSamplerMode { ParticipantHotspot, DensityField };
 
   /**
    * One sampled particle-emission site. position is the actual transverse

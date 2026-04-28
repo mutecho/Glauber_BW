@@ -55,6 +55,7 @@
   - future flow-field work should extend `FlowFieldModel` rather than reimplementing covariance math inside the generator or QA code
   - docs, help text, and sample configs must all use the `rho*` / `flow-power` vocabulary
   - default ROOT consumers keep the same mandatory contract, while debug-aware workflows may opt into the extra tree and normalized-participant histogram
+  - Superseded by DEC-008 for the second-order public knob: current flow tuning uses `kappa2`, not `rho2`.
 
 ## DEC-004 Add Event-Level Final-State `v2` To The Mandatory ROOT Contract
 
@@ -97,6 +98,7 @@
   - future flow-field extensions should plug into the sampler dispatch surface instead of renaming the public interface again
   - sample configs, help text, and durable tests must use `flow-velocity-sampler` / `flow-density-sigma` rather than reviving `flow-model`
   - `smear` and `flow-density-sigma` now carry different responsibilities and should not be silently coupled
+  - Superseded by DEC-008 for the second-order public knob: current flow tuning uses `kappa2`, not `rho2`.
 
 ## DEC-006 Adopt `EventMedium` And `EmissionSite` As Internal Expansion Interfaces
 
@@ -116,3 +118,42 @@
   - future density-expansion implementations should update `emissionDensity` / `emissionGeometry` in `buildEventMedium()` rather than changing `events.eps2` / `events.psi2`
   - future density-field emission backends should add an `EmissionSamplerMode` and still return `EmissionSite`
   - writer-side density snapshots should serialize the generator-owned `EventMedium` state instead of rebuilding density independently
+
+## DEC-007 Make V1a Affine Gaussian Response The Default Medium Mode
+
+- Status: accepted
+- Date: 2026-04-28
+- Context:
+  - `docs/演化V1_固定参数.md` defines the V1a target as a parameterized freeze-out response model where `s_f(x,y) != s_0(x,y)`
+  - the existing `EventMedium` interface already separated `participantGeometry`, `initialDensity`, `emissionDensity`, and `emissionGeometry`
+  - the user wanted the new mode switchable against the two existing flow-direction modes
+- Decision:
+  - add `density-evolution = affine-gaussian | none` as the public medium-mode switch
+  - make `affine-gaussian` the default and keep `none` as the legacy identity-medium comparison path
+  - keep `density-evolution` orthogonal to `flow-velocity-sampler = covariance-ellipse | density-normal`
+  - use fixed V1a response parameters for now: `lambda_in = 1.20`, `lambda_out = 1.05`, and `sigma_evo = 0.5 fm`
+  - write freeze-out geometry diagnostics as mandatory `events.eps2_f`, `events.psi2_f`, `events.chi2` plus matching QA histograms
+  - preserve `events.eps2` and `events.psi2` as initial participant-geometry observables
+- Consequences:
+  - current QA rejects older ROOT files that lack `eps2_f`, `psi2_f`, or `chi2`
+  - long-lived sample ROOT files should be regenerated when a current reference artifact set is needed
+  - future V1b or parameter scans should extend this medium-mode contract rather than overloading `flow-velocity-sampler`
+
+## DEC-008 Use `kappa2` As The Public Second-Order Flow Response Coefficient
+
+- Status: accepted
+- Date: 2026-04-28
+- Context:
+  - the V1 requirement defines the second-order response as `kappa2 * epsilon2`, not as an externally supplied final second-order flow amplitude
+  - the previous intermediate implementation exposed `rho2`, which made the public knob read like the amplitude itself
+  - V1a already separates initial participant geometry from freeze-out geometry diagnostics
+- Decision:
+  - replace public CLI/config `rho2` with `kappa2`
+  - define the event-wise second-order rapidity modulation amplitude as `a2 = kappa2 * participantGeometry.eps2`
+  - define the V1a second-order response plane as `participantGeometry.psi2`
+  - keep `events.eps2_f`, `events.psi2_f`, and `events.chi2` as freeze-out diagnostics rather than flow-response inputs
+  - make legacy `rho2` fail fast with migration guidance to `kappa2`
+- Consequences:
+  - docs, help text, configs, and tests must use `kappa2` for current flow tuning
+  - historical references to `rho2` may remain only in explicitly historical planning records
+  - future higher-harmonic extensions should follow the response-coefficient pattern rather than exposing harmonic amplitudes directly

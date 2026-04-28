@@ -10,7 +10,10 @@ namespace blastwave::io {
     constexpr char kImpactParameterBranchName[] = "b";
     constexpr char kNpartBranchName[] = "Npart";
     constexpr char kEps2BranchName[] = "eps2";
+    constexpr char kEps2FreezeoutBranchName[] = "eps2_f";
     constexpr char kPsi2BranchName[] = "psi2";
+    constexpr char kPsi2FreezeoutBranchName[] = "psi2_f";
+    constexpr char kChi2BranchName[] = "chi2";
     constexpr char kV2BranchName[] = "v2";
     constexpr char kCentralityBranchName[] = "centrality";
     constexpr char kNchBranchName[] = "Nch";
@@ -51,7 +54,10 @@ namespace blastwave::io {
     tree.Branch(kImpactParameterBranchName, &branches.impactParameter, "b/D");
     tree.Branch(kNpartBranchName, &branches.nParticipants, "Npart/I");
     tree.Branch(kEps2BranchName, &branches.eps2, "eps2/D");
+    tree.Branch(kEps2FreezeoutBranchName, &branches.eps2Freezeout, "eps2_f/D");
     tree.Branch(kPsi2BranchName, &branches.psi2, "psi2/D");
+    tree.Branch(kPsi2FreezeoutBranchName, &branches.psi2Freezeout, "psi2_f/D");
+    tree.Branch(kChi2BranchName, &branches.chi2, "chi2/D");
     tree.Branch(kV2BranchName, &branches.v2, "v2/D");
     tree.Branch(kCentralityBranchName, &branches.centrality, "centrality/D");
     tree.Branch(kNchBranchName, &branches.nCharged, "Nch/I");
@@ -108,7 +114,10 @@ namespace blastwave::io {
     tree.SetBranchAddress(kImpactParameterBranchName, &branches.impactParameter);
     tree.SetBranchAddress(kNpartBranchName, &branches.nParticipants);
     tree.SetBranchAddress(kEps2BranchName, &branches.eps2);
+    tree.SetBranchAddress(kEps2FreezeoutBranchName, &branches.eps2Freezeout);
     tree.SetBranchAddress(kPsi2BranchName, &branches.psi2);
+    tree.SetBranchAddress(kPsi2FreezeoutBranchName, &branches.psi2Freezeout);
+    tree.SetBranchAddress(kChi2BranchName, &branches.chi2);
     tree.SetBranchAddress(kV2BranchName, &branches.v2);
     tree.SetBranchAddress(kCentralityBranchName, &branches.centrality);
     tree.SetBranchAddress(kNchBranchName, &branches.nCharged);

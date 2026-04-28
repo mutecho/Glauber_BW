@@ -30,8 +30,9 @@ namespace blastwave {
     double nbdMu = 2.0;
     double nbdK = 1.5;
     double rho0 = 1.0986122886681098;
-    double rho2 = 1.0986122886681098;
+    double kappa2 = 1.0986122886681098;
     double flowPower = 1.0;
+    DensityEvolutionMode densityEvolutionMode = DensityEvolutionMode::AffineGaussianResponse;
     FlowVelocitySamplerMode flowVelocitySamplerMode = FlowVelocitySamplerMode::CovarianceEllipse;
     double flowDensitySigma = 0.5;     // fm
     bool debugFlowEllipse = false;
@@ -49,6 +50,9 @@ namespace blastwave {
     int nParticipants = 0;
     double eps2 = 0.0;
     double psi2 = 0.0;
+    double eps2Freezeout = 0.0;
+    double psi2Freezeout = 0.0;
+    double chi2 = 0.0;
     double v2 = 0.0;
     double centrality = 0.0;
     int nCharged = 0;

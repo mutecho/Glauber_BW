@@ -14,6 +14,24 @@ namespace blastwave {
     DensityField field;
     field.supportPoints = points;
     field.gaussianSigma = gaussianSigma;
+    const double sigma2 = gaussianSigma * gaussianSigma;
+    field.kernelCovXX = sigma2;
+    field.kernelCovXY = 0.0;
+    field.kernelCovYY = sigma2;
+    return field;
+  }
+
+  DensityField buildGaussianPointCloudDensityField(const std::vector<WeightedTransversePoint> &points,
+                                                   double kernelCovXX,
+                                                   double kernelCovXY,
+                                                   double kernelCovYY) {
+    DensityField field;
+    field.supportPoints = points;
+    field.kernelCovXX = kernelCovXX;
+    field.kernelCovXY = kernelCovXY;
+    field.kernelCovYY = kernelCovYY;
+    const double averageVariance = 0.5 * (kernelCovXX + kernelCovYY);
+    field.gaussianSigma = averageVariance > 0.0 ? std::sqrt(averageVariance) : 0.0;
     return field;
   }
 
@@ -22,13 +40,20 @@ namespace blastwave {
   // will later expose.
   DensityFieldSample evaluateDensityField(const DensityField &field, double x, double y) {
     DensityFieldSample sample;
-    if (!std::isfinite(field.gaussianSigma) || field.gaussianSigma <= 0.0) {
+    if (!std::isfinite(field.kernelCovXX) || !std::isfinite(field.kernelCovXY) || !std::isfinite(field.kernelCovYY)) {
       return sample;
     }
 
-    const double sigma2 = field.gaussianSigma * field.gaussianSigma;
-    const double inverseSigma2 = 1.0 / sigma2;
-    const double normalization = 1.0 / (2.0 * kPi * sigma2);
+    const double determinant = field.kernelCovXX * field.kernelCovYY - field.kernelCovXY * field.kernelCovXY;
+    if (!std::isfinite(determinant) || determinant <= 0.0) {
+      return sample;
+    }
+
+    const double inverseCovXX = field.kernelCovYY / determinant;
+    const double inverseCovXY = -field.kernelCovXY / determinant;
+    const double inverseCovYY = field.kernelCovXX / determinant;
+    const double normalization = 1.0 / (2.0 * kPi * std::sqrt(determinant));
+
     for (const WeightedTransversePoint &point : field.supportPoints) {
       if (!std::isfinite(point.weight) || point.weight <= 0.0) {
         continue;
@@ -36,11 +61,18 @@ namespace blastwave {
 
       const double dx = x - point.x;
       const double dy = y - point.y;
-      const double exponent = -0.5 * (dx * dx + dy * dy) * inverseSigma2;
+      const double qx = inverseCovXX * dx + inverseCovXY * dy;
+      const double qy = inverseCovXY * dx + inverseCovYY * dy;
+      const double quadraticForm = dx * qx + dy * qy;
+      if (!std::isfinite(quadraticForm)) {
+        continue;
+      }
+
+      const double exponent = -0.5 * quadraticForm;
       const double contribution = point.weight * normalization * std::exp(exponent);
       sample.density += contribution;
-      sample.gradientX -= contribution * dx * inverseSigma2;
-      sample.gradientY -= contribution * dy * inverseSigma2;
+      sample.gradientX -= contribution * qx;
+      sample.gradientY -= contribution * qy;
     }
 
     return sample;

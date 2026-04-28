@@ -16,7 +16,10 @@ namespace blastwave::io {
 
   inline constexpr char kNpartHistogramName[] = "Npart";
   inline constexpr char kEps2HistogramName[] = "eps2";
+  inline constexpr char kEps2FreezeoutHistogramName[] = "eps2_f";
   inline constexpr char kPsi2HistogramName[] = "psi2";
+  inline constexpr char kPsi2FreezeoutHistogramName[] = "psi2_f";
+  inline constexpr char kChi2HistogramName[] = "chi2";
   inline constexpr char kV2HistogramName[] = "v2";
   inline constexpr char kCentralityHistogramName[] = "cent";
   inline constexpr char kParticipantXYHistogramName[] = "participant_x-y";
@@ -34,7 +37,10 @@ namespace blastwave::io {
     Double_t impactParameter = 0.0;
     Int_t nParticipants = 0;
     Double_t eps2 = 0.0;
+    Double_t eps2Freezeout = 0.0;
     Double_t psi2 = 0.0;
+    Double_t psi2Freezeout = 0.0;
+    Double_t chi2 = 0.0;
     Double_t v2 = 0.0;
     Double_t centrality = 0.0;
     Int_t nCharged = 0;

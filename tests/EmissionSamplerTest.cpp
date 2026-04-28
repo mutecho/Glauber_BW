@@ -26,6 +26,11 @@ namespace {
     return blastwave::buildEventMedium({{-1.0, 0.0, 1.0}, {1.0, 0.0, 1.0}}, {blastwave::DensityEvolutionMode::None, 0.5});
   }
 
+  blastwave::EventMedium makeAffineMedium() {
+    return blastwave::buildEventMedium(
+        {{-1.0, 0.0, 1.0}, {1.0, 0.0, 1.0}}, {blastwave::DensityEvolutionMode::AffineGaussianResponse, 0.5, 1.20, 1.05, 0.5});
+  }
+
   void runZeroMultiplicityTest() {
     std::mt19937_64 rng(12345);
     const blastwave::EmissionParameters parameters{blastwave::EmissionSamplerMode::ParticipantHotspot, 0.5, 0.0, 1.5};
@@ -64,6 +69,32 @@ namespace {
     }
   }
 
+  void runDensityFieldSourceAnchorAndReproducibilityTest() {
+    const blastwave::EventMedium medium = makeAffineMedium();
+    const blastwave::EmissionParameters parameters{blastwave::EmissionSamplerMode::DensityField, 0.5, 20.0, 5.0};
+    std::mt19937_64 rngA(24680);
+    std::mt19937_64 rngB(24680);
+    const std::vector<blastwave::EmissionSite> sitesA = blastwave::sampleEmissionSites(medium, parameters, rngA);
+    const std::vector<blastwave::EmissionSite> sitesB = blastwave::sampleEmissionSites(medium, parameters, rngB);
+
+    require(sitesA.size() == sitesB.size(), "Density-field emission should be reproducible for a fixed RNG seed.");
+    require(!sitesA.empty(), "Density-field emission test needs non-empty output.");
+    bool foundNonTrivialShift = false;
+    for (std::size_t iSite = 0; iSite < sitesA.size(); ++iSite) {
+      requireNear(sitesA[iSite].position.x, sitesB[iSite].position.x, 1.0e-12, "Density-field reproducible position.x mismatch.");
+      requireNear(sitesA[iSite].position.y, sitesB[iSite].position.y, 1.0e-12, "Density-field reproducible position.y mismatch.");
+      requireNear(sitesA[iSite].sourceAnchor.x, sitesB[iSite].sourceAnchor.x, 1.0e-12, "Density-field reproducible sourceAnchor.x mismatch.");
+      requireNear(sitesA[iSite].sourceAnchor.y, sitesB[iSite].sourceAnchor.y, 1.0e-12, "Density-field reproducible sourceAnchor.y mismatch.");
+      require(std::abs(sitesA[iSite].sourceAnchor.x + 1.0) < 1.0e-12 || std::abs(sitesA[iSite].sourceAnchor.x - 1.0) < 1.0e-12,
+              "Density-field sourceAnchor.x should preserve original participant anchors.");
+      requireNear(sitesA[iSite].sourceAnchor.y, 0.0, 1.0e-12, "Density-field sourceAnchor.y should preserve original participant anchors.");
+      if (std::abs(sitesA[iSite].position.x - sitesA[iSite].sourceAnchor.x) > 1.0e-8 || std::abs(sitesA[iSite].position.y - sitesA[iSite].sourceAnchor.y) > 1.0e-8) {
+        foundNonTrivialShift = true;
+      }
+    }
+    require(foundNonTrivialShift, "Density-field emission positions should reflect freeze-out sampling rather than always equal source anchors.");
+  }
+
 }  // namespace
 
 int main() {
@@ -71,6 +102,7 @@ int main() {
     runZeroMultiplicityTest();
     runNoSmearKeepsAnchorTest();
     runReproducibilityTest();
+    runDensityFieldSourceAnchorAndReproducibilityTest();
 
     std::cout << "Emission sampler tests passed.\n";
     return 0;

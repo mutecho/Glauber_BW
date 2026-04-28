@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-04-28 Kappa2 Flow Response Contract
+
+- Replaced public `rho2` with `kappa2` in CLI/config parsing, help text, sample configs, tests, and current docs.
+- Defined the event-wise V1a second-order rapidity modulation amplitude as `kappa2 * eps2_initial`.
+- Switched the V1a response plane from freeze-out `psi2_f` to initial participant `psi2`; freeze-out `eps2_f`, `psi2_f`, and `chi2` remain diagnostics.
+- Made legacy `rho2` fail fast with migration guidance to `kappa2`.
+- Kept the ROOT output schema unchanged.
+
+## 2026-04-28 V1a Affine Gaussian Density Evolution
+
+- Added `density-evolution = affine-gaussian | none` as the public medium-mode switch and made `affine-gaussian` the default.
+- Implemented the fixed-parameter V1a `s0 -> sf` response with `lambda_in = 1.20`, `lambda_out = 1.05`, and `sigma_evo = 0.5 fm`.
+- Kept `density-evolution` orthogonal to `flow-velocity-sampler = covariance-ellipse | density-normal` so the medium response and velocity-direction sampler can be selected independently.
+- Preserved the previous identity-medium and participant-hotspot emission behavior behind `density-evolution = none`.
+- Extended the mandatory event summary and QA contract with freeze-out geometry diagnostics:
+  - `events.eps2_f`
+  - `events.psi2_f`
+  - `events.chi2`
+  - matching `eps2_f`, `psi2_f`, and `chi2` histograms
+- Extended the QA reader so it validates the new branches, histograms, finite ranges, and `chi2 = eps2_f / eps2` consistency.
+- Updated the human-facing docs and project-state ledger to document the new switch surface, default mode, ROOT schema, and validation evidence.
+- Recorded fresh build, CTest, default V1a, legacy `none`, and `density-normal` authoritative validation evidence in `project-state/tests.md`.
+
 ## 2026-04-28 EventMedium And Emission Interface Refactor
 
 - Replaced the old flow-context language with an `EventMedium` state that separates participant geometry, initial density, emission-stage density, and emission-stage geometry.

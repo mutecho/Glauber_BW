@@ -7,17 +7,19 @@
 
 namespace blastwave {
 
-  enum class DensityEvolutionMode { None };
+  enum class DensityEvolutionMode { None, AffineGaussianResponse };
 
   /**
-   * Parameters for constructing the event-level medium. The first supported
-   * evolution mode is intentionally the identity map; future expansion models
-   * should replace emissionDensity/emissionGeometry without changing the
-   * participantGeometry contract used by event summaries.
+   * Parameters for constructing the event-level medium. Identity and affine
+   * Gaussian response modes both preserve participantGeometry semantics while
+   * allowing emissionDensity/emissionGeometry to represent freeze-out physics.
    */
   struct EventMediumParameters {
-    DensityEvolutionMode densityEvolutionMode = DensityEvolutionMode::None;
+    DensityEvolutionMode densityEvolutionMode = DensityEvolutionMode::AffineGaussianResponse;
     double densitySigma = 0.5;  // fm
+    double affineLambdaIn = 1.20;
+    double affineLambdaOut = 1.05;
+    double affineSigmaEvo = 0.5;  // fm
   };
 
   /**
@@ -27,6 +29,7 @@ namespace blastwave {
    * density-evolution backends will modify before particle emission.
    */
   struct EventMedium {
+    DensityEvolutionMode densityEvolutionMode = DensityEvolutionMode::None;
     std::vector<WeightedTransversePoint> participantPoints;
     FlowEllipseInfo participantGeometry;
     DensityField initialDensity;

@@ -18,7 +18,9 @@ namespace blastwave {
   // Convert generator configuration into the sampler-level emission contract
   // so the event loop does not know which transverse source backend is active.
   std::vector<EmissionSite> BlastWaveGenerator::sampleEventEmissionSites(const EventMedium &medium) {
-    const EmissionParameters parameters{EmissionSamplerMode::ParticipantHotspot, config_.smearSigma, config_.nbdMu, config_.nbdK};
+    const EmissionSamplerMode mode =
+        config_.densityEvolutionMode == DensityEvolutionMode::AffineGaussianResponse ? EmissionSamplerMode::DensityField : EmissionSamplerMode::ParticipantHotspot;
+    const EmissionParameters parameters{mode, config_.smearSigma, config_.nbdMu, config_.nbdK};
     return sampleEmissionSites(medium, parameters, rng_);
   }
 
@@ -89,7 +91,7 @@ namespace blastwave {
   // Evaluate the configured fluid-element velocity sampler and then compose in
   // the longitudinal Bjorken piece expected by the blast-wave generator.
   BlastWaveGenerator::FlowVelocity BlastWaveGenerator::sampleFlowVelocity(const TransversePoint &emissionPoint, double etaS, const EventMedium &medium) const {
-    const FlowFieldParameters parameters{config_.flowVelocitySamplerMode, config_.rho0, config_.rho2, config_.flowPower};
+    const FlowFieldParameters parameters{config_.flowVelocitySamplerMode, config_.rho0, config_.kappa2, config_.flowPower};
     const FlowFieldSample sample = evaluateFlowField(medium, emissionPoint.x, emissionPoint.y, parameters);
     const double coshEta = std::cosh(etaS);
     return {sample.betaX / coshEta, sample.betaY / coshEta, std::tanh(etaS)};

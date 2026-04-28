@@ -28,6 +28,9 @@ namespace blastwave {
     const EventMedium medium = buildMedium(participants);
     info.eps2 = medium.participantGeometry.eps2;
     info.psi2 = medium.participantGeometry.psi2;
+    info.eps2Freezeout = medium.emissionGeometry.eps2;
+    info.psi2Freezeout = medium.emissionGeometry.psi2;
+    info.chi2 = info.eps2 > 1.0e-12 ? info.eps2Freezeout / info.eps2 : 0.0;
     info.centrality = computeCentralityPercent(config_.impactParameter, config_.woodsSaxonRadius);
 
     GeneratedEvent event;

@@ -21,14 +21,16 @@
   - the generator and QA contract now require participant-level objects
   - the newest schema also includes `events.centrality` and `cent`
   - the newest schema also includes `events.v2` and `v2`
+  - the newest schema also includes freeze-out geometry diagnostics `events.eps2_f`, `events.psi2_f`, `events.chi2`, and matching QA histograms
   - the default thermal momentum baseline is now `maxwell-juttner`, so older Gamma-era samples are no longer representative of the default runtime configuration
+  - the default medium baseline is now `density-evolution = affine-gaussian`, so older identity-medium samples are no longer representative of the default runtime configuration
 - older sample files remain useful historical artifacts but no longer match the newest file schema
 - Suggested owner action:
   - regenerate representative files such as `qa/test_b8_5000.root`
   - rerun the QA reader on the regenerated files
   - update `tests.md` and `changelog.md` with the larger-sample evidence if that run is intended to be durable
 - Exit condition:
-  - the project's standard reference sample files have the current participant, centrality, and event-`v2` objects plus matching QA outputs
+  - the project's standard reference sample files have the current participant, centrality, event-`v2`, and freeze-out geometry objects plus matching QA outputs
 
 ## WI-003 Authoritative Validation For The Config-File CLI Path
 

@@ -93,7 +93,12 @@ namespace blastwave {
       weightedPoints.push_back({participant.x, participant.y, 1.0});
     }
 
-    return buildEventMedium(weightedPoints, {DensityEvolutionMode::None, config_.flowDensitySigma});
+    return buildEventMedium(weightedPoints,
+                            {config_.densityEvolutionMode,
+                             config_.flowDensitySigma,
+                             1.20,  // fixed V1a in-plane response
+                             1.05,  // fixed V1a out-of-plane response
+                             0.5}); // fm, fixed V1a evolution smoothing
   }
 
 }  // namespace blastwave

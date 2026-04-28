@@ -70,8 +70,18 @@ namespace {
     }
 
     sample.rTilde = metric.rTilde;
-    sample.phiB = std::atan2(metric.qMinor, metric.qMajor);
-    sample.rhoRaw = std::pow(sample.rTilde, parameters.flowPower) * (parameters.rho0 + parameters.rho2 * medium.emissionGeometry.eps2 * std::cos(2.0 * sample.phiB));
+    const double phiBLab = std::atan2(metric.normalY, metric.normalX);
+    // The public knob is kappa2 = a2 / eps2_initial. Keep the response tied to
+    // the initial eccentricity vector even when the emission geometry evolves.
+    const double a2 = parameters.kappa2 * medium.participantGeometry.eps2;
+    if (medium.densityEvolutionMode == blastwave::DensityEvolutionMode::AffineGaussianResponse) {
+      const double modulation = std::exp(2.0 * a2 * std::cos(2.0 * (phiBLab - medium.participantGeometry.psi2)));
+      sample.phiB = phiBLab;
+      sample.rhoRaw = parameters.rho0 * std::pow(sample.rTilde, parameters.flowPower) * modulation;
+    } else {
+      sample.phiB = std::atan2(metric.qMinor, metric.qMajor);
+      sample.rhoRaw = std::pow(sample.rTilde, parameters.flowPower) * (parameters.rho0 + a2 * std::cos(2.0 * sample.phiB));
+    }
     sample.betaT = computeBetaT(sample.rhoRaw);
     sample.betaX = sample.betaT * metric.normalX;
     sample.betaY = sample.betaT * metric.normalY;
@@ -110,8 +120,15 @@ namespace {
     normalX /= normalMagnitude;
     normalY /= normalMagnitude;
     sample.rTilde = metric.rTilde;
-    sample.phiB = std::atan2(normalY, normalX);
-    sample.rhoRaw = parameters.rho0 * std::pow(sample.rTilde, parameters.flowPower);
+    const double phiBLab = std::atan2(normalY, normalX);
+    sample.phiB = phiBLab;
+    if (medium.densityEvolutionMode == blastwave::DensityEvolutionMode::AffineGaussianResponse) {
+      const double a2 = parameters.kappa2 * medium.participantGeometry.eps2;
+      const double modulation = std::exp(2.0 * a2 * std::cos(2.0 * (phiBLab - medium.participantGeometry.psi2)));
+      sample.rhoRaw = parameters.rho0 * std::pow(sample.rTilde, parameters.flowPower) * modulation;
+    } else {
+      sample.rhoRaw = parameters.rho0 * std::pow(sample.rTilde, parameters.flowPower);
+    }
     sample.betaT = computeBetaT(sample.rhoRaw);
     sample.betaX = sample.betaT * normalX;
     sample.betaY = sample.betaT * normalY;

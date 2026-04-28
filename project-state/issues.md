@@ -19,12 +19,13 @@
 - Evidence:
   - files generated before the participant-geometry update do not contain `participants`, `participant_x-y`, or `participant_x-y_canvas`
   - files generated before the 2026-04-13 centrality extension also do not contain `events.centrality` or `cent`
+  - files generated before the 2026-04-28 V1a density-evolution update also do not contain `events.eps2_f`, `events.psi2_f`, `events.chi2`, or their QA histograms
   - the `qa/` directory currently holds samples from multiple generation dates and therefore from multiple schema baselines
 - Impact:
   - downstream inspection of older sample files may fail if newer QA checks are applied without regenerating those files
   - operators can misread an old sample as a current reference artifact when it only matches part of the contract
 - Recommended resolution:
-  - regenerate any long-lived sample files that should support the current participant and centrality checks
+  - regenerate any long-lived sample files that should support the current participant, centrality, event-`v2`, and freeze-out geometry checks
 
 ## ISSUE-003 Codex ROOT Read-Side Validation Is Not Currently Authoritative
 
