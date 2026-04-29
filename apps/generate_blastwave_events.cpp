@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
 
     blastwave::BlastWaveGenerator generator(config);
     blastwave::app::ProgressReporter progressReporter(config.nEvents, runOptions.progressMode);
-    blastwave::app::RootEventFileWriter writer(config, outputPath);
+    blastwave::app::RootEventFileWriter writer(runOptions);
 
     // Keep the app entrypoint focused on orchestration: parse, generate, write.
     progressReporter.update(0);

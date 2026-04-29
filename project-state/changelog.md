@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-04-29 Documentation Compaction For Project Knowledge Rules
+
+- Reduced `docs/agent_guide.md` to an actual agent-facing guide and removed the duplicated full runtime walk-through.
+- Reduced `docs/手记文档.md` to a short current-chain and confusion-note document.
+- Rewrote `project-state/guide.md`, `project-state/current-status.md`, `project-state/handoff.md`, and `project-state/tests.md` so they now keep current coordination state, durable conclusions, and the latest actionable handoff instead of repeated parameter tables or raw command archives.
+- This was a documentation-only cleanup; it did not change runtime behavior or add a new validation run.
+
+## 2026-04-29 Differential `v2{2}(pT)` Analysis Contract
+
+- Implemented the optional differential `v2{2}(pT)` workflow described in `docs/v2计算.md` with explicitly configured `pT` bin edges, a shared ROOT-free cumulant core, and a standalone post-processing app.
+- Added public app-layer controls `v2pt-bins`, `v2pt-output-mode = same-file | separate-file`, and `v2pt-output`; relative separate-file output paths now resolve against the config-file directory.
+- Extended the ROOT analysis contract with `v2_2_pt_edges` metadata plus optional `v2_2_pt` and `v2_2_pt_canvas`; in `separate-file` mode, the main result file is allowed to remain metadata-only while the dedicated analysis file carries the full trio.
+- Extended generator wiring, QA recomputation, regression coverage, user docs, and `project-state/`, then recorded fresh local build, CTest, authoritative outside-sandbox O2Physics smoke runs, standalone analysis runs, and ROOT key inspections.
+
+## 2026-04-29 Freeze-Out Eccentricity Response TH1 Clarification
+
+- Kept the existing `chi2` histogram as the default TH1 output for `eps2_f / eps2` instead of adding a second mandatory canvas object.
+- Clarified the `chi2` histogram title so the ratio meaning is explicit when the ROOT file is opened.
+- Rebuilt the touched app binaries, ran an authoritative outside-sandbox generate+QA smoke, and synchronized docs plus `project-state/`.
+
 ## 2026-04-28 Public Affine V1a Evolution Knobs
 
 - Exposed `affine-lambda-in`, `affine-lambda-out`, and `affine-sigma-evo` on the public CLI/config surface.

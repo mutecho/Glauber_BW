@@ -1,6 +1,7 @@
 #include "generate_blastwave/RunOptions.h"
 
 #include <cstdint>
+#include <cmath>
 #include <exception>
 #include <filesystem>
 #include <fstream>
@@ -155,6 +156,47 @@ namespace {
     throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'none' or 'mt-cosh'.");
   }
 
+  blastwave::app::V2PtOutputMode parseV2PtOutputMode(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
+    if (rawValue == "same-file") {
+      return blastwave::app::V2PtOutputMode::SameFile;
+    }
+    if (rawValue == "separate-file") {
+      return blastwave::app::V2PtOutputMode::SeparateFile;
+    }
+    throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'same-file' or 'separate-file'.");
+  }
+
+  std::vector<double> parseV2PtBinEdges(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
+    std::vector<double> edges;
+    std::size_t start = 0;
+    while (start <= rawValue.size()) {
+      const std::size_t comma = rawValue.find(',', start);
+      const std::string token = trim(rawValue.substr(start, comma == std::string::npos ? std::string::npos : comma - start));
+      if (token.empty()) {
+        throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Empty pT edge token.");
+      }
+      const double edge = parseDouble(token, optionName, sourceDescription);
+      if (!std::isfinite(edge) || edge < 0.0) {
+        throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Edges must be finite and non-negative.");
+      }
+      edges.push_back(edge);
+      if (comma == std::string::npos) {
+        break;
+      }
+      start = comma + 1U;
+    }
+
+    if (edges.size() < 2U) {
+      throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". At least two edges are required.");
+    }
+    for (std::size_t iEdge = 1; iEdge < edges.size(); ++iEdge) {
+      if (!(edges[iEdge] > edges[iEdge - 1U])) {
+        throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Edges must be strictly increasing.");
+      }
+    }
+    return edges;
+  }
+
   std::string resolveOutputPath(const std::string &rawValue, const std::filesystem::path &baseDirectory) {
     if (rawValue.empty()) {
       throw std::invalid_argument("Output path must not be empty.");
@@ -165,6 +207,13 @@ namespace {
       return outputPath.lexically_normal().string();
     }
     return (baseDirectory / outputPath).lexically_normal().string();
+  }
+
+  std::string deriveDefaultV2PtOutputPath(const std::string &mainOutputPath) {
+    const std::filesystem::path mainPath(mainOutputPath);
+    const std::filesystem::path stemPath = mainPath.stem();
+    const std::string derivedFileName = stemPath.string() + "_v2pt.root";
+    return (mainPath.parent_path() / derivedFileName).lexically_normal().string();
   }
 
   // Apply one config or CLI key onto the runtime surface so precedence stays
@@ -196,6 +245,12 @@ namespace {
       runOptions.config.seed = parseUnsignedInteger(rawValue, optionName, sourceDescription);
     } else if (optionName == "output") {
       runOptions.outputPath = resolveOutputPath(rawValue, baseDirectory);
+    } else if (optionName == "v2pt-bins") {
+      runOptions.v2PtBinEdges = parseV2PtBinEdges(rawValue, optionName, sourceDescription);
+    } else if (optionName == "v2pt-output-mode") {
+      runOptions.v2PtOutputMode = parseV2PtOutputMode(rawValue, optionName, sourceDescription);
+    } else if (optionName == "v2pt-output") {
+      runOptions.v2PtOutputPath = resolveOutputPath(rawValue, baseDirectory);
     } else if (optionName == "progress") {
       runOptions.progressMode = parseBool(rawValue, optionName, sourceDescription) ? blastwave::app::ProgressMode::Enabled : blastwave::app::ProgressMode::Disabled;
     } else if (optionName == "rho0") {
@@ -317,7 +372,9 @@ namespace blastwave::app {
               << "  output = qa/test_b8_5000.root\n"
               << "Configuration keys:\n"
               << "  nevents, b, temperature, thermal-sampler, mj-pmax, mj-grid-points,\n"
-              << "  tau0, smear, sigma-nn, seed, output, progress,\n"
+              << "  tau0, smear, sigma-nn, seed, output,\n"
+              << "  v2pt-bins, v2pt-output-mode, v2pt-output,\n"
+              << "  progress,\n"
               << "  rho0, kappa2, flow-power, flow-velocity-sampler, density-evolution,\n"
               << "  flow-density-sigma, affine-lambda-in, affine-lambda-out,\n"
               << "  affine-sigma-evo, density-normal-kappa-compensation,\n"
@@ -340,6 +397,9 @@ namespace blastwave::app {
               << "  --sigma-nn <fm^2>   default 7.0 fm^2 (70 mb)\n"
               << "  --seed <uint64>\n"
               << "  --output <path>\n"
+              << "  --v2pt-bins <comma-separated edges>\n"
+              << "  --v2pt-output-mode <same-file|separate-file>\n"
+              << "  --v2pt-output <path>  (only with separate-file mode)\n"
               << "  --progress\n"
               << "  --no-progress\n"
               << "  --debug-flow-ellipse\n"
@@ -494,6 +554,21 @@ namespace blastwave::app {
     }
     if (hasCliDensityNormalKappaCompensationOverride) {
       runOptions.config.densityNormalKappaCompensation = cliDensityNormalKappaCompensation;
+    }
+
+    if (runOptions.v2PtBinEdges.empty()) {
+      if (runOptions.v2PtOutputMode == V2PtOutputMode::SeparateFile || !runOptions.v2PtOutputPath.empty()) {
+        throw std::invalid_argument("v2pt-output-mode and v2pt-output require v2pt-bins to be configured.");
+      }
+      return runOptions;
+    }
+
+    if (runOptions.v2PtOutputMode == V2PtOutputMode::SameFile) {
+      if (!runOptions.v2PtOutputPath.empty()) {
+        throw std::invalid_argument("v2pt-output is only valid when v2pt-output-mode is separate-file.");
+      }
+    } else if (runOptions.v2PtOutputPath.empty()) {
+      runOptions.v2PtOutputPath = deriveDefaultV2PtOutputPath(runOptions.outputPath);
     }
 
     return runOptions;

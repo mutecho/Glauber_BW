@@ -9,8 +9,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 enable_testing()
 
-# The generator writes a saved participant canvas, so its finish path needs the painter backend eagerly linked.
-find_package(ROOT CONFIG REQUIRED COMPONENTS Core Graf Gpad Hist HistPainter RIO Tree)
+# The generator writes saved canvases, and the v2pt payload uses TVectorD
+# metadata plus histogram painters, so those ROOT components must be linked
+# eagerly instead of relying on delayed autoload.
+find_package(ROOT CONFIG REQUIRED COMPONENTS Core Graf Gpad Hist HistPainter Matrix RIO Tree)
 
 add_library(blastwave_core
   src/BlastWaveGenerator.cpp
@@ -24,6 +26,7 @@ add_library(blastwave_core
   src/FlowFieldModel.cpp
   src/MaxwellJuttnerMomentumSampler.cpp
   src/PhysicsUtils.cpp
+  src/V2PtCumulant.cpp
 )
 
 target_include_directories(blastwave_core
@@ -44,6 +47,7 @@ target_compile_options(blastwave_core
 add_library(blastwave_rootio
   src/OutputPathUtils.cpp
   src/RootOutputSchema.cpp
+  src/V2PtRootPayload.cpp
 )
 
 target_include_directories(blastwave_rootio
@@ -64,6 +68,11 @@ target_compile_options(blastwave_rootio
 target_link_libraries(blastwave_rootio
   PUBLIC
     ROOT::Core
+    ROOT::Graf
+    ROOT::Gpad
+    ROOT::Hist
+    ROOT::HistPainter
+    ROOT::Matrix
     ROOT::RIO
     ROOT::Tree
 )
@@ -118,7 +127,26 @@ target_link_libraries(qa_blastwave_output
   PRIVATE
     blastwave_core
     blastwave_rootio
-    ROOT::Hist
+)
+
+add_executable(analyze_blastwave_v2pt
+  apps/analyze_blastwave_v2pt.cpp
+)
+
+target_compile_options(analyze_blastwave_v2pt
+  PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wshadow
+    -Wconversion
+    -Wsign-conversion
+)
+
+target_link_libraries(analyze_blastwave_v2pt
+  PRIVATE
+    blastwave_core
+    blastwave_rootio
 )
 
 add_executable(test_maxwell_juttner_sampler
@@ -248,6 +276,30 @@ add_test(
   COMMAND $<TARGET_FILE:test_run_options>
 )
 
+add_executable(test_v2_pt_cumulant
+  tests/V2PtCumulantTest.cpp
+)
+
+target_compile_options(test_v2_pt_cumulant
+  PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wshadow
+    -Wconversion
+    -Wsign-conversion
+)
+
+target_link_libraries(test_v2_pt_cumulant
+  PRIVATE
+    blastwave_core
+)
+
+add_test(
+  NAME test_v2_pt_cumulant
+  COMMAND $<TARGET_FILE:test_v2_pt_cumulant>
+)
+
 add_executable(test_physics_utils
   tests/PhysicsUtilsTest.cpp
 )
@@ -272,7 +324,7 @@ add_test(
   COMMAND $<TARGET_FILE:test_physics_utils>
 )
 
-set_target_properties(generate_blastwave_events qa_blastwave_output test_maxwell_juttner_sampler test_output_path_utils test_flow_field_model test_emission_sampler test_run_options test_physics_utils
+set_target_properties(generate_blastwave_events qa_blastwave_output analyze_blastwave_v2pt test_maxwell_juttner_sampler test_output_path_utils test_flow_field_model test_emission_sampler test_run_options test_v2_pt_cumulant test_physics_utils
   PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin
 )

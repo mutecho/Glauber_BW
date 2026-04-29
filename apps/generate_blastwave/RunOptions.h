@@ -1,17 +1,22 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "blastwave/BlastWaveGenerator.h"
 
 namespace blastwave::app {
 
   enum class ProgressMode { Auto, Enabled, Disabled };
+  enum class V2PtOutputMode { SameFile, SeparateFile };
 
   struct RunOptions {
     blastwave::BlastWaveConfig config;
     std::string outputPath = "blastwave.root";
     ProgressMode progressMode = ProgressMode::Auto;
+    std::vector<double> v2PtBinEdges;
+    V2PtOutputMode v2PtOutputMode = V2PtOutputMode::SameFile;
+    std::string v2PtOutputPath;
   };
 
   // Keep progress reporting in the CLI layer so the generator core stays

@@ -4,6 +4,7 @@
 #include <string>
 
 #include "blastwave/BlastWaveGenerator.h"
+#include "generate_blastwave/RunOptions.h"
 
 namespace blastwave::app {
 
@@ -11,7 +12,7 @@ namespace blastwave::app {
   // so the executable entrypoint only orchestrates runtime flow.
   class RootEventFileWriter {
    public:
-    RootEventFileWriter(const blastwave::BlastWaveConfig &config, const std::string &outputPath);
+    explicit RootEventFileWriter(const blastwave::app::RunOptions &runOptions);
     ~RootEventFileWriter();
 
     RootEventFileWriter(const RootEventFileWriter &) = delete;

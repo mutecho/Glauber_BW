@@ -2,310 +2,90 @@
 
 ## Snapshot
 
-- Date: 2026-04-28
+- Date: 2026-04-29
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
-- Branch state: `master` with local V2 gradient-response implementation, docs, tests, and project-state updates in the working tree.
-- Active coordination task: keep the default V1a path, the public affine evolution knobs, the affine `density-normal` compensation contract, the legacy `none` comparison path, the opt-in V2 path, and the expanded ROOT schema verified.
+- Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in V2 gradient-response path, and optional differential `v2{2}(pT)` analysis.
+- Latest durable verification anchor: 2026-04-29 outside-sandbox ROOT validation and local `ctest` evidence summarized in `project-state/tests.md`.
+- This task updated documentation structure only. It did not change runtime behavior and did not add a new validation run.
 
-## V2 Gradient Response Update
+## Current Runtime Baseline
 
-- `DensityEvolutionMode::GradientResponse` and `FlowVelocitySamplerMode::GradientResponse` are implemented as a coupled opt-in mode; selecting either one without the other is rejected by generator-side validation.
-- V2 builds `s0`, `s_em`, and `s_dyn` from participant point clouds. `s_em` samples marker initial positions `r0`; `s_dyn` drives `-grad ln s_dyn` displacement and site velocity. `gradientSigmaDyn > gradientSigmaEm` is required.
-- `EmissionSite` now carries `initialPosition`, final `position`, `sourceAnchor`, gradient magnitude, displacement, site `betaTX/Y`, and `emissionWeight`.
-- The ROOT schema now includes event-level `r2_0`, `r2_f`, and `r2_ratio`, plus particle-level `x0`, `y0`, and `emission_weight`.
-- Optional V2 debug output writes `gradient_s0_x-y`, `gradient_s_em_x-y`, `gradient_s_dyn_x-y`, and `gradient_s_f_x-y` as a four-histogram payload when `debug-gradient-response` captures a populated event.
-- `cooper-frye-weight = none|mt-cosh` is parsed; the default `none` preserves previous unit weights, while `mt-cosh` stores `m_T cosh(y - eta_s)` and feeds weighted event-`v2` reconstruction.
+- default medium path:
+  - `density-evolution = affine-gaussian`
+- default transverse-flow source:
+  - `flow-velocity-sampler = covariance-ellipse`
+- legacy comparison path:
+  - `density-evolution = none`
+- opt-in V2 path:
+  - `density-evolution = gradient-response`
+  - `flow-velocity-sampler = gradient-response`
+- optional differential-flow path:
+  - configure `v2pt-bins`
+  - choose `v2pt-output-mode = same-file | separate-file`
+  - optionally post-process with `analyze_blastwave_v2pt`
 
-## Confirmed Baseline
+## Current Contract Highlights
 
-- The repository contains a C++17 + ROOT blast-wave event generator with a ROOT-free physics core in `include/` and `src/`, a ROOT-writing generation app in `apps/generate_blastwave_events.cpp`, and an independent ROOT-reading QA app in `apps/qa_blastwave_output.cpp`.
-- Human-written docs still describe the intended scope as fixed-impact-parameter Pb-Pb-like event generation for one direct charged pion species with participant geometry fluctuations.
-- The current on-disk ROOT contract includes:
-  - `events`, `participants`, and `particles` trees
-  - `events.centrality` derived from the configured fixed `b`
-  - `events.v2` derived from the final-state second-harmonic Q-vector magnitude
-  - `events.eps2_f`, `events.psi2_f`, and `events.chi2` derived from freeze-out `emissionGeometry`
-  - `events.r2_0`, `events.r2_f`, and `events.r2_ratio` derived from centered particle marker/final-position moments
-  - `particles.x0`, `particles.y0`, and `particles.emission_weight`
-  - QA objects `Npart`, `eps2`, `psi2`, `v2`, `cent`, `participant_x-y`, `participant_x-y_canvas`, `x-y`, `px-py`, `pT`, `eta`, and `phi`
-  - QA objects `eps2_f`, `psi2_f`, `chi2`, `r2_0`, `r2_f`, and `r2_ratio`
-  - sampler-specific `density_normal_event_density_x-y` when `flow-velocity-sampler = density-normal`
-  - V2 debug histograms `gradient_s0_x-y`, `gradient_s_em_x-y`, `gradient_s_dyn_x-y`, and `gradient_s_f_x-y` when `debug-gradient-response` captures a populated event
-- The QA reader now validates:
-  - participant tree presence and multiplicity consistency
-  - participant histogram/canvas presence
-  - `events.v2` against the particle-level second-harmonic Q-vector
-  - `v2` histogram entry count and mean against the `events.v2` payload
-  - `centrality` staying within `[0, 100]`
-  - consistency between `events.centrality` and the current fixed-`b` mapping
-  - fixed-`b` runs keeping one constant centrality value across the events tree
-  - event-level `r2_0/r2_f/r2_ratio` against centered particle-tree moments
-  - finite non-negative `particles.emission_weight`
-- The config-file CLI remains part of the public interface:
-  - `generate_blastwave_events --config <path> [options]`
-  - `generate_blastwave_events <config-path> [options]`
-  - explicit CLI options override config-file values, which override built-in defaults
-  - relative `output` paths resolve relative to the config file directory
-- The thermal momentum contract now includes two explicit modes:
-  - default `maxwell-juttner` lookup-table sampling in the local rest frame
-  - legacy `gamma` sampling as an explicit compatibility mode
-- The public config/CLI surface now exposes:
-  - `thermal-sampler`
-  - `mj-pmax`
-  - `mj-grid-points`
-- The event medium and flow/emission interfaces now live in ROOT-free modules:
-  - `include/blastwave/DensityFieldModel.h`
-  - `include/blastwave/EventMedium.h`
-  - `include/blastwave/EmissionSampler.h`
-  - `include/blastwave/FlowFieldModel.h`
-  - `src/EventMedium.cpp`
-  - `src/EmissionSampler.cpp`
-  - `src/FlowFieldGeometry.cpp`
-  - `src/FlowFieldDensity.cpp`
-  - `src/FlowFieldModel.cpp`
-  - participant covariance is diagonalized analytically into `FlowEllipseInfo`
-  - event-level `EventMedium` is built once from the participant cloud and exposes `participantGeometry`, `initialDensity`, `emissionDensity`, and `emissionGeometry`
-  - default `DensityEvolutionMode::AffineGaussianResponse` applies V1a affine expansion plus smoothing to build `emissionDensity` / `emissionGeometry`, with public defaults `affine-lambda-in = 1.20`, `affine-lambda-out = 1.05`, and `affine-sigma-evo = 0.5 fm`
-  - `DensityEvolutionMode::None` keeps the initial and emission-stage fields identical for legacy comparison
-  - transverse emission is routed through `EmissionSite`; default V1a uses the density-field backend, while `None` keeps `ParticipantHotspot`
-  - the default sampler remains the covariance-ellipse normal field
-  - `density-normal` uses the shared `emissionDensity` gradient with an `emissionGeometry` covariance-normal fallback
-  - in `affine-gaussian + density-normal`, the default strength is now `rho0 * pow(rTilde, flowPower)`; optional `density-normal-kappa-compensation` restores the explicit `kappa2` multiplier
-- The public flow config/CLI surface now exposes:
-  - `rho0`
-  - `kappa2`
-  - `flow-power`
-  - `flow-velocity-sampler`
-  - `density-evolution`
-  - `flow-density-sigma`
-  - `affine-lambda-in`
-  - `affine-lambda-out`
-  - `affine-sigma-evo`
-  - `density-normal-kappa-compensation`
-  - `debug-flow-ellipse`
-  - V2 `gradient-*` parameters
-  - `debug-gradient-response`
-  - `cooper-frye-weight`
-  - legacy `vmax`, `rho2`, and `r-ref` now fail fast with migration guidance
-- The V1a second-order flow response uses the initial participant eccentricity vector:
-  - event-wise amplitude `a2 = kappa2 * participantGeometry.eps2`
-  - event-wise plane `participantGeometry.psi2`
-  - affine `density-normal` only applies that explicit multiplier when `densityNormalKappaCompensation = true`
-  - freeze-out `eps2_f` / `psi2_f` remain diagnostics and emission-geometry descriptors rather than flow-response inputs
-- `GeneratedEvent` now carries the event-level `EventMedium` alongside `EventInfo`, participants, and particles so optional debug serialization and flow sampling share the same density/geometry state.
-- `EventInfo` now carries both initial geometry (`eps2`, `psi2`) and freeze-out geometry diagnostics (`eps2Freezeout`, `psi2Freezeout`, `chi2`).
-- The on-disk ROOT contract still keeps the default mandatory payload at:
-  - `events`, `participants`, and `particles`
-  - `Npart`, `eps2`, `eps2_f`, `psi2`, `psi2_f`, `chi2`, `r2_0`, `r2_f`, `r2_ratio`, `v2`, `cent`, `participant_x-y`, `participant_x-y_canvas`, `x-y`, `px-py`, `pT`, `eta`, and `phi`
-- When `debug-flow-ellipse` is enabled, the ROOT writer now additionally emits:
-  - `flow_ellipse_debug`
-  - `flow_ellipse_participant_norm_x-y`
-- When `flow-velocity-sampler = density-normal`, the ROOT writer now additionally emits:
+- public entrypoints:
+  - `generate_blastwave_events`
+  - `qa_blastwave_output`
+  - `analyze_blastwave_v2pt`
+- canonical tracked example config:
+  - `config/test_b8.cfg`
+- mandatory ROOT payload highlights:
+  - `events`
+  - `participants`
+  - `particles`
+  - `events.centrality`
+  - `events.v2`
+  - `events.eps2_f`
+  - `events.psi2_f`
+  - `events.chi2`
+  - `events.r2_0`
+  - `events.r2_f`
+  - `events.r2_ratio`
+  - `particles.x0`
+  - `particles.y0`
+  - `particles.emission_weight`
+- optional payload groups:
+  - flow-ellipse debug objects
   - `density_normal_event_density_x-y`
-- The QA reader now treats those debug objects as optional:
-  - absent: ignored
-  - present: validated for entry count, finite covariance content, eigenvalue/radius consistency, orthonormal axes, and normalized-participant fill count
-- The QA reader also treats the density-normal snapshot histogram as optional:
-  - absent: ignored
-  - present: validated for finite non-negative bin contents, at least one positive-density bin, and a 3D default draw option (`LEGO`/`SURF`)
-- The QA reader treats the V2 gradient debug histograms as an optional all-or-none group:
-  - absent: ignored
-  - partially present: rejected
-  - present: validated for finite non-negative bin contents and positive support
-- The build now registers a ROOT-free core regression test target:
+  - V2 gradient debug histograms
+  - `v2_2_pt_edges`
+  - `v2_2_pt`
+  - `v2_2_pt_canvas`
+
+## Current Verification Picture
+
+- ROOT-free coverage currently includes:
   - `test_maxwell_juttner_sampler`
-- The build now also registers:
+  - `test_run_options`
   - `test_flow_field_model`
   - `test_emission_sampler`
-  - `test_run_options`
   - `test_physics_utils`
-- The generator-side implementation is now structurally split along responsibility boundaries:
-  - `src/BlastWaveGenerator.cpp` keeps event orchestration
-  - `src/BlastWaveGeneratorGeometry.cpp` owns Glauber geometry sampling
-  - `src/BlastWaveGeneratorSampling.cpp` owns eta, thermal, and flow composition calls
-  - `src/EmissionSampler.cpp` owns hotspot multiplicity and transverse emission-site sampling
-- `src/EventMedium.cpp` owns event-medium assembly and the `none` / `affine-gaussian` density-evolution stages
-  - `src/BlastWaveGeneratorValidation.cpp` owns generator-side validation
-  - `src/PhysicsUtils.cpp` owns shared derived-observable helpers used by producer and QA code
-- The generator app entry is now structurally split along app-layer boundaries:
-  - `apps/generate_blastwave_events.cpp` keeps only top-level orchestration
-  - `apps/generate_blastwave/RunOptions.cpp` owns CLI/config parsing and progress reporting
-  - `apps/generate_blastwave/RootEventFileWriter.cpp` owns ROOT trees and embedded QA payload writing
-- The currently tracked example configs are `config/test_b8.cfg` and `config/b8.cfg`, while the convenience launcher now lives at `scripts/run_example_config.sh`.
-- The example launcher now checks the cached/binary ROOT prefix against the active `ROOTSYS` and refreshes the generator build when they differ, so switching O2Physics ROOT revisions does not reuse a stale ROOT-linked binary.
-- The generator now links `ROOT::HistPainter` explicitly because `RootEventFileWriter::finish()` saves a drawn `participant_x-y_canvas`, so the painter backend no longer arrives via delayed autoload.
-- Historical reference ROOT macros now live under `reference/legacy-root-macros/` instead of a top-level personal-name directory.
-- The `qa/` directory contains historical sample ROOT outputs from multiple schema revisions; they are useful artifacts, but not all of them represent the latest full output contract.
+  - `test_v2_pt_cumulant`
+- durable runtime evidence currently covers:
+  - default V1a generation + QA
+  - legacy `none` comparison
+  - affine `density-normal` default and compensated cases
+  - V2 gradient-response path
+  - differential `v2{2}(pT)` same-file and separate-file modes
+  - standalone differential post-processing
+  - `chi2` TH1 contract
 
-## Evidence Used
+Use `project-state/tests.md` for the summarized evidence trail.
 
-- Higher-authority human-written docs:
-  - `docs/agent_guide.md`
-  - `docs/项目说明.md`
-  - `docs/EventMedium与发射接口设计.md`
-  - `docs/blastwave_generator_agent_handoff.md`
-- Current code and schema sources:
-  - `CMakeLists.txt`
-  - `include/blastwave/BlastWaveGenerator.h`
-  - `include/blastwave/DensityFieldModel.h`
-  - `include/blastwave/EventMedium.h`
-  - `include/blastwave/EmissionSampler.h`
-  - `include/blastwave/FlowFieldModel.h`
-  - `include/blastwave/PhysicsUtils.h`
-  - `include/blastwave/MaxwellJuttnerMomentumSampler.h`
-  - `include/blastwave/io/RootOutputSchema.h`
-  - `src/BlastWaveGenerator.cpp`
-  - `src/BlastWaveGeneratorGeometry.cpp`
-  - `src/BlastWaveGeneratorSampling.cpp`
-  - `src/BlastWaveGeneratorValidation.cpp`
-  - `src/EmissionSampler.cpp`
-  - `src/EventMedium.cpp`
-  - `src/FlowFieldModel.cpp`
-  - `src/FlowFieldGeometry.cpp`
-  - `src/FlowFieldDensity.cpp`
-  - `src/PhysicsUtils.cpp`
-  - `src/MaxwellJuttnerMomentumSampler.cpp`
-  - `src/RootOutputSchema.cpp`
-  - `apps/generate_blastwave_events.cpp`
-  - `apps/generate_blastwave/RunOptions.cpp`
-  - `apps/generate_blastwave/RootEventFileWriter.cpp`
-  - `apps/qa_blastwave_output.cpp`
-  - `tests/FlowFieldModelTest.cpp`
-  - `tests/EmissionSamplerTest.cpp`
-  - `tests/RunOptionsTest.cpp`
-  - `tests/MaxwellJuttnerMomentumSamplerTest.cpp`
-  - `tests/PhysicsUtilsTest.cpp`
-- Tracked runtime/config artifacts:
-  - `config/test_b8.cfg`
-  - `config/b8.cfg`
-  - `scripts/run_example_config.sh`
-  - `reference/legacy-root-macros/README.md`
-- Existing durable validation ledger entries:
-  - `project-state/tests.md` (`T-001`, `T-002`, `T-003`, `T-004`, `T-005`, `T-006`, `T-007`, `T-008`, `T-009`)
-- Current commit baseline:
-  - `ff10639 add cent based on b-param`
-  - `8ba4af9 reoeganize struct & support config file as input`
-  - `35315a8 add part tree and x-y graph`
+## Active Caveats
 
-## Current Gaps And Blockers
+- sandboxed `alienv` ROOT smoke output on this machine is not authoritative when PCM / module noise appears
+- historical files under `qa/` span multiple schema generations and may not match the latest contract
+- `v2pt-output-mode = separate-file` intentionally allows a metadata-only main result file that keeps `v2_2_pt_edges` but omits the full analysis payload
+- `events.eps2` / `events.psi2` remain initial-state observables, while `eps2_f` / `psi2_f` / `chi2` remain freeze-out diagnostics
 
-- Historical sample ROOT outputs in `qa/` span multiple contract generations:
-  - older files may miss `participants`, `participant_x-y`, or `participant_x-y_canvas`
-  - files generated before the centrality extension may also miss `events.centrality` and `cent`
-  - files generated before the event-`v2` extension may also miss `events.v2` and `v2`
-  - files generated before the V2 gradient-response extension may also miss `events.r2_0/r2_f/r2_ratio`, particle `x0/y0/emission_weight`, and `r2_*` histograms
-  - files generated before the Maxwell-Juttner switch may also reflect the older Gamma-only thermal default
-- ROOT smoke commands launched inside the Codex sandbox are still not authoritative on this machine:
-  - the 2026-04-14 sandboxed `alienv` ROOT runs emitted PCM/module errors
-  - the same commands passed immediately after rerunning outside the sandbox with escalation
-- The ledger path has already been normalized to `project-state/`; future updates should not reintroduce `.project-state/` references.
+## Documentation Layout After Compaction
 
-## Verification Status
-
-- verification_status: `verified`
-- Rationale:
-  - the project was rebuilt, regression-tested, and smoke-validated on 2026-04-28 after adding opt-in V2 gradient-response medium/flow evolution
-  - local build passed for `generate_blastwave_events`, `qa_blastwave_output`, and all registered ROOT-free regression targets
-  - `ctest --output-on-failure` passed all 6 registered tests
-  - fresh authoritative O2Physics generate+QA smokes passed for default V1a, legacy `density-evolution none`, V2 gradient-response, V2 identity, and V2 debug modes
-  - V2 centered-radius evidence:
-    - gradient smoke: `mean_r2_0=11.9584 mean_r2_f=15.7415 mean_r2_ratio=1.31917`
-    - identity smoke: `mean_r2_0=11.9584 mean_r2_f=11.9584 mean_r2_ratio=1`
-  - zero-event V2 debug QA passed without writing empty debug histograms:
-    - `validation_passed events=0 particles=0 mean_Npart=0 mean_eps2=0 mean_v2=0 max_abs_eta_s=0 max_E=0 max_mass_shell_deviation=0`
-  - the project was rebuilt, regression-tested, and smoke-validated on 2026-04-28 after making affine `density-normal` kappa compensation opt-in
-  - local build passed for:
-    - `generate_blastwave_events`
-    - `qa_blastwave_output`
-    - `test_flow_field_model`
-    - `test_run_options`
-  - `ctest --output-on-failure` passed all 6 registered tests
-  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-28 for default V1a `affine-gaussian + covariance-ellipse`:
-    - `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0714324 max_abs_eta_s=6.67501 max_E=958.06 max_mass_shell_deviation=3.02439e-11`
-  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-28 for default affine `density-normal` with compensation disabled:
-    - `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0470409 max_abs_eta_s=6.67501 max_E=948.867 max_mass_shell_deviation=7.25284e-11`
-  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-28 for affine `density-normal` with explicit compensation enabled:
-    - `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0463026 max_abs_eta_s=6.67501 max_E=960.252 max_mass_shell_deviation=7.70089e-11`
-  - the invalid compensated `density-normal` comparison path is now rejected with:
-    - `generate_blastwave_events failed: densityNormalKappaCompensation requires densityEvolutionMode=affine-gaussian and flowVelocitySamplerMode=density-normal.`
-  - the project was rebuilt, regression-tested, and smoke-validated on 2026-04-28 after replacing the public second-order response input `rho2` with `kappa2`
-  - `--rho2` now fails fast with:
-    - `generate_blastwave_events failed: Invalid option/key 'rho2' from command line option '--rho2'. Migration: rho2 -> kappa2.`
-  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-28 for default V1a `kappa2` + `covariance-ellipse`:
-    - `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0714324 max_abs_eta_s=6.67501 max_E=958.06 max_mass_shell_deviation=3.02439e-11`
-  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-28 for `kappa2` + `density-evolution none`:
-    - `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0924968 max_abs_eta_s=6.67501 max_E=984.787 max_mass_shell_deviation=3.58382e-11`
-  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-28 for the historical compensated V1a `kappa2` + `density-normal` baseline:
-    - `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0463026 max_abs_eta_s=6.67501 max_E=960.252 max_mass_shell_deviation=7.70089e-11`
-  - the project was rebuilt, regression-tested, and smoke-validated on 2026-04-28 after adding V1a fixed-parameter affine density response
-  - local build passed for:
-    - `generate_blastwave_events`
-    - `qa_blastwave_output`
-    - `test_flow_field_model`
-    - `test_emission_sampler`
-    - `test_run_options`
-    - `test_physics_utils`
-    - `test_maxwell_juttner_sampler`
-    - `test_output_path_utils`
-  - `ctest --output-on-failure` passed all 6 registered tests
-  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-28 for default V1a `affine-gaussian` + `covariance-ellipse`:
-    - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --output /tmp/blastwave_v1a_affine_smoke.root`
-    - `/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_v1a_affine_smoke.root --output /tmp/blastwave_v1a_affine_smoke_validation.root --expect-nevents 20`
-  - the V1a covariance QA summary was:
-    - `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0694394 max_abs_eta_s=6.67501 max_E=951.03 max_mass_shell_deviation=4.83993e-11`
-  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-28 for `density-evolution none` + `covariance-ellipse`:
-    - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --density-evolution none --output /tmp/blastwave_v1a_none_smoke.root`
-    - `/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_v1a_none_smoke.root --output /tmp/blastwave_v1a_none_smoke_validation.root --expect-nevents 20`
-  - the `none` comparison QA summary was:
-    - `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0924968 max_abs_eta_s=6.67501 max_E=984.787 max_mass_shell_deviation=3.58382e-11`
-  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-28 for the pre-DEC-010 default V1a + `density-normal` baseline:
-    - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --flow-velocity-sampler density-normal --flow-density-sigma 0.5 --output /tmp/blastwave_v1a_density_normal_smoke.root`
-    - `/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_v1a_density_normal_smoke.root --output /tmp/blastwave_v1a_density_normal_smoke_validation.root --expect-nevents 20`
-  - the V1a density-normal QA summary was:
-    - `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0468845 max_abs_eta_s=6.67501 max_E=951.539 max_mass_shell_deviation=6.03567e-11`
-  - the project was rebuilt, regression-tested, and smoke-validated on 2026-04-24 after adding the sampler-specific density-normal event-density snapshot
-  - the project was rebuilt, regression-tested, and smoke-validated on 2026-04-28 after the `EventMedium` / `EmissionSite` internal refactor
-  - `ctest --output-on-failure` passed with:
-    - `test_maxwell_juttner_sampler`
-    - `test_output_path_utils`
-    - `test_flow_field_model`
-    - `test_emission_sampler`
-    - `test_run_options`
-    - `test_physics_utils`
-  - a fresh authoritative O2Physics build passed on 2026-04-28 for the updated checkout
-  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-28 for the default covariance-ellipse sampler:
-    - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --output /tmp/blastwave_eventmedium_covariance_smoke.root`
-    - `/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_eventmedium_covariance_smoke.root --output /tmp/blastwave_eventmedium_covariance_smoke_validation.root --expect-nevents 20`
-  - the EventMedium covariance-ellipse QA summary was:
-    - `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0924968 max_abs_eta_s=6.67501 max_E=984.787 max_mass_shell_deviation=3.58382e-11`
-  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-28 for the `density-normal` sampler:
-    - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --flow-velocity-sampler density-normal --flow-density-sigma 0.5 --output /tmp/blastwave_eventmedium_density_normal_smoke.root`
-    - `/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_eventmedium_density_normal_smoke.root --output /tmp/blastwave_eventmedium_density_normal_smoke_validation.root --expect-nevents 20`
-  - the EventMedium density-normal QA summary was:
-    - `validation_passed events=20 particles=7077 mean_Npart=175.75 mean_eps2=0.276602 mean_v2=0.0552974 max_abs_eta_s=6.67501 max_E=977.704 max_mass_shell_deviation=1.01809e-10`
-  - authoritative ROOT inspection on 2026-04-28 confirmed that `/tmp/blastwave_eventmedium_density_normal_smoke.root` contains `density_normal_event_density_x-y [TH2F]`
-  - a fresh authoritative O2Physics build passed on 2026-04-24 for the updated checkout
-  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-24 for the default covariance-ellipse sampler:
-    - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --output /tmp/blastwave_covariance_sampler_smoke.root`
-    - `/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_covariance_sampler_smoke.root --output /tmp/blastwave_covariance_sampler_smoke_validation.root --expect-nevents 20`
-  - the covariance-ellipse QA summary was:
-    - `validation_passed events=20 particles=7051 mean_Npart=181.6 mean_eps2=0.228879 mean_v2=0.0751083 max_abs_eta_s=7.2615 max_E=631.497 max_mass_shell_deviation=4.0778e-11`
-  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-24 for the `density-normal` sampler:
-    - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --nevents 20 --flow-velocity-sampler density-normal --flow-density-sigma 0.5 --output /tmp/blastwave_density_normal_sampler_smoke.root`
-    - `/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_density_normal_sampler_smoke.root --output /tmp/blastwave_density_normal_sampler_smoke_validation.root --expect-nevents 20`
-  - the density-normal QA summary was:
-    - `validation_passed events=20 particles=7051 mean_Npart=181.6 mean_eps2=0.228879 mean_v2=0.0619416 max_abs_eta_s=7.2615 max_E=647.385 max_mass_shell_deviation=7.59367e-11`
-  - authoritative ROOT inspection on 2026-04-24 also confirmed that `/tmp/blastwave_density_normal_sampler_smoke.root` now contains `density_normal_event_density_x-y`
-  - a direct ROOT query under `O2Physics/latest-master-o2` reported:
-    - `DRAW_OPTION: LEGO1`
-    - `MAX_BIN: 5.5882`
-    - `MIN_BIN: 0`
-  - authoritative O2Physics diagnosis on 2026-04-23 confirmed that the earlier launcher noise came from a `local1`-built generator running under `ROOTSYS=/Users/allenzhou/ALICE/sw/osx_arm64/ROOT/v6-36-10-alice1-local2`
-  - after reconfiguring and rebuilding against `local2`, a fresh outside-sandbox `scripts/run_example_config.sh` run completed without the earlier `TClassTable::Add` or `TCling::LoadPCM` noise and wrote:
-    - `/Users/allenzhou/Research_software/Blast_wave/qa/test_b8_5000.root`
-  - a fresh authoritative O2Physics generate+QA smoke passed on 2026-04-22 for:
-    - `/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events --nevents 20 --output /tmp/blastwave_event_v2_smoke.root`
-    - `/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /tmp/blastwave_event_v2_smoke.root --output /tmp/blastwave_event_v2_smoke_validation.root --expect-nevents 20`
-  - the QA summary for that smoke was:
-    - `validation_passed events=20 particles=7051 mean_Npart=181.6 mean_eps2=0.228879 mean_v2=0.0645756 max_abs_eta_s=7.2615 max_E=568.599 max_mass_shell_deviation=6.21324e-11`
-  - validation also exposed and fixed a pre-existing bug in `computePseudorapidity` where exactly beam-aligned negative-z momenta fell through to `-inf` instead of the documented finite fallback
+- detailed runtime explanation stays in `docs/项目说明.md`
+- quick semantic reminders stay in `docs/手记文档.md`
+- agent-facing sync rules stay in `docs/agent_guide.md`
+- current coordination state stays in `project-state/guide.md`, this file, and `project-state/handoff.md`
+- detailed raw command transcripts were intentionally removed from `project-state/tests.md`; only durable conclusions remain

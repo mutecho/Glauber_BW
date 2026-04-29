@@ -2,580 +2,158 @@
 
 ## Purpose
 
-This repository contains a small C++17 + ROOT blast-wave event generator for fixed-impact-parameter heavy-ion events. The current v1 target is a single direct charged pion species with event-by-event participant fluctuations from a Monte Carlo Glauber geometry.
+This file is the agent-facing map for the repository.
+It is intentionally shorter than the full project manual and focuses on:
 
-The code is intentionally split into:
+- where the authoritative runtime description lives
+- which semantics are easy to break or misread
+- which docs must stay synchronized when behavior changes
 
-- a ROOT-free physics core in `include/` and `src/`
-- a ROOT-linked generation driver in `apps/generate_blastwave_events.cpp`
-- a ROOT-linked QA reader in `apps/qa_blastwave_output.cpp`
+## Document Roles
+
+- `docs/项目说明.md`
+  - main human-written runtime and physics reference
+  - the right place for detailed operator usage, public parameter descriptions, and fuller algorithm walkthroughs
+- `docs/手记文档.md`
+  - short note for easy-to-confuse semantics and the current mental model
+- `config/test_b8.cfg`
+  - canonical tracked example config
+- `project-state/guide.md`
+  - current coordination view in Chinese
+- `project-state/current-status.md`
+  - compact snapshot of the current baseline and caveats
+- `project-state/tests.md`
+  - summarized durable validation evidence
+- `project-state/decisions.md`
+  - durable contract decisions and supersession history
+
+Do not turn this file back into a second copy of `docs/项目说明.md`.
 
 ## Current Scope
 
-- System: Pb-Pb-like fixed-`b` collisions
-- Species: one direct charged pion species (`pid = 211`, `charge = +1`, `mass = 0.13957 GeV`)
-- Geometry: participant Monte Carlo Glauber
-- Flow: local blast-wave velocity field plus proper Lorentz boost; opt-in V2 gradient-response flow is available
-- Output: ROOT trees plus embedded QA histograms
-- Build: CMake
+- C++17 + ROOT blast-wave event generator for fixed-`b` Pb-Pb-like toy events
+- current particle species: direct `pi+`
+- default physics path:
+  - `density-evolution = affine-gaussian`
+  - `flow-velocity-sampler = covariance-ellipse`
+- optional comparison path:
+  - `density-evolution = none`
+- optional coupled V2 path:
+  - `density-evolution = gradient-response`
+  - `flow-velocity-sampler = gradient-response`
+- optional differential analysis:
+  - configured `v2{2}(pT)` through `v2pt-bins`
+  - joint writing during generation or standalone post-processing through `analyze_blastwave_v2pt`
 
-Not implemented in v1:
+## Repository Map
 
-- minimum-bias `b` sampling
-- centrality calibration
-- resonance decay
-- hadronic rescattering
-- multi-species hadron chemistry
-- full Cooper-Frye hypersurface sampling
-
-## Repository Layout
-
-- `include/blastwave/BlastWaveGenerator.h`
-  Public physics data structures and the generator class.
-- `src/BlastWaveGenerator.cpp`
-  Event orchestration that ties geometry, sampling, and validation together.
-- `src/BlastWaveGeneratorGeometry.cpp`
-  Participant sampling and event-shape extraction.
-- `src/BlastWaveGeneratorSampling.cpp`
-  Source rapidity, thermal momentum, flow composition, and boost sampling.
-- `src/BlastWaveGeneratorValidation.cpp`
-  Generator-side validation and config checks.
-- `include/blastwave/DensityFieldModel.h` and `src/FlowFieldDensity.cpp`
-  ROOT-free Gaussian point-cloud density field and analytic gradient evaluation.
-- `include/blastwave/EventMedium.h` and `src/EventMedium.cpp`
-  Event-level medium assembly with participant geometry, initial density, V2 marker/dynamics densities, emission density, and emission geometry.
-- `include/blastwave/EmissionSampler.h` and `src/EmissionSampler.cpp`
-  Transverse emission-site sampling for participant-hotspot, density-field, and V2 gradient-response backends.
-- `include/blastwave/FlowFieldModel.h` and `src/FlowFieldModel.cpp`
-  ROOT-free flow evaluation over the event medium.
-- `include/blastwave/PhysicsUtils.h` and `src/PhysicsUtils.cpp`
-  Shared helpers for azimuth, pseudorapidity, `centrality`, and event-level `v2`.
-- `apps/generate_blastwave_events.cpp`
-  Top-level CLI driver that hands parsing and ROOT writing to app-layer helpers.
-- `apps/generate_blastwave/RunOptions.cpp`
-  CLI/config parsing plus progress behavior.
-- `apps/generate_blastwave/RootEventFileWriter.cpp`
-  ROOT tree and embedded-QA writing.
+- `include/` + `src/`
+  - ROOT-free physics core, shared math helpers, and output-schema helpers
+- `apps/generate_blastwave_events.cpp` + `apps/generate_blastwave/`
+  - generator entrypoint, CLI/config parsing, and ROOT writing
 - `apps/qa_blastwave_output.cpp`
-  Independent reader that validates the output contract and rewrites QA histograms.
-- `CMakeLists.txt`
-  Main build definition.
-- `CMakePresets.json`
-  Default configure/build preset with `compile_commands.json` enabled.
+  - independent ROOT-reading validation app
+- `apps/analyze_blastwave_v2pt.cpp`
+  - standalone differential-flow post-processing
+- `tests/`
+  - ROOT-free regression coverage
 - `config/`
-  Tracked example configuration files only.
-- `scripts/`
-  Local helper launchers that wrap common run commands.
-- `docs/`
-  Planning and handoff documents.
-- `reference/legacy-root-macros/`
-  Historical reference macros kept for comparison only. Do not copy code from here.
-- `qa/`
-  Local generated sample files and QA output files.
+  - tracked example configs
 - `project-state/`
-  Repository-local engineering coordination ledger.
+  - coordination ledger, lower authority than code and human-written design docs
 
-## Build And Run
+## Operator Entry Points
 
-This project expects ROOT from the local O2Physics environment on this machine.
+- build inside the O2Physics ROOT environment
+- generation supports:
+  - `generate_blastwave_events [options]`
+  - `generate_blastwave_events --config <path> [options]`
+  - `generate_blastwave_events <config-path> [options]`
+- QA supports:
+  - `qa_blastwave_output --input <result.root> --output <validation.root> --expect-nevents <N>`
+- differential `v2{2}(pT)` post-processing supports:
+  - `analyze_blastwave_v2pt --input <result.root> [--output <analysis.root> | --inplace]`
+- precedence rules:
+  - explicit CLI values override config-file values
+  - config-file values override built-in defaults
+  - relative `output` and `v2pt-output` paths resolve relative to the config file directory
 
-From the repository root:
+For exact example commands, use `docs/项目说明.md`.
 
-```bash
-/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc 'cmake --preset default -S /Users/allenzhou/Research_software/Blast_wave'"
-/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc 'cmake --build /Users/allenzhou/Research_software/Blast_wave/build'"
-```
+## Change-Sensitive Semantics
 
-Build products:
+- `events.eps2` / `events.psi2` are initial participant-geometry observables.
+- `events.eps2_f` / `events.psi2_f` / `events.chi2` are freeze-out diagnostics and do not replace the initial-state summary.
+- `source_x/source_y`, `x0/y0`, and `x/y` are different coordinate stages:
+  - participant anchor
+  - marker initial position
+  - final emission position
+- `events.v2` is the event-level final-state summary observable.
+- differential `v2{2}(pT)` is a separate analysis payload and currently uses unit track weights only.
+- `density-normal-kappa-compensation` is opt-in and only meaningful for `affine-gaussian + density-normal`.
+- `gradient-response` medium and flow are intentionally coupled; enabling only one side is invalid.
+- `v2pt-output-mode = separate-file` may leave the main result file in a metadata-only state with `v2_2_pt_edges` but without `v2_2_pt` or `v2_2_pt_canvas`.
+- sandboxed `alienv` ROOT smoke output on this machine is not authoritative when PCM/module noise appears; rerun outside the sandbox.
 
-- executable: `bin/generate_blastwave_events`
-- executable: `bin/qa_blastwave_output`
-- executable: `bin/test_maxwell_juttner_sampler`
-- executable: `bin/test_flow_field_model`
-- executable: `bin/test_physics_utils`
-- executable: `bin/test_output_path_utils`
-- executable: `bin/test_emission_sampler`
-- executable: `bin/test_run_options`
-- compilation database: `build/compile_commands.json`
+## Output Contract Highlights
 
-ROOT-free core regression test:
-
-```bash
-cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-failure
-```
-
-Example generation:
-
-```bash
-/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events --nevents 5000 --b 8 --output /Users/allenzhou/Research_software/Blast_wave/qa/test_b8_5000.root'"
-```
-
-Example generation from a config file:
-
-```bash
-/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/generate_blastwave_events /Users/allenzhou/Research_software/Blast_wave/config/test_b8.cfg --output /Users/allenzhou/Research_software/Blast_wave/qa/test_b8_override.root'"
-```
-
-The repository ships an example config at `config/test_b8.cfg`.
-
-Example validation:
-
-```bash
-/bin/zsh -lc "alienv setenv O2Physics/latest-master-o2 -c sh -lc '/Users/allenzhou/Research_software/Blast_wave/bin/qa_blastwave_output --input /Users/allenzhou/Research_software/Blast_wave/qa/test_b8_5000.root --output /Users/allenzhou/Research_software/Blast_wave/qa/test_b8_5000_validation.root --expect-nevents 5000'"
-```
-
-## CLI Contract
-
-`generate_blastwave_events` supports three equivalent entry styles:
-
-- `generate_blastwave_events [options]`
-- `generate_blastwave_events --config <path> [options]`
-- `generate_blastwave_events <config-path> [options]`
-
-Explicit CLI options override configuration file values. Configuration file
-values override the built-in `BlastWaveConfig` defaults.
-
-Configuration files use a lightweight `key = value` format:
-
-- blank lines are ignored
-- full-line `#` comments are ignored
-- supported keys are:
-  - `nevents`
-  - `b`
-  - `temperature`
-  - `thermal-sampler`
-  - `mj-pmax`
-  - `mj-grid-points`
-  - `tau0`
-  - `smear`
-  - `sigma-nn`
-  - `seed`
-  - `output`
-  - `progress`
-  - `rho0`
-  - `kappa2`
-  - `flow-power`
-  - `flow-velocity-sampler`
-  - `density-evolution`
-  - `flow-density-sigma`
-  - `density-normal-kappa-compensation`
-  - `debug-flow-ellipse`
-  - `sigma-eta`
-  - `eta-plateau`
-  - `nbd-mu`
-  - `nbd-k`
-  - `gradient-sigma-em`
-  - `gradient-sigma-dyn`
-  - `gradient-density-floor-fraction`
-  - `gradient-density-cutoff-fraction`
-  - `gradient-displacement-max`
-  - `gradient-displacement-kappa`
-  - `gradient-diffusion-sigma`
-  - `gradient-vmax`
-  - `gradient-velocity-kappa`
-  - `cooper-frye-weight`
-  - `debug-gradient-response`
-- relative `output` paths inside the config file are resolved relative to the
-  config file directory
-
-Minimal config example:
-
-```text
-# config/test_b8.cfg
-nevents = 5000
-b = 8
-temperature = 0.2
-thermal-sampler = maxwell-juttner
-progress = true
-# mj-pmax = 8.0
-# mj-grid-points = 4096
-tau0 = 10.0
-smear = 0.5
-density-evolution = affine-gaussian
-affine-lambda-in = 1.20
-affine-lambda-out = 1.05
-affine-sigma-evo = 0.5
-output = test_b8_from_config.root
-```
-
-The same parameters remain available as explicit CLI flags:
-
-- `--nevents <int>`: number of events
-- `--b <fm>`: impact parameter
-- `--temperature <GeV>`: thermal momentum scale
-- `--thermal-sampler <maxwell-juttner|gamma>`: local-rest-frame momentum-magnitude sampler
-- `--mj-pmax <GeV>`: upper momentum cutoff of the Maxwell-Juttner lookup table
-- `--mj-grid-points <int>`: grid size of the Maxwell-Juttner lookup table
-- `--tau0 <fm/c>`: fixed proper time
-- `--smear <fm>`: transverse Gaussian hotspot smearing
-- `--sigma-nn <fm^2>`: inelastic nucleon-nucleon cross section, default `7.0`
-- `--seed <uint64>`: RNG seed
-- `--output <path>`: ROOT output path
-- `--progress`: force-enable the progress bar
-- `--no-progress`: force-disable the progress bar
-- `--rho0 <value>`: isotropic rapidity baseline of the covariance-ellipse flow field
-- `--kappa2 <value>`: second-order response coefficient; the event-wise amplitude is `kappa2 * eps2_initial`
-- `--flow-power <value>`: power of the normalized ellipse radius `rTilde`
-- `--flow-velocity-sampler <covariance-ellipse|density-normal|gradient-response>`: transverse flow-direction sampler
-- `--density-evolution <affine-gaussian|none|gradient-response>`: medium evolution mode. The default `affine-gaussian` enables the V1a response; `none` preserves the previous identity medium and participant-hotspot emission path; `gradient-response` is opt-in V2 and must be paired with `flow-velocity-sampler = gradient-response`.
-- `--flow-density-sigma <fm>`: Gaussian point-cloud deposition width for the density field
-- `--affine-lambda-in <value>`: in-plane affine expansion factor used by `affine-gaussian`; default `1.20`
-- `--affine-lambda-out <value>`: out-of-plane affine expansion factor used by `affine-gaussian`; default `1.05`
-- `--affine-sigma-evo <fm>`: extra Gaussian evolution smoothing width used by `affine-gaussian`; default `0.5 fm`, `0` disables this smoothing layer
-- `--density-normal-kappa-compensation`: only legal with `density-evolution = affine-gaussian` plus `flow-velocity-sampler = density-normal`; restores the explicit V1a `kappa2` compensation
-- `--no-density-normal-kappa-compensation`: explicitly disable that compensation; this is the default
-- `--debug-flow-ellipse`: write `flow_ellipse_debug` and `flow_ellipse_participant_norm_x-y`
-- `--no-debug-flow-ellipse`: force-disable the optional debug payload
-- `--gradient-sigma-em <fm>`: extra smoothing width for the V2 emission marker density `s_em`
-- `--gradient-sigma-dyn <fm>`: extra smoothing width for the V2 dynamics density `s_dyn`; must be greater than `gradient-sigma-em`
-- `--gradient-density-floor-fraction <value>`: event-scale floor fraction used in `-grad(s_dyn)/(s_dyn + floor)`
-- `--gradient-density-cutoff-fraction <value>`: marker-density cutoff fraction for accepting V2 `r0` samples
-- `--gradient-displacement-max <fm>`: maximum deterministic V2 transverse displacement
-- `--gradient-displacement-kappa <fm>`: response length scale multiplying `|grad ln s_dyn|`
-- `--gradient-diffusion-sigma <fm>`: optional Gaussian diffusion width added to V2 displacement
-- `--gradient-vmax <value>`: maximum V2 transverse speed, constrained to `[0, 1)`
-- `--gradient-velocity-kappa <fm>`: response length scale for V2 transverse velocity
-- `--cooper-frye-weight <none|mt-cosh>`: optional analysis weight stored per particle and used by event-`v2`
-- `--debug-gradient-response`: write V2 density snapshots from the first event with participants and particles
-- `--no-debug-gradient-response`: force-disable the V2 density snapshots
-- `--sigma-eta <value>`: Gaussian tail width of source `eta_s`
-- `--eta-plateau <value>`: flat core half width of source `eta_s`
-- `--nbd-mu <value>`: mean multiplicity parameter per hotspot
-- `--nbd-k <value>`: NBD shape parameter
-
-Deprecated flow knobs now fail fast with migration guidance:
-
-- `vmax -> rho0 = atanh(vmax)`
-- `rho2 -> kappa2`
-- `r-ref -> absorbed by event-ellipse semi-axes`
-
-If `progress` is not set in the config file and neither CLI flag is present, the
-generator only shows the progress bar when `stderr` is attached to a TTY.
-
-`qa_blastwave_output` supports:
-
-- `--input <file.root>`
-- `--output <qa.root>`
-- `--expect-nevents <int>`
-
-## Public C++ Interface
-
-Namespace: `blastwave`
-
-Key data contracts:
-
-- `BlastWaveConfig`
-  Generator configuration and defaults.
-- `EventInfo`
-  Per-event summary:
-  - `eventId`
-  - `impactParameter`
-  - `nParticipants`
-  - `eps2`
-  - `psi2`
-  - `eps2Freezeout`
-  - `psi2Freezeout`
-  - `chi2`
-  - `r2Initial`
-  - `r2Final`
-  - `r2Ratio`
-  - `v2`
+- mandatory trees:
+  - `events`
+  - `participants`
+  - `particles`
+- mandatory event summary highlights:
   - `centrality`
-  - `nCharged`
-- `ParticleRecord`
-  Per-particle payload:
-  - event mapping
-  - particle identity
-  - emission coordinates
-  - final four-momentum
-  - source-space metadata
-- `GeneratedEvent`
-  Bundles one `EventInfo`, one `EventMedium`, participant records, and particle records.
-- `EventMedium`
-  Per-event ROOT-free medium state with participant geometry, initial density, V2 marker/dynamics densities, emission-stage density, and emission-stage geometry. The default density evolution mode applies the V1a affine Gaussian response with public defaults `affine-lambda-in = 1.20`, `affine-lambda-out = 1.05`, and `affine-sigma-evo = 0.5 fm`; `none` keeps the identity map for comparison; opt-in `gradient-response` builds separate `s_em` and `s_dyn` fields.
-- `EmissionSite`
-  Internal transverse emission sample with `initialPosition` written to particle `x0/y0`, `position` written to particle `x/y`, `sourceAnchor` written to legacy `source_x/source_y`, and optional V2 gradient-response metadata.
-- `BlastWaveGenerator`
-  Main class:
-  - constructor `explicit BlastWaveGenerator(BlastWaveConfig config)`
-  - method `GeneratedEvent generateEvent(int eventId)`
+  - `v2`
+  - `eps2_f`
+  - `psi2_f`
+  - `chi2`
+  - `r2_0`
+  - `r2_f`
+  - `r2_ratio`
+- mandatory particle payload highlights:
+  - `x0`
+  - `y0`
+  - `emission_weight`
+- optional payload groups:
+  - flow-ellipse debug objects
+  - density-normal event-density snapshot
+  - gradient-response debug histograms
+  - differential `v2{2}(pT)` metadata and analysis objects
 
-Important implementation note:
+For the exhaustive object list, use `docs/项目说明.md` or `include/blastwave/io/RootOutputSchema.h`.
+Do not duplicate the full object table here unless this file's role changes.
 
-- The core physics layer is ROOT-independent.
-- ROOT types are used only in the app-level I/O wrappers.
-- ROOT tree floating branches are written as `Double_t`, not `Float_t`, because `Float_t` caused visible mass-shell drift in high-`|eta_s|` tails.
+## Validation Expectations
 
-## ROOT Output Contract
+- keep ROOT-free tests aligned with parser, flow, emission, thermal, and shared-analysis math changes
+- keep `project-state/tests.md` as the concise durable evidence home rather than a raw command archive
+- when physics, config parsing, schema, QA behavior, or operator flow changes, update docs in the same patch
 
-One generated ROOT file contains three mandatory trees, mandatory QA histograms,
-and optional debug payloads.
+## Required Doc Sync
 
-### Tree `events`
+When a task changes any of the items below, update these docs together:
 
-Branches:
+- algorithm or runtime semantics:
+  - `docs/项目说明.md`
+  - `docs/手记文档.md` when the change is easy to misread
+  - `project-state/guide.md`
+  - `project-state/current-status.md`
+- config surface or operator flow:
+  - `README.md` if entrypoints or top-level structure moved
+  - `docs/项目说明.md`
+  - `project-state/guide.md`
+- output schema or QA behavior:
+  - `docs/项目说明.md`
+  - `project-state/current-status.md`
+  - `project-state/tests.md`
+- durable decisions or follow-up ownership:
+  - `project-state/handoff.md`
+  - `project-state/decisions.md`
+  - `project-state/issues.md` / `project-state/work-items.md` when still open
 
-- `event_id`
-- `b`
-- `Npart`
-- `eps2`
-- `eps2_f`
-- `psi2`
-- `psi2_f`
-- `chi2`
-- `r2_0`
-- `r2_f`
-- `r2_ratio`
-- `v2`
-- `centrality`
-- `Nch`
+## What This File Should Not Become
 
-### Tree `participants`
-
-Branches:
-
-- `event_id`
-- `nucleus_id`
-- `x`
-- `y`
-- `z`
-
-### Tree `particles`
-
-Branches:
-
-- `event_id`
-- `pid`
-- `charge`
-- `mass`
-- `x`
-- `y`
-- `z`
-- `t`
-- `px`
-- `py`
-- `pz`
-- `E`
-- `eta_s`
-- `source_x`
-- `source_y`
-- `x0`
-- `y0`
-- `emission_weight`
-
-### Embedded Histograms
-
-- `Npart`
-- `eps2`
-- `eps2_f`
-- `psi2`
-- `psi2_f`
-- `chi2`
-- `r2_0`
-- `r2_f`
-- `r2_ratio`
-- `v2`
-- `cent`
-- `participant_x-y`
-- `x-y`
-- `px-py`
-- `pT`
-- `eta`
-- `phi`
-
-### Embedded Visual Object
-
-- `participant_x-y_canvas`
-  A ROOT canvas that draws `participant_x-y` and overlays circle outlines for nucleus A and nucleus B using the configured impact parameter and Woods-Saxon radius.
-
-The QA executable expects all of these objects to exist.
-
-When `debug-flow-ellipse` is enabled, the file also contains:
-
-- `flow_ellipse_debug`
-  Per-event debug tree with centroid, covariance, eigenvalues, semi-axes, axes, `eps2`, `psi2`, and `valid`
-- `flow_ellipse_participant_norm_x-y`
-  Aggregate `TH2` of participant coordinates after centroid shift, principal-axis projection, and semi-axis normalization
-
-When `flow-velocity-sampler = density-normal`, the file also contains:
-
-- `density_normal_event_density_x-y`
-  Single-event smeared participant-density `TH2` captured from the first event with participants and stored with the default draw option `LEGO1` so ROOT opens it as a 3D height-style plot
-
-The QA policy for these optional objects is “validate if present, ignore if absent.”
-
-When `debug-gradient-response` is enabled and the run contains at least one event with participants and particles, the file also contains:
-
-- `gradient_s0_x-y`
-- `gradient_s_em_x-y`
-- `gradient_s_dyn_x-y`
-- `gradient_s_f_x-y`
-
-The QA policy for this optional V2 payload is all-or-none: if any one of the four histograms exists, all four must exist, be finite and non-negative, and contain positive support.
-
-## Physics And Algorithm Summary
-
-### 1. Geometry
-
-- Sample `A = nucleonsPerNucleus` nucleons independently in 3D using a Woods-Saxon density.
-- Shift the two nuclei by `x = ±b/2`.
-- Tag two nucleons as participants if their transverse distance satisfies:
-  - `dx^2 + dy^2 <= sigmaNN / pi`
-- Return the union of participant nucleons from both nuclei.
-
-### 2. Participant Shape
-
-- Compute the participant transverse centroid.
-- Build centered second moments:
-  - `sigmaX2`
-  - `sigmaY2`
-  - `sigmaXY`
-- Define the participant eccentricity vector:
-  - `eccentricityX = sigmaY2 - sigmaX2`
-  - `eccentricityY = 2 * sigmaXY`
-- Extract:
-  - `eps2 = sqrt(ex^2 + ey^2) / (sigmaX2 + sigmaY2)`
-  - `psi2 = 0.5 * atan2(ey, ex)`
-
-Interpretation:
-
-- `eps2` measures how elliptic the participant distribution is.
-- `psi2` is the second-order participant-plane angle.
-
-### 3. Multiplicity Per Participant
-
-- Each participant acts as a hotspot.
-- The number of emitted particles from one hotspot is sampled with a Gamma-Poisson mixture:
-  - Gamma draw for `lambda`
-  - Poisson draw for multiplicity
-- This is an NBD-like fluctuation model controlled by `nbdMu` and `nbdK`.
-
-### 4. Event Medium And Emission Coordinates
-
-- The generator first builds an `EventMedium` from participant points.
-- The medium keeps separate names for `initialDensity` and `emissionDensity`; by default `affine-gaussian` evolves `s0` into a freeze-out density `sf`.
-- The V2 `gradient-response` mode additionally builds `markerDensity = s_em` and `dynamicsDensity = s_dyn` with Gaussian variances added in quadrature from `flow-density-sigma`, `gradient-sigma-em`, and `gradient-sigma-dyn`.
-- The participant geometry continues to define `events.eps2` and `events.psi2`.
-- The emission geometry defines `events.eps2_f`, `events.psi2_f`, and `events.chi2`.
-- `density-evolution = none` keeps the older identity medium and `ParticipantHotspot` emission backend.
-
-- In V1a, participant points are expanded in the participant-plane basis with default `lambda_in = 1.20`, default `lambda_out = 1.05`, then smoothed with default `sigma_evo = 0.5 fm`; all three defaults are now public config/CLI knobs.
-- In V1a, emission positions are sampled from `emissionDensity`; in `none`, hotspot positions are transversely smeared with `smearSigma`.
-- In V2, each participant still samples multiplicity with the same Gamma-Poisson model, then each particle samples `r0` from that participant's `s_em` component, applies a bounded displacement along `-grad ln s_dyn`, and stores the resulting `rf` as the emission point.
-- The sampled `EmissionSite::position` becomes particle `x/y`.
-- The sampled `EmissionSite::initialPosition` becomes particle `x0/y0`; non-V2 modes set it to the participant anchor for a stable schema.
-- The unsmeared participant anchor becomes particle `source_x/source_y`.
-- Emission proper time is fixed:
-  - `t = tau0 * cosh(eta_s)`
-  - `z = tau0 * sinh(eta_s)`
-
-### 5. Longitudinal Source Profile
-
-Current implementation is not pure Gaussian anymore.
-
-- If `etaPlateauHalfWidth > 0`, the source uses a flat midrapidity core.
-- Outside the core, it attaches Gaussian tails with width `sigmaEta`.
-- If `etaPlateauHalfWidth = 0`, the profile reduces to a pure Gaussian.
-
-This change was introduced because the original pure Gaussian source produced a visibly over-peaked midrapidity `eta` distribution for the intended use.
-
-### 6. Thermal Momentum In The Local Rest Frame
-
-- Default mode: pretabulate a Maxwell-Juttner momentum CDF on a uniform `p` grid over `[0, mjPMax]` using
-  `w(p) = p^2 exp(-sqrt(p^2 + m^2) / T)`, then invert it with `lower_bound` plus linear interpolation.
-- Compatibility mode: keep the legacy Gamma sampler with shape `3` and scale `T`.
-- After the magnitude is chosen, sample direction isotropically and put the particle on shell with the configured mass.
-- If `temperature <= 0`, the generator returns zero three-momentum and `E = m` without building the Maxwell-Juttner table.
-
-This keeps the core ROOT-free while upgrading the default thermal spectrum beyond the earlier Gamma-only approximation.
-
-### 7. Flow Field
-
-- Build the participant covariance ellipse from the event centroid and second moments.
-- Store that ellipse as `participantGeometry`; in V1a, build a distinct `emissionGeometry` from the freeze-out density moments.
-- Diagonalize it analytically to recover `lambdaMajor`, `lambdaMinor`, `radiusMajor`, `radiusMinor`, and a deterministic right-handed principal-axis basis.
-- For `density-evolution = none`, the covariance-ellipse sampler keeps the previous response:
-  - shift by the event centroid
-  - project onto the principal-axis basis
-  - evaluate `rTilde = sqrt(x'^2 / radiusMajor^2 + y'^2 / radiusMinor^2)`
-  - evaluate the ellipse-normal angle `phiB = atan2(y' / radiusMinor^2, x' / radiusMajor^2)`
-  - evaluate `rhoRaw = pow(rTilde, flowPower) * (rho0 + kappa2 * eps2_initial * cos(2 * phiB))`
-  - convert to `betaT = tanh(max(0, rhoRaw))`, clipped to `0.95`
-- For V1a, the covariance-ellipse sampler uses the freeze-out geometry for `rTilde` and direction, while the second-order response vector stays initial-state:
-  - `rhoRaw = rho0 * pow(rTilde, flowPower) * exp(2 * kappa2 * eps2_initial * cos(2 * (phiB - psi2_initial)))`
-- Combine the transverse ellipse-normal flow with `eta_s` in a Bjorken-like flow field.
-- The `density-normal` sampler reads the shared `emissionDensity` gradient and falls back to `emissionGeometry` in flat or degenerate regions.
-  - With the default `density-normal-kappa-compensation = false`, affine density-normal strength is `rho0 * pow(rTilde, flowPower)`.
-  - When the compensation flag is enabled, affine density-normal restores the same explicit `exp(2 * kappa2 * eps2_initial * cos(2 * (phiB - psi2_initial)))` multiplier using the density-normal `phiB`.
-- The `gradient-response` sampler is only legal with `density-evolution = gradient-response`; it returns the `EmissionSite` transverse velocity generated from `-grad ln s_dyn` and combines it with the same Bjorken-like longitudinal component.
-
-### 7a. V2 Radius And Weight Diagnostics
-
-- `r2_0` and `r2_f` are centered transverse second moments of the accepted particle marker cloud and final emission cloud.
-- `r2_ratio = r2_f / r2_0` when `r2_0 > 0`, otherwise `0`.
-- `emission_weight` defaults to `1`; with `cooper-frye-weight = mt-cosh`, it stores `m_T cosh(y - eta_s)`.
-- `events.v2` is reconstructed from the weighted Q-vector when non-unit weights are present; the default `none` weight preserves the previous unweighted value.
-
-### 8. Proper Boost
-
-- Sample momentum in the local rest frame.
-- Apply a full Lorentz boost with the local `beta`.
-- Do not add flow as a direct `px`/`py` offset. That old approach is explicitly avoided.
-
-### 9. Validation
-
-The core validates:
-
-- all particle fields are finite
-- the flow field is not superluminal
-- optional flow-ellipse debug outputs, when present, satisfy the recorded covariance and orthonormal-axis invariants
-- on-shell relation holds within a tight internal tolerance
-
-The QA executable additionally validates:
-
-- required trees exist
-- required histograms exist
-- event IDs are continuous
-- `Nch` matches the particle count per event
-- `events.v2` matches the particle-level second-harmonic Q-vector
-- `events.eps2_f`, `events.psi2_f`, and `events.chi2` are finite and `chi2` matches `eps2_f / eps2`
-- `events.r2_0`, `events.r2_f`, and `events.r2_ratio` match centered moments recomputed from the particle tree
-- `particles.emission_weight` is finite and non-negative
-- the `v2` histogram entry count and mean match the `events.v2` payload
-- `centrality` stays within `[0, 100]` and matches the fixed-`b` mapping
-- tree values contain no `NaN` or `Inf`
-- mass-shell deviation stays below `1e-4 GeV^2`
-- optional flow-ellipse debug objects, when present, match the recorded entry-count
-  and covariance-shape invariants
-- optional `density_normal_event_density_x-y`, when present, is a finite non-negative `TH2`
-  and advertises a 3D draw option such as `LEGO` or `SURF`
-- optional V2 gradient-response density histograms, when present, form a complete four-histogram payload with finite non-negative bin contents and positive support
-
-## Known Behavior And Interpretation Notes
-
-- The file now stores a `participants` tree, so downstream code can inspect participant geometry directly instead of inferring it from `source_x/source_y` in the particle tree.
-- `eta` is controlled by the source `eta_s` profile, but the final particle `eta` is not expected to match experimental charged-hadron data exactly because the model has only one direct pion species and no resonance feed-down.
-- A raw inclusive `px-py` histogram is a weak anisotropy diagnostic because low-`pT` thermal particles dominate the density. Use `phi`, `v2`, or high-`pT` cuts if directional anisotropy needs to be diagnosed more sharply.
-- `eps2` is an initial-state participant-shape observable, while `v2` is a final-state event observable reconstructed from particle azimuths. They are related but not interchangeable.
-- The code separates initial participant observables (`eps2/psi2`) from freeze-out geometry diagnostics (`eps2_f/psi2_f/chi2`).
-- The code separates participant anchors (`source_x/source_y`), marker initial positions (`x0/y0`), and final emission positions (`x/y`); for non-V2 modes, `x0/y0` intentionally equal the participant anchor.
-- `Nch` in v1 means the number of generated particles in the event, not a realistic detector-level charged multiplicity.
-- Events with `Npart = 0` or `Npart = 1` are legal and remain in the `events` tree.
-
-## Change-Sensitive Areas
-
-If you modify the project, preserve these contracts unless intentionally versioning them:
-
-- tree names: `events`, `particles`
-- participant tree name: `participants`
-- branch names in both trees
-- embedded histogram and canvas names listed above
-- QA expectation that all objects exist
-- use of `Double_t` for tree floating fields
-
-## Recommended Next Extensions
-
-- add species support and resonance decay
-- add better anisotropy observables such as `phi - psi2` and `v2(pT)`
-- add adaptive Maxwell-Juttner table sizing or a more formal source-function / Cooper-Frye sampling
-- support minimum-bias impact-parameter sampling and centrality slicing
+- not a second project manual
+- not a raw changelog
+- not a dump of full parameter tables copied from help text or config comments
+- not the primary source of exact ROOT object names when the schema code already owns them

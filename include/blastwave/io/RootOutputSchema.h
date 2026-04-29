@@ -38,6 +38,9 @@ namespace blastwave::io {
   inline constexpr char kPtHistogramName[] = "pT";
   inline constexpr char kEtaHistogramName[] = "eta";
   inline constexpr char kPhiHistogramName[] = "phi";
+  inline constexpr char kV2PtEdgesObjectName[] = "v2_2_pt_edges";
+  inline constexpr char kV2PtHistogramName[] = "v2_2_pt";
+  inline constexpr char kV2PtCanvasName[] = "v2_2_pt_canvas";
 
   struct EventBranches {
     Int_t eventId = 0;

@@ -14,13 +14,17 @@
 #include <cmath>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
+#include "blastwave/V2PtCumulant.h"
 #include "blastwave/FlowFieldModel.h"
 #include "blastwave/PhysicsUtils.h"
 #include "blastwave/io/OutputPathUtils.h"
 #include "blastwave/io/RootOutputSchema.h"
+#include "blastwave/io/V2PtRootPayload.h"
 
 namespace {
 
@@ -174,15 +178,25 @@ namespace {
     return outputPath.c_str();
   }
 
+  std::vector<blastwave::V2PtTrack> toV2PtTracks(const std::vector<blastwave::ParticleRecord> &particles) {
+    std::vector<blastwave::V2PtTrack> tracks;
+    tracks.reserve(particles.size());
+    for (const blastwave::ParticleRecord &particle : particles) {
+      tracks.push_back({particle.px, particle.py});
+    }
+    return tracks;
+  }
+
 }  // namespace
 
 namespace blastwave::app {
 
   struct RootEventFileWriter::Impl {
-    Impl(const blastwave::BlastWaveConfig &configValue, const std::string &outputPathValue)
-        : config(configValue),
-          outputPath(outputPathValue),
-          outputFile(prepareRootOutputPath(outputPathValue), "RECREATE"),
+    explicit Impl(const blastwave::app::RunOptions &runOptionsValue)
+        : runOptions(runOptionsValue),
+          config(runOptionsValue.config),
+          outputPath(runOptionsValue.outputPath),
+          outputFile(prepareRootOutputPath(runOptionsValue.outputPath), "RECREATE"),
           eventsTree(blastwave::io::kEventsTreeName, "Blast-wave event summary"),
           participantsTree(blastwave::io::kParticipantsTreeName, "Participant nucleon records"),
           particlesTree(blastwave::io::kParticlesTreeName, "Blast-wave particle records"),
@@ -191,7 +205,7 @@ namespace blastwave::app {
           hEps2Freezeout(blastwave::io::kEps2FreezeoutHistogramName, "Freeze-out eccentricity;#epsilon_{2}^{f};Events", 100, 0.0, 1.0),
           hPsi2(blastwave::io::kPsi2HistogramName, "Participant-plane angle;#Psi_{2} [rad];Events", 128, -1.7, 1.7),
           hPsi2Freezeout(blastwave::io::kPsi2FreezeoutHistogramName, "Freeze-out participant-plane angle;#Psi_{2}^{f} [rad];Events", 128, -1.7, 1.7),
-          hChi2(blastwave::io::kChi2HistogramName, "Response ratio;#chi_{2};Events", 150, 0.0, 3.0),
+          hChi2(blastwave::io::kChi2HistogramName, "Freeze-out eccentricity response;#chi_{2} = #epsilon_{2}^{f} / #epsilon_{2};Events", 150, 0.0, 3.0),
           hR2Initial(blastwave::io::kR2InitialHistogramName, "Centered initial marker radius moment;#LT (r_{0}-#LT r_{0}#GT)^{2} #GT [fm^{2}];Events", 160, 0.0, 80.0),
           hR2Final(blastwave::io::kR2FinalHistogramName, "Centered final emission radius moment;#LT (r_{f}-#LT r_{f}#GT)^{2} #GT [fm^{2}];Events", 160, 0.0, 80.0),
           hR2Ratio(blastwave::io::kR2RatioHistogramName, "Radius moment response;#LT r_{f}^{2} #GT / #LT r_{0}^{2} #GT;Events", 200, 0.0, 4.0),
@@ -215,6 +229,10 @@ namespace blastwave::app {
 
       if (outputFile.IsZombie()) {
         throw std::runtime_error("Failed to create ROOT output file: " + outputPath);
+      }
+
+      if (!runOptions.v2PtBinEdges.empty()) {
+        v2PtCumulant = std::make_unique<blastwave::V2PtCumulant>(runOptions.v2PtBinEdges);
       }
 
       blastwave::io::declareEventBranches(eventsTree, eventBranches);
@@ -303,6 +321,10 @@ namespace blastwave::app {
         hEta.Fill(blastwave::computePseudorapidity(particle.px, particle.py, particle.pz));
         hPhi.Fill(blastwave::computeAzimuth(particle.px, particle.py));
       }
+
+      if (v2PtCumulant != nullptr) {
+        v2PtCumulant->addEvent(toV2PtTracks(event.particles));
+      }
     }
 
     // Keep the density-normal visualization sampler-specific and stable by
@@ -338,6 +360,13 @@ namespace blastwave::app {
     void finish() {
       if (finished) {
         return;
+      }
+
+      std::optional<blastwave::V2PtCumulantResult> v2PtResult;
+      if (v2PtCumulant != nullptr) {
+        // Finalize the optional analysis before persisting ROOT objects so a
+        // failed cumulant does not leave an ambiguous partially written file.
+        v2PtResult = v2PtCumulant->finalize();
       }
 
       TCanvas participantCanvas(blastwave::io::kParticipantXYCanvasName, "Participant nucleons with nucleus outlines", 720, 680);
@@ -418,6 +447,24 @@ namespace blastwave::app {
       hEta.Write();
       hPhi.Write();
       participantCanvas.Write();
+
+      if (v2PtResult.has_value()) {
+        // Keep pT-bin metadata in the main result file regardless of where the
+        // analysis payload is written.
+        blastwave::io::writeV2PtEdges(outputFile, v2PtResult->ptBinEdges);
+        if (runOptions.v2PtOutputMode == blastwave::app::V2PtOutputMode::SameFile) {
+          blastwave::io::writeV2PtPayload(outputFile, *v2PtResult);
+        } else {
+          blastwave::io::ensureOutputDirectoryExists(runOptions.v2PtOutputPath, std::cout);
+          TFile v2PtOutputFile(runOptions.v2PtOutputPath.c_str(), "RECREATE");
+          if (v2PtOutputFile.IsZombie()) {
+            throw std::runtime_error("Failed to create v2pt output ROOT file: " + runOptions.v2PtOutputPath);
+          }
+          blastwave::io::writeV2PtPayload(v2PtOutputFile, *v2PtResult);
+          v2PtOutputFile.Close();
+        }
+      }
+
       outputFile.Close();
       flowEllipseDebugTree.reset();
       hFlowEllipseParticipantNormXY.reset();
@@ -429,6 +476,7 @@ namespace blastwave::app {
       finished = true;
     }
 
+    blastwave::app::RunOptions runOptions;
     blastwave::BlastWaveConfig config;
     std::string outputPath;
     bool finished = false;
@@ -468,9 +516,10 @@ namespace blastwave::app {
     TH1F hPt;
     TH1F hEta;
     TH1F hPhi;
+    std::unique_ptr<blastwave::V2PtCumulant> v2PtCumulant;
   };
 
-  RootEventFileWriter::RootEventFileWriter(const blastwave::BlastWaveConfig &config, const std::string &outputPath) : impl_(std::make_unique<Impl>(config, outputPath)) {
+  RootEventFileWriter::RootEventFileWriter(const blastwave::app::RunOptions &runOptions) : impl_(std::make_unique<Impl>(runOptions)) {
   }
 
   RootEventFileWriter::~RootEventFileWriter() = default;
