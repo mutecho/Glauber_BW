@@ -58,6 +58,11 @@ namespace {
         makeAxisAlignedEllipse(), {blastwave::DensityEvolutionMode::AffineGaussianResponse, densitySigma, 1.20, 1.05, 0.5});
   }
 
+  blastwave::EventMedium buildAffineRotatedMedium(double angle, double densitySigma = 0.5) {
+    return blastwave::buildEventMedium(
+        makeRotatedEllipse(angle), {blastwave::DensityEvolutionMode::AffineGaussianResponse, densitySigma, 1.20, 1.05, 0.5});
+  }
+
   void runAxisAlignedEllipseRecoveryTest() {
     const blastwave::FlowEllipseInfo ellipse = blastwave::computeFlowEllipseInfo(makeAxisAlignedEllipse());
     require(ellipse.valid, "Axis-aligned ellipse should be valid.");
@@ -316,16 +321,53 @@ namespace {
 
   void runAffineEffectiveFlowInfoTest() {
     const blastwave::EventMedium medium = buildAffineAxisAlignedMedium();
-    const blastwave::AffineEffectiveFlowInfo isotropicInfo = blastwave::computeAffineEffectiveFlowInfo(
-        medium, {blastwave::FlowVelocitySamplerMode::AffineEffective, 0.0, 0.0, 1.0, false, 10.0, 10.0, 0.0, 0.95});
-    require(isotropicInfo.valid, "Affine-effective flow info should be valid for a well-formed affine medium.");
-    requireNear(isotropicInfo.hInEff, isotropicInfo.hOutEff, 1.0e-12, "kappa_aniso=0 should equalize H_in and H_out.");
+    const blastwave::FlowFieldParameters additiveParameters{
+        blastwave::FlowVelocitySamplerMode::AffineEffective,
+        0.8,
+        0.0,
+        1.0,
+        false,
+        10.0,
+        10.0,
+        0.0,
+        0.95,
+        blastwave::AffineEffectiveMode::AdditiveRho,
+    };
+    const blastwave::AffineEffectiveFlowInfo additiveInfo = blastwave::computeAffineEffectiveFlowInfo(medium, additiveParameters);
+    require(additiveInfo.valid, "Affine-effective additive flow info should be valid for a well-formed affine medium.");
+    require(additiveInfo.affineEffectiveMode == blastwave::AffineEffectiveMode::AdditiveRho,
+            "Affine-effective info should expose additive-rho mode.");
+    requireNear(additiveInfo.hInEff, medium.affineEffectiveClosure.lambdaIn / additiveParameters.affineDeltaTauRef, 1.0e-12, "hInEff semantics mismatch.");
+    requireNear(additiveInfo.hOutEff, medium.affineEffectiveClosure.lambdaOut / additiveParameters.affineDeltaTauRef, 1.0e-12, "hOutEff semantics mismatch.");
+    requireNear(additiveInfo.surfaceBetaInRaw, std::tanh(additiveInfo.surfaceRhoTotalIn), 1.0e-12, "Additive surface beta in raw mismatch.");
+    requireNear(additiveInfo.surfaceBetaOutRaw, std::tanh(additiveInfo.surfaceRhoTotalOut), 1.0e-12, "Additive surface beta out raw mismatch.");
+    requireNear(additiveInfo.surfaceBetaInClipped, std::min(additiveInfo.surfaceBetaInRaw, additiveParameters.affineUMax), 1.0e-12, "Additive in clipping mismatch.");
+    requireNear(additiveInfo.surfaceBetaOutClipped, std::min(additiveInfo.surfaceBetaOutRaw, additiveParameters.affineUMax), 1.0e-12, "Additive out clipping mismatch.");
 
-    const blastwave::AffineEffectiveFlowInfo anisotropicInfo = blastwave::computeAffineEffectiveFlowInfo(
-        medium, {blastwave::FlowVelocitySamplerMode::AffineEffective, 0.0, 0.0, 1.0, false, 10.0, 10.0, 2.0, 0.95});
-    require(anisotropicInfo.valid, "Affine-effective anisotropic flow info should stay valid.");
-    require(std::abs(anisotropicInfo.hInEff - anisotropicInfo.hOutEff) > std::abs(isotropicInfo.hInEff - isotropicInfo.hOutEff),
-            "Increasing kappa_aniso should increase the H_in/H_out splitting.");
+    const blastwave::FlowFieldParameters fullTensorParameters{
+        blastwave::FlowVelocitySamplerMode::AffineEffective,
+        0.8,
+        0.0,
+        1.0,
+        false,
+        10.0,
+        10.0,
+        0.0,
+        0.95,
+        blastwave::AffineEffectiveMode::FullTensor,
+    };
+    const blastwave::AffineEffectiveFlowInfo fullTensorInfo = blastwave::computeAffineEffectiveFlowInfo(medium, fullTensorParameters);
+    require(fullTensorInfo.valid, "Affine-effective full-tensor flow info should stay valid.");
+    require(fullTensorInfo.affineEffectiveMode == blastwave::AffineEffectiveMode::FullTensor,
+            "Affine-effective info should expose full-tensor mode.");
+    requireNear(fullTensorInfo.surfaceBetaInRaw,
+                std::abs(fullTensorParameters.affineKappaFlow * fullTensorInfo.hInEff * medium.affineEffectiveClosure.sigmaInFinal),
+                1.0e-12,
+                "Full-tensor surface beta in raw mismatch.");
+    requireNear(fullTensorInfo.surfaceBetaOutRaw,
+                std::abs(fullTensorParameters.affineKappaFlow * fullTensorInfo.hOutEff * medium.affineEffectiveClosure.sigmaOutFinal),
+                1.0e-12,
+                "Full-tensor surface beta out raw mismatch.");
   }
 
   void runAffineFlowResponseTest() {
@@ -371,18 +413,132 @@ namespace {
     requireNear(sample.rhoRaw, expectedRhoRaw, 1.0e-12, "Affine density-normal compensation rhoRaw formula mismatch.");
   }
 
-  void runAffineEffectiveCenterZeroFlowTest() {
+  void runAffineEffectiveAdditiveDirectionAndCenterTest() {
     const blastwave::EventMedium medium = buildAffineAxisAlignedMedium();
+    const blastwave::FlowFieldParameters parameters{
+        blastwave::FlowVelocitySamplerMode::AffineEffective,
+        0.8,
+        0.0,
+        1.0,
+        false,
+        10.0,
+        10.0,
+        0.0,
+        0.95,
+        blastwave::AffineEffectiveMode::AdditiveRho,
+    };
+    const blastwave::FlowFieldSample directionSample = blastwave::evaluateFlowField(medium, 2.2, 0.0, parameters);
+    require(directionSample.betaT > 0.0, "Additive-rho direction test needs non-zero flow.");
+    requireNear(directionSample.betaX / directionSample.betaT, 1.0, 1.0e-6, "Additive-rho should follow density-normal +x direction.");
+    requireNear(directionSample.betaY / directionSample.betaT, 0.0, 1.0e-6, "Additive-rho should follow density-normal y component.");
+
     const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(
-        medium, medium.emissionGeometry.centerX, medium.emissionGeometry.centerY, {blastwave::FlowVelocitySamplerMode::AffineEffective});
+        medium, medium.emissionGeometry.centerX, medium.emissionGeometry.centerY, parameters);
     requireNear(sample.betaT, 0.0, 1.0e-12, "Affine-effective center probe should return zero transverse flow.");
+  }
+
+  void runAffineEffectiveAdditiveFallbackDirectionTest() {
+    blastwave::EventMedium medium = buildAffineAxisAlignedMedium();
+    medium.emissionDensity.gaussianSigma = 0.0;
+    const blastwave::FlowFieldParameters parameters{
+        blastwave::FlowVelocitySamplerMode::AffineEffective,
+        0.8,
+        0.0,
+        1.0,
+        false,
+        10.0,
+        10.0,
+        0.0,
+        0.95,
+        blastwave::AffineEffectiveMode::AdditiveRho,
+    };
+    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(medium, 1.0, 0.5, parameters);
+    require(sample.betaT > 0.0, "Additive fallback direction test needs non-zero flow.");
+
+    // The fallback normal belongs to the evolved emissionGeometry, not the
+    // initial participant ellipse, because affine-effective samples at freeze-out.
+    const double deltaX = 1.0 - medium.emissionGeometry.centerX;
+    const double deltaY = 0.5 - medium.emissionGeometry.centerY;
+    const double qX = medium.emissionGeometry.inverseSigmaXX * deltaX + medium.emissionGeometry.inverseSigmaXY * deltaY;
+    const double qY = medium.emissionGeometry.inverseSigmaXY * deltaX + medium.emissionGeometry.inverseSigmaYY * deltaY;
+    const double normalization = std::hypot(qX, qY);
+    const double expectedNormalX = qX / normalization;
+    const double expectedNormalY = qY / normalization;
+    requireNear(sample.betaX / sample.betaT, expectedNormalX, 1.0e-6, "Additive fallback should use ellipse normal x.");
+    requireNear(sample.betaY / sample.betaT, expectedNormalY, 1.0e-6, "Additive fallback should use ellipse normal y.");
+  }
+
+  void runAffineEffectiveAdditiveRhoBaselineAndContrastTest() {
+    const blastwave::EventMedium medium = buildAffineAxisAlignedMedium();
+    const blastwave::FlowFieldParameters noBaseline{
+        blastwave::FlowVelocitySamplerMode::AffineEffective,
+        0.0,
+        0.0,
+        1.0,
+        false,
+        10.0,
+        10.0,
+        0.0,
+        0.95,
+        blastwave::AffineEffectiveMode::AdditiveRho,
+    };
+    const blastwave::FlowFieldParameters withBaseline{
+        blastwave::FlowVelocitySamplerMode::AffineEffective,
+        0.9,
+        0.0,
+        1.0,
+        false,
+        10.0,
+        10.0,
+        0.0,
+        0.95,
+        blastwave::AffineEffectiveMode::AdditiveRho,
+    };
+    const blastwave::FlowFieldSample sampleNoBaseline = blastwave::evaluateFlowField(medium, 2.0, 0.0, noBaseline);
+    const blastwave::FlowFieldSample sampleWithBaseline = blastwave::evaluateFlowField(medium, 2.0, 0.0, withBaseline);
+    require(sampleWithBaseline.betaT > sampleNoBaseline.betaT, "Additive-rho rho0 baseline should increase mean flow magnitude.");
+
+    const blastwave::FlowFieldParameters noCorrection{
+        blastwave::FlowVelocitySamplerMode::AffineEffective,
+        0.8,
+        0.0,
+        1.0,
+        false,
+        10.0,
+        0.0,
+        0.0,
+        0.95,
+        blastwave::AffineEffectiveMode::AdditiveRho,
+    };
+    const blastwave::FlowFieldParameters withCorrection{
+        blastwave::FlowVelocitySamplerMode::AffineEffective,
+        0.8,
+        0.0,
+        1.0,
+        false,
+        10.0,
+        10.0,
+        0.0,
+        0.95,
+        blastwave::AffineEffectiveMode::AdditiveRho,
+    };
+    const double inX = medium.emissionGeometry.centerX + medium.emissionGeometry.radiusMinor * medium.emissionGeometry.minorAxisX;
+    const double inY = medium.emissionGeometry.centerY + medium.emissionGeometry.radiusMinor * medium.emissionGeometry.minorAxisY;
+    const double outX = medium.emissionGeometry.centerX + medium.emissionGeometry.radiusMajor * medium.emissionGeometry.majorAxisX;
+    const double outY = medium.emissionGeometry.centerY + medium.emissionGeometry.radiusMajor * medium.emissionGeometry.majorAxisY;
+    const double anisotropyNoCorrection =
+        std::abs(blastwave::evaluateFlowField(medium, inX, inY, noCorrection).betaT - blastwave::evaluateFlowField(medium, outX, outY, noCorrection).betaT);
+    const double anisotropyWithCorrection =
+        std::abs(blastwave::evaluateFlowField(medium, inX, inY, withCorrection).betaT - blastwave::evaluateFlowField(medium, outX, outY, withCorrection).betaT);
+    require(anisotropyWithCorrection > anisotropyNoCorrection + 1.0e-6,
+            "Additive-rho affine correction should increase principal-axis flow anisotropy at fixed rho0.");
   }
 
   void runAffineEffectiveSurfaceClippingTest() {
     const blastwave::EventMedium medium = buildAffineAxisAlignedMedium();
-    const blastwave::FlowFieldParameters parameters{
+    const blastwave::FlowFieldParameters additiveParameters{
         blastwave::FlowVelocitySamplerMode::AffineEffective,
-        0.0,
+        0.8,
         0.0,
         1.0,
         false,
@@ -390,16 +546,98 @@ namespace {
         10.0,
         1.0,
         0.20,
+        blastwave::AffineEffectiveMode::AdditiveRho,
     };
-    const blastwave::AffineEffectiveFlowInfo flowInfo = blastwave::computeAffineEffectiveFlowInfo(medium, parameters);
+    const blastwave::AffineEffectiveFlowInfo flowInfo = blastwave::computeAffineEffectiveFlowInfo(medium, additiveParameters);
     require(flowInfo.valid, "Affine-effective surface clipping diagnostic should be valid.");
-    require(flowInfo.surfaceBetaInRaw > parameters.affineUMax || flowInfo.surfaceBetaOutRaw > parameters.affineUMax,
+    require(flowInfo.surfaceBetaInRaw > additiveParameters.affineUMax || flowInfo.surfaceBetaOutRaw > additiveParameters.affineUMax,
             "Affine-effective clipping test needs at least one raw surface beta above affine-u-max.");
 
     const double probeX = medium.emissionGeometry.centerX + medium.emissionGeometry.radiusMinor * medium.emissionGeometry.minorAxisX;
     const double probeY = medium.emissionGeometry.centerY + medium.emissionGeometry.radiusMinor * medium.emissionGeometry.minorAxisY;
-    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(medium, probeX, probeY, parameters);
-    requireNear(sample.betaT, parameters.affineUMax, 1.0e-12, "Affine-effective probe should clip exactly to affine-u-max.");
+    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(medium, probeX, probeY, additiveParameters);
+    requireNear(sample.betaT, additiveParameters.affineUMax, 1.0e-12, "Additive-rho probe should clip exactly to affine-u-max.");
+
+    const blastwave::FlowFieldParameters fullTensorParameters{
+        blastwave::FlowVelocitySamplerMode::AffineEffective,
+        0.8,
+        0.0,
+        1.0,
+        false,
+        1.0,
+        10.0,
+        1.0,
+        0.20,
+        blastwave::AffineEffectiveMode::FullTensor,
+    };
+    const blastwave::FlowFieldSample fullTensorSample = blastwave::evaluateFlowField(medium, probeX, probeY, fullTensorParameters);
+    requireNear(fullTensorSample.betaT, fullTensorParameters.affineUMax, 1.0e-12, "Full-tensor probe should clip exactly to affine-u-max.");
+  }
+
+  void runAffineEffectiveFullTensorFormulaAndRotationTest() {
+    const blastwave::EventMedium axisMedium = buildAffineAxisAlignedMedium();
+    const blastwave::FlowFieldParameters parameters{
+        blastwave::FlowVelocitySamplerMode::AffineEffective,
+        0.3,
+        0.0,
+        1.0,
+        false,
+        10.0,
+        10.0,
+        0.0,
+        0.95,
+        blastwave::AffineEffectiveMode::FullTensor,
+    };
+    const double probeX = axisMedium.emissionGeometry.centerX + 0.6 * axisMedium.emissionGeometry.radiusMinor * axisMedium.emissionGeometry.minorAxisX
+                          + 0.4 * axisMedium.emissionGeometry.radiusMajor * axisMedium.emissionGeometry.majorAxisX;
+    const double probeY = axisMedium.emissionGeometry.centerY + 0.6 * axisMedium.emissionGeometry.radiusMinor * axisMedium.emissionGeometry.minorAxisY
+                          + 0.4 * axisMedium.emissionGeometry.radiusMajor * axisMedium.emissionGeometry.majorAxisY;
+    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(axisMedium, probeX, probeY, parameters);
+    const double hIn = axisMedium.affineEffectiveClosure.lambdaIn / parameters.affineDeltaTauRef;
+    const double hOut = axisMedium.affineEffectiveClosure.lambdaOut / parameters.affineDeltaTauRef;
+    const double xPrime = (probeX - axisMedium.emissionGeometry.centerX) * axisMedium.emissionGeometry.minorAxisX
+                          + (probeY - axisMedium.emissionGeometry.centerY) * axisMedium.emissionGeometry.minorAxisY;
+    const double yPrime = (probeX - axisMedium.emissionGeometry.centerX) * axisMedium.emissionGeometry.majorAxisX
+                          + (probeY - axisMedium.emissionGeometry.centerY) * axisMedium.emissionGeometry.majorAxisY;
+    const double radialProfile = std::pow(sample.rTilde, parameters.flowPower);
+    const double uXPrime = parameters.affineKappaFlow * radialProfile * hIn * xPrime;
+    const double uYPrime = parameters.affineKappaFlow * radialProfile * hOut * yPrime;
+    const double expectedBetaX = uXPrime * axisMedium.emissionGeometry.minorAxisX + uYPrime * axisMedium.emissionGeometry.majorAxisX;
+    const double expectedBetaY = uXPrime * axisMedium.emissionGeometry.minorAxisY + uYPrime * axisMedium.emissionGeometry.majorAxisY;
+    requireNear(sample.betaX, expectedBetaX, 1.0e-10, "Full-tensor betaX formula mismatch.");
+    requireNear(sample.betaY, expectedBetaY, 1.0e-10, "Full-tensor betaY formula mismatch.");
+    requireNear(sample.phiB, std::atan2(sample.betaY, sample.betaX), 1.0e-12, "Full-tensor phiB mismatch.");
+
+    const blastwave::EventMedium rotatedMedium = buildAffineRotatedMedium(0.37);
+    const double rotatedProbeX = rotatedMedium.emissionGeometry.centerX + 0.7 * rotatedMedium.emissionGeometry.radiusMinor * rotatedMedium.emissionGeometry.minorAxisX
+                                 + 0.3 * rotatedMedium.emissionGeometry.radiusMajor * rotatedMedium.emissionGeometry.majorAxisX;
+    const double rotatedProbeY = rotatedMedium.emissionGeometry.centerY + 0.7 * rotatedMedium.emissionGeometry.radiusMinor * rotatedMedium.emissionGeometry.minorAxisY
+                                 + 0.3 * rotatedMedium.emissionGeometry.radiusMajor * rotatedMedium.emissionGeometry.majorAxisY;
+    const blastwave::FlowFieldSample rotatedSample = blastwave::evaluateFlowField(rotatedMedium, rotatedProbeX, rotatedProbeY, parameters);
+    require(rotatedSample.betaT > 0.0, "Full-tensor rotation test needs non-zero flow.");
+
+    const blastwave::FlowFieldSample centerSample = blastwave::evaluateFlowField(
+        axisMedium, axisMedium.emissionGeometry.centerX, axisMedium.emissionGeometry.centerY, parameters);
+    requireNear(centerSample.betaT, 0.0, 1.0e-12, "Full-tensor center probe should return zero transverse flow.");
+  }
+
+  void runAffineEffectiveKappaAnisoNoOpTest() {
+    const blastwave::EventMedium medium = buildAffineAxisAlignedMedium();
+    const blastwave::FlowFieldSample additiveA = blastwave::evaluateFlowField(
+        medium, 1.8, 0.2, {blastwave::FlowVelocitySamplerMode::AffineEffective, 0.8, 0.0, 1.0, false, 10.0, 10.0, 0.0, 0.95, blastwave::AffineEffectiveMode::AdditiveRho});
+    const blastwave::FlowFieldSample additiveB = blastwave::evaluateFlowField(
+        medium, 1.8, 0.2, {blastwave::FlowVelocitySamplerMode::AffineEffective, 0.8, 0.0, 1.0, false, 10.0, 10.0, 999.0, 0.95, blastwave::AffineEffectiveMode::AdditiveRho});
+    requireNear(additiveA.betaX, additiveB.betaX, 1.0e-12, "Additive-rho betaX must ignore affine-kappa-aniso.");
+    requireNear(additiveA.betaY, additiveB.betaY, 1.0e-12, "Additive-rho betaY must ignore affine-kappa-aniso.");
+    requireNear(additiveA.rhoRaw, additiveB.rhoRaw, 1.0e-12, "Additive-rho rhoRaw must ignore affine-kappa-aniso.");
+
+    const blastwave::FlowFieldSample fullTensorA = blastwave::evaluateFlowField(
+        medium, 1.8, 0.2, {blastwave::FlowVelocitySamplerMode::AffineEffective, 0.8, 0.0, 1.0, false, 10.0, 10.0, 0.0, 0.95, blastwave::AffineEffectiveMode::FullTensor});
+    const blastwave::FlowFieldSample fullTensorB = blastwave::evaluateFlowField(
+        medium, 1.8, 0.2, {blastwave::FlowVelocitySamplerMode::AffineEffective, 0.8, 0.0, 1.0, false, 10.0, 10.0, 999.0, 0.95, blastwave::AffineEffectiveMode::FullTensor});
+    requireNear(fullTensorA.betaX, fullTensorB.betaX, 1.0e-12, "Full-tensor betaX must ignore affine-kappa-aniso.");
+    requireNear(fullTensorA.betaY, fullTensorB.betaY, 1.0e-12, "Full-tensor betaY must ignore affine-kappa-aniso.");
+    requireNear(fullTensorA.rhoRaw, fullTensorB.rhoRaw, 1.0e-12, "Full-tensor rhoRaw must ignore affine-kappa-aniso.");
   }
 
   void runLegacyCovarianceKappa2ResponseTest() {
@@ -452,8 +690,12 @@ int main() {
     runDensityNormalIgnoresKappa2Test();
     runAffineFlowResponseTest();
     runAffineDensityNormalCompensationTest();
-    runAffineEffectiveCenterZeroFlowTest();
+    runAffineEffectiveAdditiveDirectionAndCenterTest();
+    runAffineEffectiveAdditiveFallbackDirectionTest();
+    runAffineEffectiveAdditiveRhoBaselineAndContrastTest();
     runAffineEffectiveSurfaceClippingTest();
+    runAffineEffectiveFullTensorFormulaAndRotationTest();
+    runAffineEffectiveKappaAnisoNoOpTest();
     runLegacyCovarianceKappa2ResponseTest();
     runSharedRTildeTest();
     runGradientResponseSiteOverloadTest();

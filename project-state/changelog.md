@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-04-29 Affine-Effective Density Map Output
+
+- Added `affine_effective_density_initial_x-y` and `affine_effective_density_final_x-y` to affine-effective ROOT output as first-valid-event before/after density snapshots.
+- Stored both maps as `TH2F` objects with default ROOT draw option `LEGO1`.
+- Extended independent QA so the pair is validated as an all-or-none optional payload with finite non-negative bins, positive support, and 3D draw style.
+- Recorded fresh O2Physics build, `ctest`, authoritative affine-effective generate+QA, and ROOT file inspection evidence.
+
+## 2026-04-29 Affine-Effective Additive-Rho / Full-Tensor Correction
+
+- Added `affine-effective-mode = additive-rho | full-tensor`, defaulting to `additive-rho`.
+- Replaced the first affine-effective internal formula with:
+  - `additive-rho`: density-normal direction, `rho0` baseline rapidity, and affine geometry correction
+  - `full-tensor`: opt-in principal-axis tensor velocity closure
+- Changed `H_in_eff/H_out_eff` diagnostics to use `lambdaIn/lambdaOut / affineDeltaTauRef`.
+- Kept `affine-kappa-aniso` parsed and finite-validated as a legacy/no-op compatibility key for current affine-effective modes.
+- Extended `flow_ellipse_debug`, writer schema, and QA with `affine_effective_mode` and additive-rho surface rapidity decomposition diagnostics.
+- Updated parser tests, flow-model tests, the affine-effective example config, user docs, and `project-state/`.
+- Recorded fresh local build, full `ctest`, baseline ROOT generate+QA, additive-rho ROOT generate+QA, and full-tensor ROOT generate+QA evidence.
+
 ## 2026-04-29 Affine-Effective Closure Flow Sampler
 
 - Added a dedicated `EventMedium::affineEffectiveClosure` block so affine closure diagnostics stay separate from covariance-ellipse geometry.

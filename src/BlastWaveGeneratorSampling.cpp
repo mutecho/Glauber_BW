@@ -117,6 +117,7 @@ namespace blastwave {
         config_.affineKappaFlow,
         config_.affineKappaAniso,
         config_.affineUMax,
+        config_.affineEffectiveMode,
     };
     const FlowFieldSample sample = evaluateFlowField(medium, emissionSite, parameters);
     const double coshEta = std::cosh(etaS);

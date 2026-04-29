@@ -31,6 +31,12 @@ namespace {
     return std::min(kBetaTMax, std::tanh(std::max(0.0, rhoRaw)));
   }
 
+  // Guard inverse hyperbolic tangent against tiny numerical overshoots.
+  double safeAtanh(double value) {
+    const double atanhLimit = std::nextafter(1.0, 0.0);
+    return std::atanh(std::clamp(value, -atanhLimit, atanhLimit));
+  }
+
   bool affineParametersAreValid(const blastwave::FlowFieldParameters &parameters) {
     return std::isfinite(parameters.affineDeltaTauRef) && parameters.affineDeltaTauRef > 0.0 && std::isfinite(parameters.affineKappaFlow)
            && std::isfinite(parameters.affineKappaAniso) && std::isfinite(parameters.affineUMax) && parameters.affineUMax > 0.0 && parameters.affineUMax < 1.0;
@@ -43,42 +49,7 @@ namespace {
     return std::exp(2.0 * a2 * std::cos(2.0 * (phiBLab - medium.participantGeometry.psi2)));
   }
 
-  // Convert the geometry-only affine closure plus runtime knobs into the
-  // effective in/out expansion rates and surface-speed diagnostics.
-  blastwave::AffineEffectiveFlowInfo computeAffineEffectiveFlowInfoImpl(const blastwave::EventMedium &medium,
-                                                                        const blastwave::FlowFieldParameters &parameters) {
-    blastwave::AffineEffectiveFlowInfo info;
-    if (!medium.affineEffectiveClosure.valid || !affineParametersAreValid(parameters)) {
-      return info;
-    }
-
-    info.hInEff =
-        (medium.affineEffectiveClosure.lambdaBar + parameters.affineKappaAniso * medium.affineEffectiveClosure.deltaLambda) / parameters.affineDeltaTauRef;
-    info.hOutEff =
-        (medium.affineEffectiveClosure.lambdaBar - parameters.affineKappaAniso * medium.affineEffectiveClosure.deltaLambda) / parameters.affineDeltaTauRef;
-    info.affineUMax = parameters.affineUMax;
-    info.surfaceBetaInRaw = std::abs(parameters.affineKappaFlow * info.hInEff * medium.affineEffectiveClosure.sigmaInFinal);
-    info.surfaceBetaOutRaw = std::abs(parameters.affineKappaFlow * info.hOutEff * medium.affineEffectiveClosure.sigmaOutFinal);
-    info.surfaceBetaInClipped = std::min(info.surfaceBetaInRaw, info.affineUMax);
-    info.surfaceBetaOutClipped = std::min(info.surfaceBetaOutRaw, info.affineUMax);
-
-    const double fields[] = {info.hInEff,
-                             info.hOutEff,
-                             info.affineUMax,
-                             info.surfaceBetaInRaw,
-                             info.surfaceBetaOutRaw,
-                             info.surfaceBetaInClipped,
-                             info.surfaceBetaOutClipped};
-    for (double field : fields) {
-      if (!std::isfinite(field)) {
-        return {};
-      }
-    }
-
-    info.valid = true;
-    return info;
-  }
-
+  // Map one event-level position to covariance-normal geometry metrics.
   EllipseMetricSample sampleEllipseMetric(const blastwave::FlowEllipseInfo &ellipse, double x, double y) {
     EllipseMetricSample metric;
     if (!ellipse.valid) {
@@ -107,6 +78,121 @@ namespace {
     metric.rTilde = std::sqrt(std::max(0.0, rTilde2));
     metric.valid = true;
     return metric;
+  }
+
+  // Sample the density-gradient normal with covariance-normal fallback.
+  bool sampleDensityNormalDirection(const blastwave::EventMedium &medium, double x, double y, const EllipseMetricSample &metric, double &normalX, double &normalY) {
+    if (!metric.valid) {
+      return false;
+    }
+
+    const blastwave::DensityFieldSample densitySample = blastwave::evaluateDensityField(medium.emissionDensity, x, y);
+    const double gradientMagnitude = std::hypot(densitySample.gradientX, densitySample.gradientY);
+    const double flatness = gradientMagnitude * medium.emissionDensity.gaussianSigma / std::max(densitySample.density, kDensityEpsilon);
+
+    if (std::isfinite(gradientMagnitude) && gradientMagnitude > kDirectionTolerance && std::isfinite(flatness) && flatness >= kFlatRegionTolerance) {
+      normalX = -densitySample.gradientX / gradientMagnitude;
+      normalY = -densitySample.gradientY / gradientMagnitude;
+    } else {
+      normalX = metric.normalX;
+      normalY = metric.normalY;
+    }
+
+    const double normalMagnitude = std::hypot(normalX, normalY);
+    if (!std::isfinite(normalMagnitude) || normalMagnitude <= kDirectionTolerance) {
+      return false;
+    }
+
+    normalX /= normalMagnitude;
+    normalY /= normalMagnitude;
+    return true;
+  }
+
+  // Build shared affine-effective closure values used by both runtime modes.
+  bool computeAffineEffectiveSharedTerms(const blastwave::EventMedium &medium,
+                                         const blastwave::FlowFieldParameters &parameters,
+                                         double &hInEff,
+                                         double &hOutEff,
+                                         double &hBar,
+                                         double &rBar) {
+    if (!medium.affineEffectiveClosure.valid || !affineParametersAreValid(parameters)) {
+      return false;
+    }
+
+    hInEff = medium.affineEffectiveClosure.lambdaIn / parameters.affineDeltaTauRef;
+    hOutEff = medium.affineEffectiveClosure.lambdaOut / parameters.affineDeltaTauRef;
+    hBar = 0.5 * (hInEff + hOutEff);
+    rBar = std::sqrt(medium.affineEffectiveClosure.sigmaInFinal * medium.affineEffectiveClosure.sigmaOutFinal);
+    return std::isfinite(hInEff) && std::isfinite(hOutEff) && std::isfinite(hBar) && std::isfinite(rBar);
+  }
+
+  // Convert closure-plus-mode selection into event-level debug diagnostics.
+  blastwave::AffineEffectiveFlowInfo computeAffineEffectiveFlowInfoImpl(const blastwave::EventMedium &medium, const blastwave::FlowFieldParameters &parameters) {
+    blastwave::AffineEffectiveFlowInfo info;
+    info.affineEffectiveMode = parameters.affineEffectiveMode;
+
+    double hInEff = 0.0;
+    double hOutEff = 0.0;
+    double hBar = 0.0;
+    double rBar = 0.0;
+    if (!computeAffineEffectiveSharedTerms(medium, parameters, hInEff, hOutEff, hBar, rBar)) {
+      return info;
+    }
+
+    info.hInEff = hInEff;
+    info.hOutEff = hOutEff;
+    info.affineUMax = parameters.affineUMax;
+
+    if (parameters.affineEffectiveMode == blastwave::AffineEffectiveMode::AdditiveRho) {
+      // Additive-rho mode keeps a rho0 baseline plus affine geometry correction.
+      const double uGeomIso = parameters.affineKappaFlow * hBar * rBar;
+      const double uGeomIn = parameters.affineKappaFlow * std::sqrt((hInEff * medium.affineEffectiveClosure.sigmaInFinal)
+                                                                     * (hInEff * medium.affineEffectiveClosure.sigmaInFinal));
+      const double uGeomOut = parameters.affineKappaFlow * std::sqrt((hOutEff * medium.affineEffectiveClosure.sigmaOutFinal)
+                                                                      * (hOutEff * medium.affineEffectiveClosure.sigmaOutFinal));
+      const double uGeomIsoClipped = std::min(uGeomIso, parameters.affineUMax);
+      const double uGeomInClipped = std::min(uGeomIn, parameters.affineUMax);
+      const double uGeomOutClipped = std::min(uGeomOut, parameters.affineUMax);
+
+      info.surfaceRhoBase = parameters.rho0;
+      info.surfaceRhoGeomIso = safeAtanh(uGeomIsoClipped);
+      info.surfaceRhoGeomIn = safeAtanh(uGeomInClipped);
+      info.surfaceRhoGeomOut = safeAtanh(uGeomOutClipped);
+      info.surfaceRhoTotalIn = std::max(0.0, info.surfaceRhoBase + (info.surfaceRhoGeomIn - info.surfaceRhoGeomIso));
+      info.surfaceRhoTotalOut = std::max(0.0, info.surfaceRhoBase + (info.surfaceRhoGeomOut - info.surfaceRhoGeomIso));
+      info.surfaceBetaInRaw = std::tanh(info.surfaceRhoTotalIn);
+      info.surfaceBetaOutRaw = std::tanh(info.surfaceRhoTotalOut);
+      info.surfaceBetaInClipped = std::min(info.surfaceBetaInRaw, parameters.affineUMax);
+      info.surfaceBetaOutClipped = std::min(info.surfaceBetaOutRaw, parameters.affineUMax);
+    } else {
+      // Full-tensor mode directly converts principal-axis expansion rates to velocity.
+      info.surfaceBetaInRaw = std::abs(parameters.affineKappaFlow * hInEff * medium.affineEffectiveClosure.sigmaInFinal);
+      info.surfaceBetaOutRaw = std::abs(parameters.affineKappaFlow * hOutEff * medium.affineEffectiveClosure.sigmaOutFinal);
+      info.surfaceBetaInClipped = std::min(info.surfaceBetaInRaw, info.affineUMax);
+      info.surfaceBetaOutClipped = std::min(info.surfaceBetaOutRaw, info.affineUMax);
+    }
+
+    const double fields[] = {info.hInEff,
+                             info.hOutEff,
+                             info.affineUMax,
+                             info.surfaceBetaInRaw,
+                             info.surfaceBetaOutRaw,
+                             info.surfaceBetaInClipped,
+                             info.surfaceBetaOutClipped,
+                             info.surfaceRhoBase,
+                             info.surfaceRhoGeomIso,
+                             info.surfaceRhoGeomIn,
+                             info.surfaceRhoGeomOut,
+                             info.surfaceRhoTotalIn,
+                             info.surfaceRhoTotalOut};
+    for (double field : fields) {
+      if (!std::isfinite(field)) {
+        return {};
+      }
+    }
+
+    info.valid = true;
+    return info;
   }
 
   // Use the historical ellipse-normal sampler as one concrete backend of the
@@ -146,27 +232,12 @@ namespace {
       return sample;
     }
 
-    const blastwave::DensityFieldSample densitySample = blastwave::evaluateDensityField(medium.emissionDensity, x, y);
-    const double gradientMagnitude = std::hypot(densitySample.gradientX, densitySample.gradientY);
-    const double flatness = gradientMagnitude * medium.emissionDensity.gaussianSigma / std::max(densitySample.density, kDensityEpsilon);
-
     double normalX = 0.0;
     double normalY = 0.0;
-    if (std::isfinite(gradientMagnitude) && gradientMagnitude > kDirectionTolerance && std::isfinite(flatness) && flatness >= kFlatRegionTolerance) {
-      normalX = -densitySample.gradientX / gradientMagnitude;
-      normalY = -densitySample.gradientY / gradientMagnitude;
-    } else {
-      normalX = metric.normalX;
-      normalY = metric.normalY;
-    }
-
-    const double normalMagnitude = std::hypot(normalX, normalY);
-    if (!std::isfinite(normalMagnitude) || normalMagnitude <= kDirectionTolerance) {
+    if (!sampleDensityNormalDirection(medium, x, y, metric, normalX, normalY)) {
       return sample;
     }
 
-    normalX /= normalMagnitude;
-    normalY /= normalMagnitude;
     sample.rTilde = metric.rTilde;
     const double phiBLab = std::atan2(normalY, normalX);
     sample.phiB = phiBLab;
@@ -187,50 +258,111 @@ namespace {
     return sample;
   }
 
-  // Build the affine-effective local transverse velocity directly from the
-  // freeze-out principal-axis coordinates and the geometry-only closure.
-  blastwave::FlowFieldSample evaluateAffineEffectiveFlow(const blastwave::EventMedium &medium, double x, double y, const blastwave::FlowFieldParameters &parameters) {
+  // Additive-rho mode keeps density-normal direction while applying affine closure correction to rho.
+  blastwave::FlowFieldSample evaluateAffineEffectiveAdditiveRho(const blastwave::EventMedium &medium,
+                                                                double x,
+                                                                double y,
+                                                                const blastwave::FlowFieldParameters &parameters,
+                                                                const EllipseMetricSample &metric,
+                                                                double hInEff,
+                                                                double hOutEff,
+                                                                double hBar,
+                                                                double rBar) {
     blastwave::FlowFieldSample sample;
-    const EllipseMetricSample metric = sampleEllipseMetric(medium.emissionGeometry, x, y);
-    if (!metric.valid) {
-      return sample;
-    }
-
-    const blastwave::AffineEffectiveFlowInfo affineInfo = computeAffineEffectiveFlowInfoImpl(medium, parameters);
-    if (!affineInfo.valid) {
-      return sample;
-    }
-
     sample.rTilde = metric.rTilde;
+
+    double normalX = 0.0;
+    double normalY = 0.0;
+    if (!sampleDensityNormalDirection(medium, x, y, metric, normalX, normalY)) {
+      return {};
+    }
+
     const double radialProfile = std::pow(sample.rTilde, parameters.flowPower);
     if (!std::isfinite(radialProfile)) {
-      return sample;
+      return {};
     }
 
     const double xPrime = metric.deltaX * medium.emissionGeometry.minorAxisX + metric.deltaY * medium.emissionGeometry.minorAxisY;
     const double yPrime = metric.deltaX * medium.emissionGeometry.majorAxisX + metric.deltaY * medium.emissionGeometry.majorAxisY;
-    double betaX = parameters.affineKappaFlow * radialProfile * affineInfo.hInEff * xPrime * medium.emissionGeometry.minorAxisX
-                   + parameters.affineKappaFlow * radialProfile * affineInfo.hOutEff * yPrime * medium.emissionGeometry.majorAxisX;
-    double betaY = parameters.affineKappaFlow * radialProfile * affineInfo.hInEff * xPrime * medium.emissionGeometry.minorAxisY
-                   + parameters.affineKappaFlow * radialProfile * affineInfo.hOutEff * yPrime * medium.emissionGeometry.majorAxisY;
+
+    const double uGeom = parameters.affineKappaFlow * radialProfile * std::sqrt((hInEff * xPrime) * (hInEff * xPrime) + (hOutEff * yPrime) * (hOutEff * yPrime));
+    const double uGeomIso = parameters.affineKappaFlow * radialProfile * hBar * metric.rTilde * rBar;
+    const double uGeomClipped = std::min(uGeom, parameters.affineUMax);
+    const double uGeomIsoClipped = std::min(uGeomIso, parameters.affineUMax);
+
+    const double rhoBase = parameters.rho0 * radialProfile;
+    const double rhoGeom = safeAtanh(uGeomClipped);
+    const double rhoGeomIso = safeAtanh(uGeomIsoClipped);
+    sample.rhoRaw = std::max(0.0, rhoBase + (rhoGeom - rhoGeomIso));
+
+    sample.betaT = std::min(parameters.affineUMax, std::tanh(sample.rhoRaw));
+    sample.betaX = sample.betaT * normalX;
+    sample.betaY = sample.betaT * normalY;
+    sample.phiB = std::atan2(normalY, normalX);
+    return sample;
+  }
+
+  // Full-tensor mode directly maps principal-axis closure into local transverse velocity.
+  blastwave::FlowFieldSample evaluateAffineEffectiveFullTensor(const blastwave::EventMedium &medium,
+                                                               const blastwave::FlowFieldParameters &parameters,
+                                                               const EllipseMetricSample &metric,
+                                                               double hInEff,
+                                                               double hOutEff) {
+    blastwave::FlowFieldSample sample;
+    sample.rTilde = metric.rTilde;
+
+    const double radialProfile = std::pow(sample.rTilde, parameters.flowPower);
+    if (!std::isfinite(radialProfile)) {
+      return {};
+    }
+
+    const double xPrime = metric.deltaX * medium.emissionGeometry.minorAxisX + metric.deltaY * medium.emissionGeometry.minorAxisY;
+    const double yPrime = metric.deltaX * medium.emissionGeometry.majorAxisX + metric.deltaY * medium.emissionGeometry.majorAxisY;
+
+    const double uXPrime = parameters.affineKappaFlow * radialProfile * hInEff * xPrime;
+    const double uYPrime = parameters.affineKappaFlow * radialProfile * hOutEff * yPrime;
+
+    double betaX = uXPrime * medium.emissionGeometry.minorAxisX + uYPrime * medium.emissionGeometry.majorAxisX;
+    double betaY = uXPrime * medium.emissionGeometry.minorAxisY + uYPrime * medium.emissionGeometry.majorAxisY;
     double betaT = std::hypot(betaX, betaY);
     if (!std::isfinite(betaT)) {
       return {};
     }
 
-    if (betaT > affineInfo.affineUMax) {
-      const double scale = affineInfo.affineUMax / betaT;
+    if (betaT > parameters.affineUMax) {
+      const double scale = parameters.affineUMax / betaT;
       betaX *= scale;
       betaY *= scale;
-      betaT = affineInfo.affineUMax;
+      betaT = parameters.affineUMax;
     }
 
     sample.betaX = betaX;
     sample.betaY = betaY;
     sample.betaT = betaT;
     sample.phiB = betaT > 0.0 ? std::atan2(sample.betaY, sample.betaX) : 0.0;
-    sample.rhoRaw = betaT > 0.0 ? std::atanh(betaT) : 0.0;
+    sample.rhoRaw = betaT > 0.0 ? safeAtanh(betaT) : 0.0;
     return sample;
+  }
+
+  // Route affine-effective sampling through additive-rho or full-tensor closure modes.
+  blastwave::FlowFieldSample evaluateAffineEffectiveFlow(const blastwave::EventMedium &medium, double x, double y, const blastwave::FlowFieldParameters &parameters) {
+    const EllipseMetricSample metric = sampleEllipseMetric(medium.emissionGeometry, x, y);
+    if (!metric.valid) {
+      return {};
+    }
+
+    double hInEff = 0.0;
+    double hOutEff = 0.0;
+    double hBar = 0.0;
+    double rBar = 0.0;
+    if (!computeAffineEffectiveSharedTerms(medium, parameters, hInEff, hOutEff, hBar, rBar)) {
+      return {};
+    }
+
+    if (parameters.affineEffectiveMode == blastwave::AffineEffectiveMode::AdditiveRho) {
+      return evaluateAffineEffectiveAdditiveRho(medium, x, y, parameters, metric, hInEff, hOutEff, hBar, rBar);
+    }
+    return evaluateAffineEffectiveFullTensor(medium, parameters, metric, hInEff, hOutEff);
   }
 
   // Interpret sampler-provided V2 gradient-response beta values as the full

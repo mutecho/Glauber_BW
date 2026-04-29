@@ -1,0 +1,184 @@
+# Affine-Effective 修正执行方案
+
+## Summary
+- 本方案以你已确认的口径为准，作为新会话的直接执行说明，不需要再回看聊天上下文。
+- `flow-velocity-sampler = affine-effective` 的默认算法改为方案2，对应一个新的子模式 `affine-effective-mode = additive-rho`。
+- 方案1保留为同一 sampler 下的可选子模式 `affine-effective-mode = full-tensor`，不新增顶层 `flow-velocity-sampler` 枚举值。
+- 方案2的方向来源固定复用 `density-normal` 的密度梯度法向；`rho0` 继续控制平均流强，不允许在最终公式里被完全抵消。
+- 本轮必须同步代码、CLI/config、ROOT debug/QA、用户文档和 `project-state/`，因为任务同时改了算法契约、配置契约、debug schema 和测试口径。
+
+## Locked Behavior
+- 新增 public 配置键 `affine-effective-mode = additive-rho | full-tensor`，默认 `additive-rho`。
+- `flow-velocity-sampler = affine-effective` 仍然只允许与 `density-evolution = affine-gaussian` 搭配。
+- `affine-effective-mode` 只在 `flow-velocity-sampler = affine-effective` 时生效；其他模式下允许解析但不影响运行。
+- 方案2 `additive-rho` 的方向固定为当前 `density-normal` 方向逻辑：
+  - 优先使用 `medium.emissionDensity` 的梯度法向。
+  - 平坦区或数值退化时，回退到当前椭圆逆协方差法向。
+- 方案2 `additive-rho` 的大小公式必须是“保留 baseline + 几何修正”，不是字面退化成 `rho = rho_geom`。
+- 方案1 `full-tensor` 使用完整局域速度场闭合，不复用旧的 `lambdaBar ± kappa_aniso * deltaLambda` 公式。
+- `affine-kappa-aniso` 这一轮保留解析兼容和 finite 校验，避免旧配置直接失效，但在新的 affine-effective 两个子模式里都不再参与物理公式。文档必须明确写成 legacy/no-op。
+- `kappa2`、`density-normal-kappa-compensation` 继续对 affine-effective 无效；`rho0` 对 `additive-rho` 有效，对 `full-tensor` 无效。
+
+## Public Contract And File Targets
+- 在 [include/blastwave/FlowFieldModel.h](/Users/allenzhou/Research_software/Blast_wave/include/blastwave/FlowFieldModel.h) 新增 `AffineEffectiveMode` 枚举，并把它追加到 `FlowFieldParameters` 末尾，默认 `AdditiveRho`。追加到末尾是为了尽量减少现有 aggregate initializer 误伤。
+- 在 [include/blastwave/BlastWaveGenerator.h](/Users/allenzhou/Research_software/Blast_wave/include/blastwave/BlastWaveGenerator.h) 的 `BlastWaveConfig` 追加 `affineEffectiveMode` 字段，默认 `AdditiveRho`。
+- 在 [apps/generate_blastwave/RunOptions.cpp](/Users/allenzhou/Research_software/Blast_wave/apps/generate_blastwave/RunOptions.cpp) 和 [tests/RunOptionsTest.cpp](/Users/allenzhou/Research_software/Blast_wave/tests/RunOptionsTest.cpp) 增加：
+  - `affine-effective-mode` 的 config/CLI 解析。
+  - 帮助文本。
+  - 默认值、CLI 解析、config 解析、CLI 覆盖 config 的测试。
+- 在 [src/BlastWaveGeneratorSampling.cpp](/Users/allenzhou/Research_software/Blast_wave/src/BlastWaveGeneratorSampling.cpp) 把新 mode 传入 `FlowFieldParameters`。
+- 在 [src/BlastWaveGeneratorValidation.cpp](/Users/allenzhou/Research_software/Blast_wave/src/BlastWaveGeneratorValidation.cpp) 保留现有 affine-effective 与 affine-gaussian 的模式约束；`affine-effective-mode` 不新增额外组合限制；`affine-kappa-aniso` 仍只做 finite 校验。
+- 在 [config/test_b8_affine_effective.cfg](/Users/allenzhou/Research_software/Blast_wave/config/test_b8_affine_effective.cfg) 写明 `affine-effective-mode = additive-rho`，删除 `affine-kappa-aniso` 示例项，避免新用户误以为它仍有效。
+
+## Algorithm Changes
+- `EventMedium::affineEffectiveClosure` 继续保留现有字段和构造逻辑，不改闭合输入边界；`lambdaBar` 和 `deltaLambda` 继续作为派生诊断保留，但不再作为新公式输入。
+- 在 [src/FlowFieldModel.cpp](/Users/allenzhou/Research_software/Blast_wave/src/FlowFieldModel.cpp) 把 affine-effective 重构成：
+  - 共享 closure/geometry helper。
+  - `evaluateAffineEffectiveAdditiveRho(...)`。
+  - `evaluateAffineEffectiveFullTensor(...)`。
+- 共享量统一定义为：
+  - `H_in = closure.lambdaIn / affineDeltaTauRef`
+  - `H_out = closure.lambdaOut / affineDeltaTauRef`
+  - `H_bar = 0.5 * (H_in + H_out)`
+  - `R_bar = sqrt(closure.sigmaInFinal * closure.sigmaOutFinal)`
+  - `profile = pow(rTilde, flowPower)`
+  - `x' = dx * emissionGeometry.minorAxis + dy * emissionGeometry.minorAxis`
+  - `y' = dx * emissionGeometry.majorAxis + dy * emissionGeometry.majorAxis`
+  - 这里的 `x'` 对应 in-plane minor axis，`y'` 对应 out-of-plane major axis，和现有 `EventMedium`/`FlowFieldModel` 约定保持一致。
+- `additive-rho` 必须按以下公式实现：
+  - `u_geom = affineKappaFlow * profile * sqrt((H_in * x')^2 + (H_out * y')^2)`
+  - `u_geom_iso = affineKappaFlow * profile * H_bar * rTilde * R_bar`
+  - 先分别对 `u_geom` 和 `u_geom_iso` 做 `min(value, affineUMax)` 裁剪，再转成：
+    - `rho_geom = atanh(u_geom_clipped)`
+    - `rho_geom_iso = atanh(u_geom_iso_clipped)`
+  - baseline 保留为：
+    - `rho_base = rho0 * profile`
+  - 总快度定义为：
+    - `rho_total = max(0.0, rho_base + (rho_geom - rho_geom_iso))`
+  - 最终速度大小：
+    - `betaT = min(affineUMax, tanh(rho_total))`
+  - 最终方向：
+    - 用当前 `density-normal` 的梯度法向/回退法向。
+  - 最终输出：
+    - `betaX = betaT * normalX`
+    - `betaY = betaT * normalY`
+    - `phiB = atan2(normalY, normalX)`
+    - `rhoRaw = rho_total`
+- `full-tensor` 必须按以下公式实现：
+  - `u_x' = affineKappaFlow * profile * H_in * x'`
+  - `u_y' = affineKappaFlow * profile * H_out * y'`
+  - 旋回实验室系得到 `(betaX, betaY)`。
+  - 若 `betaT = hypot(betaX, betaY) > affineUMax`，按比例整体裁剪到 `affineUMax`。
+  - `phiB = atan2(betaY, betaX)`。
+  - `rhoRaw = betaT > 0 ? atanh(betaT) : 0.0`。
+- 两个子模式都不允许在 closure 无效时回退到其他 sampler；继续保持“closure 无效则返回零横向流”的当前 affine-effective 失败语义。
+- 两个子模式的实现前都补简短语义注释，说明一个是“baseline + affine 几何修正”，另一个是“主轴张量直接生成完整局域速度场”。
+
+## Diagnostics, ROOT Debug, And QA
+- 在 [include/blastwave/FlowFieldModel.h](/Users/allenzhou/Research_software/Blast_wave/include/blastwave/FlowFieldModel.h) 扩展 `AffineEffectiveFlowInfo`，保留现有公共诊断，再新增 additive-rho 分解诊断。
+- 统一保留并更新 `hInEff` / `hOutEff` 语义为：
+  - `hInEff = closure.lambdaIn / affineDeltaTauRef`
+  - `hOutEff = closure.lambdaOut / affineDeltaTauRef`
+- 保留现有 `surfaceBetaInRaw/OutRaw/Clipped` 字段，但语义改为“当前所选 affine-effective 子模式在两条主轴表面点上的最终 beta 诊断”。
+- 新增以下 debug 诊断字段，便于 additive-rho QA 和人工排查：
+  - `affineEffectiveMode`
+  - `surfaceRhoBase`
+  - `surfaceRhoGeomIso`
+  - `surfaceRhoGeomIn`
+  - `surfaceRhoGeomOut`
+  - `surfaceRhoTotalIn`
+  - `surfaceRhoTotalOut`
+- 在 [include/blastwave/io/RootOutputSchema.h](/Users/allenzhou/Research_software/Blast_wave/include/blastwave/io/RootOutputSchema.h)、[src/RootOutputSchema.cpp](/Users/allenzhou/Research_software/Blast_wave/src/RootOutputSchema.cpp) 和 [apps/generate_blastwave/RootEventFileWriter.cpp](/Users/allenzhou/Research_software/Blast_wave/apps/generate_blastwave/RootEventFileWriter.cpp) 同步这些 branch。
+- 约定 `affine_effective_mode` 编码：
+  - `0 = additive-rho`
+  - `1 = full-tensor`
+- `RootEventFileWriter` 在 affine-effective 模式下写出：
+  - 公共 closure 诊断。
+  - 当前 mode 编码。
+  - 当前 mode 对应的 surface 分解诊断。
+- 在 [apps/qa_blastwave_output.cpp](/Users/allenzhou/Research_software/Blast_wave/apps/qa_blastwave_output.cpp) 更新校验规则：
+  - 公共 closure 规则继续成立：`growth = sigma_f / sigma_0`，`lambda = log(growth)`。
+  - `hInEff/hOutEff` 改成按 `lambdaIn/lambdaOut` 与 `affineDeltaTauRef` 对应。
+  - `affineUMax` 继续要求 `0 < u_max < 1`。
+  - 若 mode=`additive-rho`：
+    - `surfaceRhoTotalIn = max(0, surfaceRhoBase + surfaceRhoGeomIn - surfaceRhoGeomIso)`
+    - `surfaceRhoTotalOut = max(0, surfaceRhoBase + surfaceRhoGeomOut - surfaceRhoGeomIso)`
+    - `surfaceBetaInRaw = tanh(surfaceRhoTotalIn)`
+    - `surfaceBetaOutRaw = tanh(surfaceRhoTotalOut)`
+    - clipped beta 等于 `min(raw, affineUMax)`。
+  - 若 mode=`full-tensor`：
+    - `surfaceBetaInRaw = abs(affineKappaFlow * hInEff * sigmaInFinal)`
+    - `surfaceBetaOutRaw = abs(affineKappaFlow * hOutEff * sigmaOutFinal)`
+    - clipped beta 等于 `min(raw, affineUMax)`。
+- 旧的 `affineLambdaBar/affineDeltaLambda` 分支可以继续保留，但 QA 只把它们当派生诊断，不再用它们反推当前速度公式。
+
+## Test Plan
+- 更新 [tests/RunOptionsTest.cpp](/Users/allenzhou/Research_software/Blast_wave/tests/RunOptionsTest.cpp)：
+  - 默认 `affineEffectiveMode == AdditiveRho`
+  - CLI `--affine-effective-mode additive-rho|full-tensor`
+  - config `affine-effective-mode = ...`
+  - CLI 覆盖 config
+  - `affine-kappa-aniso` 仍可解析且 generator validation 通过
+- 更新 [tests/FlowFieldModelTest.cpp](/Users/allenzhou/Research_software/Blast_wave/tests/FlowFieldModelTest.cpp)：
+  - closure 恢复测试保留。
+  - `hInEff/hOutEff` 新语义测试。
+  - `additive-rho`：
+    - 使用密度梯度方向。
+    - 平坦区回退到椭圆法向。
+    - `rho0` 改变时平均流强随之改变。
+    - 在固定 `rho0` 下，去掉 affine 修正会降低角向差异。
+    - 中心点零流。
+    - `affine-u-max` 裁剪正确。
+  - `full-tensor`：
+    - 主轴系速度公式正确。
+    - 实验室系旋回正确。
+    - 中心点零流。
+    - `affine-u-max` 裁剪正确。
+  - 兼容性测试：
+    - `affine-kappa-aniso` 的不同取值不再改变 affine-effective 输出。
+- 本地验证命令固定为：
+  - `cmake --build /Users/allenzhou/Research_software/Blast_wave/build`
+  - `cd /Users/allenzhou/Research_software/Blast_wave/build && ctest --output-on-failure`
+- ROOT 权威烟测固定为四组：
+  - 默认 V1a 基线：`config/test_b8.cfg`
+  - affine-effective 默认 additive-rho：`config/test_b8_affine_effective.cfg` 加 `--debug-flow-ellipse`
+  - affine-effective full-tensor：复用 `config/test_b8_affine_effective.cfg`，CLI 加 `--affine-effective-mode full-tensor --debug-flow-ellipse`
+  - 对每个生成文件跑 `qa_blastwave_output`
+- 在这台机器上，权威 ROOT 证据继续走 `project-state/tests.md` 里记录的 outside-sandbox O2Physics 路径；不要把 sandbox PCM/module 噪声当最终结论。
+
+## Docs And Project-State Sync
+- 必须更新用户文档：
+  - [docs/项目说明.md](/Users/allenzhou/Research_software/Blast_wave/docs/项目说明.md)
+  - [docs/agent_guide.md](/Users/allenzhou/Research_software/Blast_wave/docs/agent_guide.md)
+  - [docs/affine方案流补偿.md](/Users/allenzhou/Research_software/Blast_wave/docs/affine方案流补偿.md)
+- 文档必须明确写出：
+  - `affine-effective` 默认现在是 `additive-rho`
+  - `full-tensor` 是同一 sampler 下的 opt-in 子模式
+  - 默认方向来源是密度梯度法向
+  - `rho0` 在 `additive-rho` 下继续控制 baseline 平均流
+  - `affine-kappa-aniso` 对当前 affine-effective 是 legacy/no-op
+- `docs/affine修正方案1.md` 和 `docs/affine修正方案2.md` 作为设计方案文档可保持原意不重写；若实现后需要一句说明，最多补“当前运行时映射关系”，不要把它们改成运行手册。
+- 必须更新 `project-state/`：
+  - [project-state/decisions.md](/Users/allenzhou/Research_software/Blast_wave/project-state/decisions.md)
+  - [project-state/current-status.md](/Users/allenzhou/Research_software/Blast_wave/project-state/current-status.md)
+  - [project-state/tests.md](/Users/allenzhou/Research_software/Blast_wave/project-state/tests.md)
+  - [project-state/handoff.md](/Users/allenzhou/Research_software/Blast_wave/project-state/handoff.md)
+  - [project-state/changelog.md](/Users/allenzhou/Research_software/Blast_wave/project-state/changelog.md)
+- `project-state/decisions.md` 新增一条决策，内容是：
+  - 旧 DEC-012 保留 sampler 存在性和 closure 边界。
+  - 其内部速度公式被本轮 supersede。
+  - 新默认是 `affine-effective-mode = additive-rho`。
+  - `full-tensor` 为 opt-in。
+  - `affine-kappa-aniso` 变为 legacy/no-op。
+- `project-state/tests.md` 新增一条新的 affine-effective 修正验证记录，覆盖：
+  - local build
+  - `ctest`
+  - additive-rho ROOT generate + QA
+  - full-tensor ROOT generate + QA
+- `project-state/work-items.md` 这轮默认不改；除非实现者有意留下“彻底删除 affine-kappa-aniso 兼容解析”的后续事项，否则不要新开条目。
+
+## Assumptions
+- 本方案以当前仓库状态为基线：已有 `affine-effective` sampler、已有 `EventMedium.affineEffectiveClosure`、已有可选 `flow_ellipse_debug` tree。
+- 本轮不改 `EmissionSite::emissionWeight`、`shell_weight`、热采样、粒子主 schema，也不改 `gradient-response` 契约。
+- 新的 `affine-effective-mode` 应追加到 aggregate struct 末尾，减少现有初始化器破坏面。
+- 如果实现过程中发现某个旧文档仍把 affine-effective 写成“完全不使用 `rho0` 或使用 `kappa_aniso` 调 H_in/H_out`”，必须直接改写，不允许只追加勘误。

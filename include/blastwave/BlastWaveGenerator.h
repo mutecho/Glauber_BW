@@ -61,6 +61,7 @@ namespace blastwave {
     ThermalSamplerMode thermalSamplerMode = ThermalSamplerMode::MaxwellJuttner;
     double mjPMax = 8.0;  // GeV
     int mjGridPoints = 4096;
+    AffineEffectiveMode affineEffectiveMode = AffineEffectiveMode::AdditiveRho;
   };
 
   struct EventInfo {

@@ -23,9 +23,41 @@ Long command transcripts and repeated smoke-command variants were intentionally 
 - authoritative outside-sandbox `analyze_blastwave_v2pt ...`
 - ROOT key inspection through the shared inspector scripts when payload placement needs confirmation
 
-## T-017 Opt-In Affine-Effective Closure Flow Sampler
+## T-019 Affine-Effective Before/After Density Maps
 
 - Status: passed on 2026-04-29
+- Evidence:
+  - O2Physics build passed after adding the two affine-effective density-map TH2 objects and QA checks
+  - local `ctest --output-on-failure` passed
+  - authoritative outside-sandbox O2Physics generate passed for `config/test_b8_affine_effective.cfg --nevents 100`, written to `qa/affine_effective_density_maps.root`
+  - authoritative outside-sandbox O2Physics QA passed for `qa/affine_effective_density_maps.root`, validating 100 events
+  - shared ROOT file inspector returned `RUNTIME_STATUS: PRIMARY_OK`, `STATUS: OK`, and listed both `affine_effective_density_initial_x-y` and `affine_effective_density_final_x-y`
+- Locked conclusions:
+  - affine-effective output now includes a paired first-valid-event density snapshot before and after `affine-gaussian` evolution
+  - both maps are TH2 objects with ROOT 3D draw-style validation through QA
+  - the maps are diagnostic snapshots, not event-averaged density observables
+
+## T-018 Affine-Effective Additive-Rho And Full-Tensor Correction
+
+- Status: passed on 2026-04-29
+- Evidence:
+  - local build passed after adding `affine-effective-mode`, updating affine-effective formulas, and extending ROOT debug schema/QA
+  - local `ctest --output-on-failure` passed with updated `test_flow_field_model` and `test_run_options`
+  - authoritative outside-sandbox O2Physics generate + QA passed for `config/test_b8.cfg` written to `qa/affine_effective_fix_default.root`
+  - authoritative outside-sandbox O2Physics generate + QA passed for `config/test_b8_affine_effective.cfg --debug-flow-ellipse` written to `qa/affine_effective_fix_additive.root`
+  - authoritative outside-sandbox O2Physics generate + QA passed for `config/test_b8_affine_effective.cfg --affine-effective-mode full-tensor --debug-flow-ellipse` written to `qa/affine_effective_fix_full_tensor.root`
+- Locked conclusions:
+  - `affine-effective-mode` is public and defaults to `additive-rho`
+  - `additive-rho` preserves `rho0` as the baseline average-flow rapidity and uses density-normal direction with covariance-normal fallback
+  - `full-tensor` is an opt-in principal-axis tensor velocity closure under the same `affine-effective` sampler
+  - `affine-kappa-aniso` remains parse/finite-compatible but is legacy/no-op in both current affine-effective modes
+  - `flow_ellipse_debug` now carries `affine_effective_mode` and additive-rho surface rapidity decomposition diagnostics, and QA validates the mode-specific formulas
+- Note:
+  - the tracked `config/test_b8.cfg` used in the baseline smoke currently selects `density-evolution = none`; the current built-in default remains `affine-gaussian`
+
+## T-017 Opt-In Affine-Effective Closure Flow Sampler
+
+- Status: passed on 2026-04-29; internal velocity formula superseded by T-018 / DEC-013
 - Evidence:
   - local build passed after extending `EventMedium`, `FlowFieldModel`, generator validation, ROOT debug writing, and QA
   - local `ctest` passed with new affine-effective coverage in `test_flow_field_model` and `test_run_options`
@@ -33,9 +65,9 @@ Long command transcripts and repeated smoke-command variants were intentionally 
   - authoritative `config/test_b8_affine_effective.cfg` generate + QA smoke passed
 - Locked conclusions:
   - `flow-velocity-sampler = affine-effective` is opt-in and only valid with `density-evolution = affine-gaussian`
-  - `affine-delta-tau-ref`, `affine-kappa-flow`, `affine-kappa-aniso`, and `affine-u-max` are public validated knobs
+  - `affine-delta-tau-ref`, `affine-kappa-flow`, `affine-kappa-aniso`, and `affine-u-max` were added as public validated knobs
   - `debug-flow-ellipse` may now carry affine closure diagnostics, and QA validates them when present
-  - `rho0`, `kappa2`, and `density-normal-kappa-compensation` remain public but are intentionally unused by affine-effective
+  - the first rollout's `rho0` and `affine-kappa-aniso` formula semantics are superseded by T-018; use DEC-013 for current behavior
 
 ## T-016 Differential `v2{2}(pT)` Joint And Standalone Contract
 

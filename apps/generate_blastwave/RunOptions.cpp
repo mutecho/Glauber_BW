@@ -133,6 +133,17 @@ namespace {
                                 + ". Expected 'covariance-ellipse', 'density-normal', 'gradient-response', or 'affine-effective'.");
   }
 
+  blastwave::AffineEffectiveMode parseAffineEffectiveMode(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
+    if (rawValue == "additive-rho") {
+      return blastwave::AffineEffectiveMode::AdditiveRho;
+    }
+    if (rawValue == "full-tensor") {
+      return blastwave::AffineEffectiveMode::FullTensor;
+    }
+    throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription
+                                + ". Expected 'additive-rho' or 'full-tensor'.");
+  }
+
   blastwave::DensityEvolutionMode parseDensityEvolutionMode(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
     if (rawValue == "affine-gaussian") {
       return blastwave::DensityEvolutionMode::AffineGaussianResponse;
@@ -282,6 +293,8 @@ namespace {
       runOptions.config.affineKappaAniso = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "affine-u-max") {
       runOptions.config.affineUMax = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "affine-effective-mode") {
+      runOptions.config.affineEffectiveMode = parseAffineEffectiveMode(rawValue, optionName, sourceDescription);
     } else if (optionName == "density-normal-kappa-compensation") {
       runOptions.config.densityNormalKappaCompensation = parseBool(rawValue, optionName, sourceDescription);
     } else if (optionName == "debug-flow-ellipse") {
@@ -389,7 +402,7 @@ namespace blastwave::app {
               << "  rho0, kappa2, flow-power, flow-velocity-sampler, density-evolution,\n"
               << "  flow-density-sigma, affine-lambda-in, affine-lambda-out,\n"
               << "  affine-sigma-evo, affine-delta-tau-ref, affine-kappa-flow,\n"
-              << "  affine-kappa-aniso, affine-u-max,\n"
+              << "  affine-kappa-aniso, affine-u-max, affine-effective-mode,\n"
               << "  density-normal-kappa-compensation,\n"
               << "  gradient-sigma-em, gradient-sigma-dyn,\n"
               << "  gradient-density-floor-fraction, gradient-density-cutoff-fraction,\n"
@@ -437,6 +450,7 @@ namespace blastwave::app {
               << "  --affine-kappa-flow <value>\n"
               << "  --affine-kappa-aniso <value>\n"
               << "  --affine-u-max <value>\n"
+              << "  --affine-effective-mode <additive-rho|full-tensor>\n"
               << "  --density-normal-kappa-compensation\n"
               << "  --no-density-normal-kappa-compensation\n"
               << "  --gradient-sigma-em <fm>\n"

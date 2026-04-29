@@ -15,6 +15,8 @@
 - 可选 affine 闭合流场：
   - `density-evolution = affine-gaussian`
   - `flow-velocity-sampler = affine-effective`
+  - 默认 `affine-effective-mode = additive-rho`
+  - 可选 `affine-effective-mode = full-tensor`
 - 可选 V2 扩展：
   - `density-evolution = gradient-response`
   - `flow-velocity-sampler = gradient-response`
@@ -61,7 +63,8 @@
   - 事件级 `centrality`、`v2`、`eps2_f/psi2_f/chi2`、`r2_0/r2_f/r2_ratio`
   - 粒子级 `x0/y0/emission_weight`
 - 当前可选载荷：
-  - flow ellipse debug 对象，以及 affine-effective 模式下附带的闭合诊断
+  - flow ellipse debug 对象，以及 affine-effective 模式下附带的 mode 编码、闭合诊断和 additive-rho surface rho 分解
+  - affine-effective 首个有效事件的演化前/后 density map：`affine_effective_density_initial_x-y`、`affine_effective_density_final_x-y`
   - `density-normal` 事件密度快照
   - V2 `gradient-response` debug 直方图
   - 差分 `v2{2}(pT)` 元数据和结果对象
@@ -86,6 +89,7 @@
 ## 当前协作规则
 
 - 若修改算法语义、配置契约、ROOT schema、QA 逻辑或用户运行方式，必须同步相应 `project-state/` 文件。
+- 当前 affine-effective 语义以 DEC-013 为准：`additive-rho` 保留 `rho0` baseline，`full-tensor` 为 opt-in，`affine-kappa-aniso` 是 legacy/no-op。
 - `project-state/` 的规范路径是 `project-state/`，不是旧写法 `.project-state/`。
 - `project-state/tests.md` 只保留验证结论和最小必要证据，不再堆完整命令转录。
 - `project-state/current-status.md` 只保留当前视图，不承担完整历史说明。

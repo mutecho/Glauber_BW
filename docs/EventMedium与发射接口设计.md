@@ -5,7 +5,7 @@
 当前实现已经在这套接口上落地 V1a 固定参数 density response：
 
 - 默认 `density-evolution = affine-gaussian` 会执行 `s_0 -> s_f` 的仿射膨胀和平滑。
-- opt-in `flow-velocity-sampler = affine-effective` 会把 `s_0 -> s_f` 恢复出的初末态半轴闭合量转成有效流场。
+- opt-in `flow-velocity-sampler = affine-effective` 会把 `s_0 -> s_f` 恢复出的初末态半轴闭合量转成有效流场；默认子模式 `affine-effective-mode = additive-rho` 保留 `rho0` baseline，可选 `full-tensor` 直接使用主轴张量速度场。
 - `density-evolution = none` 保留原先 participant hotspot 抽 multiplicity、横向 Gaussian smear、再查询流体速度并 boost 的对照路径。
 - opt-in `density-evolution = gradient-response` 与 `flow-velocity-sampler = gradient-response` 会共同启用 V2 梯度响应：从发射 marker 密度抽 `r0`，再用动力学密度梯度给出 `rf` 和横向 `beta_T`。
 - ROOT 默认契约新增 freeze-out 几何诊断 `eps2_f`、`psi2_f`、`chi2`。
@@ -56,6 +56,8 @@ GradientResponse        # opt-in V2 梯度响应
 - `deltaLambda = 0.5 * (Lambda_in - Lambda_out)`
 
 有效性判据固定为：初末态四个半轴都必须有限且严格大于 `0`。否则 affine-effective 流 sampler 直接返回零横向流，不回退到其他模式。
+
+当前 affine-effective 的共享闭合率为 `H_in_eff = Lambda_in / affineDeltaTauRef`、`H_out_eff = Lambda_out / affineDeltaTauRef`。`affine-kappa-aniso` 仅保留解析兼容和 finite 校验，在 `additive-rho` 与 `full-tensor` 两个子模式中都不再进入物理公式。
 
 `GradientResponse` 构造三套密度：`s0`、`s_em` 和 `s_dyn`。发射 sampler 从每个 participant 对应的 `s_em` Gaussian component 抽 marker 初态 `r0`，在 `r0` 查询 `-grad(s_dyn)/(s_dyn + floor)`，再生成位移 `dr` 与横向速度 `beta_T`。本模式必须和 `flow-velocity-sampler = gradient-response` 成对使用，避免 medium response 与 velocity source 混搭。
 

@@ -66,10 +66,17 @@ namespace blastwave::io {
     constexpr char kAffineHInEffBranchName[] = "affine_h_in_eff";
     constexpr char kAffineHOutEffBranchName[] = "affine_h_out_eff";
     constexpr char kAffineUMaxBranchName[] = "affine_u_max";
+    constexpr char kAffineEffectiveModeBranchName[] = "affine_effective_mode";
     constexpr char kAffineSurfaceBetaInRawBranchName[] = "affine_surface_beta_in_raw";
     constexpr char kAffineSurfaceBetaOutRawBranchName[] = "affine_surface_beta_out_raw";
     constexpr char kAffineSurfaceBetaInClippedBranchName[] = "affine_surface_beta_in_clipped";
     constexpr char kAffineSurfaceBetaOutClippedBranchName[] = "affine_surface_beta_out_clipped";
+    constexpr char kAffineSurfaceRhoBaseBranchName[] = "affine_surface_rho_base";
+    constexpr char kAffineSurfaceRhoGeomIsoBranchName[] = "affine_surface_rho_geom_iso";
+    constexpr char kAffineSurfaceRhoGeomInBranchName[] = "affine_surface_rho_geom_in";
+    constexpr char kAffineSurfaceRhoGeomOutBranchName[] = "affine_surface_rho_geom_out";
+    constexpr char kAffineSurfaceRhoTotalInBranchName[] = "affine_surface_rho_total_in";
+    constexpr char kAffineSurfaceRhoTotalOutBranchName[] = "affine_surface_rho_total_out";
 
   }  // namespace
 
@@ -151,10 +158,17 @@ namespace blastwave::io {
     tree.Branch(kAffineHInEffBranchName, &branches.affineHInEff, "affine_h_in_eff/D");
     tree.Branch(kAffineHOutEffBranchName, &branches.affineHOutEff, "affine_h_out_eff/D");
     tree.Branch(kAffineUMaxBranchName, &branches.affineUMax, "affine_u_max/D");
+    tree.Branch(kAffineEffectiveModeBranchName, &branches.affineEffectiveMode, "affine_effective_mode/I");
     tree.Branch(kAffineSurfaceBetaInRawBranchName, &branches.affineSurfaceBetaInRaw, "affine_surface_beta_in_raw/D");
     tree.Branch(kAffineSurfaceBetaOutRawBranchName, &branches.affineSurfaceBetaOutRaw, "affine_surface_beta_out_raw/D");
     tree.Branch(kAffineSurfaceBetaInClippedBranchName, &branches.affineSurfaceBetaInClipped, "affine_surface_beta_in_clipped/D");
     tree.Branch(kAffineSurfaceBetaOutClippedBranchName, &branches.affineSurfaceBetaOutClipped, "affine_surface_beta_out_clipped/D");
+    tree.Branch(kAffineSurfaceRhoBaseBranchName, &branches.affineSurfaceRhoBase, "affine_surface_rho_base/D");
+    tree.Branch(kAffineSurfaceRhoGeomIsoBranchName, &branches.affineSurfaceRhoGeomIso, "affine_surface_rho_geom_iso/D");
+    tree.Branch(kAffineSurfaceRhoGeomInBranchName, &branches.affineSurfaceRhoGeomIn, "affine_surface_rho_geom_in/D");
+    tree.Branch(kAffineSurfaceRhoGeomOutBranchName, &branches.affineSurfaceRhoGeomOut, "affine_surface_rho_geom_out/D");
+    tree.Branch(kAffineSurfaceRhoTotalInBranchName, &branches.affineSurfaceRhoTotalIn, "affine_surface_rho_total_in/D");
+    tree.Branch(kAffineSurfaceRhoTotalOutBranchName, &branches.affineSurfaceRhoTotalOut, "affine_surface_rho_total_out/D");
   }
 
   void bindEventBranches(TTree &tree, EventBranches &branches) {
@@ -235,10 +249,17 @@ namespace blastwave::io {
     tree.SetBranchAddress(kAffineHInEffBranchName, &branches.affineHInEff);
     tree.SetBranchAddress(kAffineHOutEffBranchName, &branches.affineHOutEff);
     tree.SetBranchAddress(kAffineUMaxBranchName, &branches.affineUMax);
+    tree.SetBranchAddress(kAffineEffectiveModeBranchName, &branches.affineEffectiveMode);
     tree.SetBranchAddress(kAffineSurfaceBetaInRawBranchName, &branches.affineSurfaceBetaInRaw);
     tree.SetBranchAddress(kAffineSurfaceBetaOutRawBranchName, &branches.affineSurfaceBetaOutRaw);
     tree.SetBranchAddress(kAffineSurfaceBetaInClippedBranchName, &branches.affineSurfaceBetaInClipped);
     tree.SetBranchAddress(kAffineSurfaceBetaOutClippedBranchName, &branches.affineSurfaceBetaOutClipped);
+    tree.SetBranchAddress(kAffineSurfaceRhoBaseBranchName, &branches.affineSurfaceRhoBase);
+    tree.SetBranchAddress(kAffineSurfaceRhoGeomIsoBranchName, &branches.affineSurfaceRhoGeomIso);
+    tree.SetBranchAddress(kAffineSurfaceRhoGeomInBranchName, &branches.affineSurfaceRhoGeomIn);
+    tree.SetBranchAddress(kAffineSurfaceRhoGeomOutBranchName, &branches.affineSurfaceRhoGeomOut);
+    tree.SetBranchAddress(kAffineSurfaceRhoTotalInBranchName, &branches.affineSurfaceRhoTotalIn);
+    tree.SetBranchAddress(kAffineSurfaceRhoTotalOutBranchName, &branches.affineSurfaceRhoTotalOut);
   }
 
 }  // namespace blastwave::io

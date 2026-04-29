@@ -7,6 +7,7 @@
 namespace blastwave {
 
   enum class FlowVelocitySamplerMode { CovarianceEllipse, DensityNormal, GradientResponse, AffineEffective };
+  enum class AffineEffectiveMode { AdditiveRho, FullTensor };
   struct EmissionSite;
   struct EventMedium;
 
@@ -52,6 +53,7 @@ namespace blastwave {
     double affineKappaFlow = 10.0;
     double affineKappaAniso = 1.0;
     double affineUMax = 0.95;
+    AffineEffectiveMode affineEffectiveMode = AffineEffectiveMode::AdditiveRho;
   };
 
   /**
@@ -74,6 +76,7 @@ namespace blastwave {
    */
   struct AffineEffectiveFlowInfo {
     bool valid = false;
+    AffineEffectiveMode affineEffectiveMode = AffineEffectiveMode::AdditiveRho;
     double hInEff = 0.0;
     double hOutEff = 0.0;
     double affineUMax = 0.0;
@@ -81,6 +84,12 @@ namespace blastwave {
     double surfaceBetaOutRaw = 0.0;
     double surfaceBetaInClipped = 0.0;
     double surfaceBetaOutClipped = 0.0;
+    double surfaceRhoBase = 0.0;
+    double surfaceRhoGeomIso = 0.0;
+    double surfaceRhoGeomIn = 0.0;
+    double surfaceRhoGeomOut = 0.0;
+    double surfaceRhoTotalIn = 0.0;
+    double surfaceRhoTotalOut = 0.0;
   };
 
   [[nodiscard]] FlowEllipseInfo computeFlowEllipseInfo(const std::vector<WeightedTransversePoint> &points);

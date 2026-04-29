@@ -10,6 +10,13 @@
 4. 让后续粒子抽样与 boost 仍使用原有代码框架，只替换/新增局域流速场定义。
 5. 保证平均膨胀和各向异性补偿可分离调节，便于标定。
 
+## 当前运行时映射（实现口径）
+
+- `flow-velocity-sampler = affine-effective` 仍限定 `density-evolution = affine-gaussian`。
+- 运行时默认 `affine-effective-mode = additive-rho`：方向复用 `density-normal`，并保留 `rho0` baseline。
+- `affine-effective-mode = full-tensor` 作为同一 sampler 的可选子模式。
+- `affine-kappa-aniso` 目前仅保留配置兼容和 finite 校验，在上述两个子模式中不再参与物理公式。
+
 ---
 
 ## 物理解释
@@ -48,7 +55,7 @@
   - 只作为“累计膨胀量 -> 有效膨胀率”的单位换算参数  
   - 不是事件内反解量
 - `kappa_flow`：整体流强度系数
-- `kappa_aniso`：各向异性补偿系数
+- `kappa_aniso`：历史方案中的各向异性补偿系数；当前运行时仅保留为 legacy/no-op 配置兼容项
 - `u_max`：局域横向速度上限（避免超光速）
 - `radial_profile(tilde_r)`：径向强度轮廓函数，建议单调递增
 - `shell_weight(x, y)`：可选的壳层发射权重
@@ -98,9 +105,9 @@ G_{\rm out} = \frac{\sigma_{\rm out}^f}{\sigma_{\rm out}^0}
 
 ---
 
-### 3. 各向异性补偿后的有效膨胀率
+### 3. 历史方案：各向异性补偿后的有效膨胀率（当前运行时已 supersede）
 
-用一个单独参数 `kappa_aniso` 调节各向异性部分，而尽量不改变平均膨胀：
+原始设计曾用一个单独参数 `kappa_aniso` 调节各向异性部分，而尽量不改变平均膨胀：
 
 \[
 H_{\rm in}^{\rm eff} =
@@ -118,7 +125,9 @@ H_{\rm out}^{\rm eff} =
 - `kappa_aniso > 1`：增强各向异性流补偿
 - `kappa_aniso < 1`：减弱各向异性流补偿
 
-这一步是本方案的关键：  
+当前代码不再采用本节公式。运行时以 `affine-effective-mode` 分支为准：`additive-rho` 使用 `rho0` baseline 加几何快度修正，`full-tensor` 使用完整主轴张量速度场；`affine-kappa-aniso` 仅做配置兼容和 finite 校验。
+
+这一步是原始方案的关键：
 **只放大/缩小各向异性部分，不直接重写整个流场。**
 
 ---
@@ -293,16 +302,19 @@ w_{\rm shell} = g(\tilde r)
 - 不从 `lambda_in/out` 直接生成流场
 
 ### 待调参数
-- `kappa_flow`：整体流强度
-- `kappa_aniso`：各向异性流补偿强度
+- `affine-effective-mode`：选择当前运行时闭合分支，默认 `additive-rho`，可选 `full-tensor`
+- `kappa_flow`：整体几何流强度
+- `rho0`：仅在 `additive-rho` 中作为 baseline 平均流强
+- `kappa_aniso`：历史方案各向异性补偿强度；当前两个运行时分支中为 legacy/no-op
 - `radial_profile`
 - `shell_weight`
 
 ### 推荐调参顺序
 1. 先固定 `DeltaTauRef`
-2. 调 `kappa_flow` 使平均横向流强度落入目标区间
-3. 调 `kappa_aniso` 使 \(v_2\)、\(\phi\) 分布、freeze-out 偏心率同时更接近目标
-4. 最后调 `shell_weight` 抑制内核洗平效应
+2. 先选择 `affine-effective-mode`：默认 `additive-rho` 保留传统 `rho0` 平均流强；若要直接测试完整张量速度场才切到 `full-tensor`
+3. 在 `additive-rho` 中联合调 `rho0` 与 `kappa_flow`，使平均横向流强和 \(v_2\) 落入目标区间
+4. 若使用 `full-tensor`，主要调 `kappa_flow` 与 `u_max`，不要期望 `rho0` 或 `kappa_aniso` 生效
+5. 最后调 `shell_weight` 抑制内核洗平效应
 
 ---
 
@@ -358,7 +370,7 @@ w_{\rm shell} = g(\tilde r)
 
 1. affine 方案仍主要决定 freeze-out 几何
 2. 流场补偿主要改变动量各向异性，而不是重新塑造几何
-3. 调 `kappa_aniso` 时，平均膨胀不应被大幅破坏
+3. 调 `rho0`、`kappa_flow` 或切换 `affine-effective-mode` 时，平均膨胀不应被大幅破坏
 4. 加入壳层权重后，\(\phi\) 分布调制应增强，但几何主轴与整体拓扑不应明显漂移
 
 ---
@@ -370,6 +382,6 @@ w_{\rm shell} = g(\tilde r)
 - 将 affine 结果视为 **累计几何变形**
 - 使用实际输出宽度构造 **积分膨胀量**
 - 通过一个固定参考时间将其映射为 **有效膨胀率**
-- 再用一个可控的各向异性补偿参数，将几何各向异性转换为可用于抽样的 **有效横向流场**
+- 再通过 `additive-rho` 或 `full-tensor` 运行时分支，将几何各向异性转换为可用于抽样的 **有效横向流场**
 
 这不是对真实流体动力学的唯一反演，而是一个与现有 affine 代码兼容、可调、物理解释清晰的 **effective closure**。

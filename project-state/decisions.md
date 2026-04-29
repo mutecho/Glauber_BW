@@ -242,10 +242,51 @@
     - `affine-kappa-flow`
     - `affine-kappa-aniso`
     - `affine-u-max`
-  - keep `rho0`, `kappa2`, and `density-normal-kappa-compensation` public for other samplers, but intentionally unused by `affine-effective`
+  - keep `kappa2` and `density-normal-kappa-compensation` public for other samplers, but intentionally unused by `affine-effective`
+  - the initial rollout treated `rho0` as unused by `affine-effective`; DEC-013 supersedes that formula by making `rho0` active in `additive-rho` and ignored only in `full-tensor`
   - extend optional `debug-flow-ellipse` serialization and independent QA so affine closure diagnostics are validated only when present
   - keep `shell_weight` and `EmissionSite::emissionWeight` restructuring out of scope for this first affine-effective rollout
 - Consequences:
   - the default `affine-gaussian + covariance-ellipse` runtime stays stable while affine-effective scans become reproducible from config files
   - future closure-driven flow variants should continue to use the `EventMedium -> FlowFieldModel` boundary rather than smuggling affine diagnostics through unrelated geometry structs
   - any later weighting or surface-sampling redesign must be documented as a separate contract change instead of being implied by the current closure-only sampler
+  - Superseded by DEC-013 for the internal affine-effective velocity formula and `affine-kappa-aniso` semantics; the sampler existence and closure boundary remain accepted.
+
+## DEC-013 Split Affine-Effective Into Additive-Rho And Full-Tensor Modes
+
+- Status: accepted
+- Date: 2026-04-29
+- Context:
+  - the initial DEC-012 sampler boundary was useful, but its first formula used `lambdaBar ± affineKappaAniso * deltaLambda` and did not preserve `rho0` as the average-flow baseline
+  - the current execution plan required scheme 2 as the default while keeping scheme 1 available under the same top-level sampler
+  - debug output and QA needed enough mode-specific diagnostics to distinguish additive-rho decomposition from direct tensor velocity closure
+- Decision:
+  - keep `flow-velocity-sampler = affine-effective` as the opt-in sampler and keep the `EventMedium::affineEffectiveClosure -> FlowFieldModel` boundary from DEC-012
+  - add public `affine-effective-mode = additive-rho | full-tensor`, defaulting to `additive-rho`
+  - define shared closure rates as `H_in_eff = lambdaIn / affineDeltaTauRef` and `H_out_eff = lambdaOut / affineDeltaTauRef`
+  - make `additive-rho` use the existing density-normal direction logic and preserve `rho0 * pow(rTilde, flowPower)` as the baseline rapidity before adding the affine geometry correction
+  - keep `full-tensor` as the opt-in principal-axis tensor velocity field
+  - keep `affine-kappa-aniso` parsed and finite-validated for old configs, but make it legacy/no-op for both current affine-effective modes
+  - extend `flow_ellipse_debug` with `affine_effective_mode` plus additive-rho surface rapidity decomposition diagnostics
+- Consequences:
+  - `rho0` is effective in `additive-rho` and ignored by `full-tensor`
+  - `kappa2` and `density-normal-kappa-compensation` remain ineffective for affine-effective
+  - QA now validates mode-specific surface diagnostics instead of treating old `lambdaBar/deltaLambda` quantities as formula inputs
+  - any future removal of `affine-kappa-aniso` compatibility parsing should be a separate public-config contract change
+
+## DEC-014 Add Affine-Effective Before/After Density Maps
+
+- Status: accepted
+- Date: 2026-04-29
+- Context:
+  - affine-effective runs already depend on the `affine-gaussian` before/after density fields, but the ROOT output did not provide a direct visual comparison of those two transverse maps
+  - the user requested two x-y density maps for affine-effective output, rendered in ROOT lego style
+- Decision:
+  - when `flow-velocity-sampler = affine-effective`, write a first-valid-event pair of TH2 density maps:
+    - `affine_effective_density_initial_x-y` for the pre-evolution `s0` field
+    - `affine_effective_density_final_x-y` for the post-evolution freeze-out `sf` field
+  - set both histograms' default draw option to `LEGO1`
+  - make QA treat the pair as an all-or-none optional payload and validate TH2 type, non-negative finite bin contents, positive support, and a 3D draw option
+- Consequences:
+  - affine-effective output now exposes the density-shape evolution directly without changing the mandatory `events` or `particles` trees
+  - the maps are diagnostic first-event snapshots, not event-averaged density observables

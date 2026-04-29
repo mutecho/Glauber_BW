@@ -106,6 +106,8 @@ namespace {
     requireNear(parsed.runOptions.config.affineKappaFlow, 10.0, 1.0e-12, "Default affine kappa-flow should stay 10.0.");
     requireNear(parsed.runOptions.config.affineKappaAniso, 1.0, 1.0e-12, "Default affine kappa-aniso should stay 1.0.");
     requireNear(parsed.runOptions.config.affineUMax, 0.95, 1.0e-12, "Default affine-u-max should stay 0.95.");
+    require(parsed.runOptions.config.affineEffectiveMode == blastwave::AffineEffectiveMode::AdditiveRho,
+            "Default affine-effective-mode should be additive-rho.");
     requireNear(parsed.runOptions.config.gradientSigmaEm, 0.0, 1.0e-12, "Default gradient sigma em should stay disabled.");
     requireNear(parsed.runOptions.config.gradientSigmaDyn, 1.0, 1.0e-12, "Default gradient sigma dyn should stay 1.0 fm.");
     requireNear(parsed.runOptions.config.gradientDensityFloorFraction, 1.0e-4, 1.0e-16, "Default gradient density floor fraction mismatch.");
@@ -234,14 +236,35 @@ namespace {
                                                     "--affine-kappa-aniso",
                                                     "1.7",
                                                     "--affine-u-max",
-                                                    "0.72"});
+                                                    "0.72",
+                                                    "--affine-effective-mode",
+                                                    "full-tensor"});
     require(parsed.runOptions.config.flowVelocitySamplerMode == blastwave::FlowVelocitySamplerMode::AffineEffective,
             "CLI should accept affine-effective as a flow-velocity sampler.");
     requireNear(parsed.runOptions.config.affineDeltaTauRef, 8.5, 1.0e-12, "CLI affine-delta-tau-ref parse mismatch.");
     requireNear(parsed.runOptions.config.affineKappaFlow, 9.0, 1.0e-12, "CLI affine-kappa-flow parse mismatch.");
     requireNear(parsed.runOptions.config.affineKappaAniso, 1.7, 1.0e-12, "CLI affine-kappa-aniso parse mismatch.");
     requireNear(parsed.runOptions.config.affineUMax, 0.72, 1.0e-12, "CLI affine-u-max parse mismatch.");
+    require(parsed.runOptions.config.affineEffectiveMode == blastwave::AffineEffectiveMode::FullTensor,
+            "CLI affine-effective-mode parse mismatch.");
     requireGeneratorValidationSuccess(parsed.runOptions.config, "Affine-effective affine-gaussian combination should pass generator validation.");
+  }
+
+  void runAffineEffectiveModeConfigAndOverrideParseTest() {
+    const TemporaryConfigFile configFile(
+        "flow-velocity-sampler = affine-effective\n"
+        "density-evolution = affine-gaussian\n"
+        "affine-effective-mode = full-tensor\n"
+        "affine-kappa-aniso = 9.0\n");
+    const ParsedRunOptions configOnly = parseArguments({configFile.path().string()});
+    require(configOnly.runOptions.config.affineEffectiveMode == blastwave::AffineEffectiveMode::FullTensor,
+            "Config affine-effective-mode should parse full-tensor.");
+    requireNear(configOnly.runOptions.config.affineKappaAniso, 9.0, 1.0e-12, "Config affine-kappa-aniso parse mismatch.");
+    requireGeneratorValidationSuccess(configOnly.runOptions.config, "Legacy affine-kappa-aniso should remain validation-compatible.");
+
+    const ParsedRunOptions cliOverride = parseArguments({configFile.path().string(), "--affine-effective-mode", "additive-rho"});
+    require(cliOverride.runOptions.config.affineEffectiveMode == blastwave::AffineEffectiveMode::AdditiveRho,
+            "CLI affine-effective-mode should override config value.");
   }
 
   void runGradientCliOverrideParseTest() {
@@ -314,6 +337,16 @@ namespace {
       threw = true;
     }
     require(threw, "Invalid density-evolution mode should be rejected.");
+  }
+
+  void runInvalidAffineEffectiveModeRejectsTest() {
+    bool threw = false;
+    try {
+      static_cast<void>(parseArguments({"--affine-effective-mode", "invalid-mode"}));
+    } catch (const std::invalid_argument &) {
+      threw = true;
+    }
+    require(threw, "Invalid affine-effective-mode should be rejected.");
   }
 
   void runInvalidCooperFryeWeightRejectsTest() {
@@ -501,9 +534,11 @@ int main() {
     runConfigAndOverrideParseTest();
     runGradientConfigParseTest();
     runAffineEffectiveParseTest();
+    runAffineEffectiveModeConfigAndOverrideParseTest();
     runGradientCliOverrideParseTest();
     runInvalidSamplerRejectsTest();
     runInvalidDensityEvolutionRejectsTest();
+    runInvalidAffineEffectiveModeRejectsTest();
     runInvalidCooperFryeWeightRejectsTest();
     runDensityNormalKappaCompensationConfigParseTest();
     runDensityFlowMismatchRejectsTest();

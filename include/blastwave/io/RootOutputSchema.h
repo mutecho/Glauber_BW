@@ -28,6 +28,8 @@ namespace blastwave::io {
   inline constexpr char kParticipantXYHistogramName[] = "participant_x-y";
   inline constexpr char kFlowEllipseParticipantNormXYHistogramName[] = "flow_ellipse_participant_norm_x-y";
   inline constexpr char kDensityNormalEventDensityHistogramName[] = "density_normal_event_density_x-y";
+  inline constexpr char kAffineEffectiveInitialDensityHistogramName[] = "affine_effective_density_initial_x-y";
+  inline constexpr char kAffineEffectiveFinalDensityHistogramName[] = "affine_effective_density_final_x-y";
   inline constexpr char kGradientS0HistogramName[] = "gradient_s0_x-y";
   inline constexpr char kGradientSEmHistogramName[] = "gradient_s_em_x-y";
   inline constexpr char kGradientSDynHistogramName[] = "gradient_s_dyn_x-y";
@@ -120,10 +122,17 @@ namespace blastwave::io {
     Double_t affineHInEff = 0.0;
     Double_t affineHOutEff = 0.0;
     Double_t affineUMax = 0.0;
+    Int_t affineEffectiveMode = 0;
     Double_t affineSurfaceBetaInRaw = 0.0;
     Double_t affineSurfaceBetaOutRaw = 0.0;
     Double_t affineSurfaceBetaInClipped = 0.0;
     Double_t affineSurfaceBetaOutClipped = 0.0;
+    Double_t affineSurfaceRhoBase = 0.0;
+    Double_t affineSurfaceRhoGeomIso = 0.0;
+    Double_t affineSurfaceRhoGeomIn = 0.0;
+    Double_t affineSurfaceRhoGeomOut = 0.0;
+    Double_t affineSurfaceRhoTotalIn = 0.0;
+    Double_t affineSurfaceRhoTotalOut = 0.0;
   };
 
   void declareEventBranches(TTree &tree, EventBranches &branches);

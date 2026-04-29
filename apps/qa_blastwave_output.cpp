@@ -49,6 +49,32 @@ namespace {
     return blastwave::computeCentralityPercent(impactParameter, woodsSaxonRadius);
   }
 
+  // Optional density snapshots are diagnostic TH2 objects; when present they
+  // must be finite, non-negative, visible in 3D by default, and non-empty.
+  void validateDensityMapHistogram(const TH2 &histogram, const std::string &objectName) {
+    const std::string drawOption = toUpperCopy(histogram.GetOption());
+    if (drawOption.find("LEGO") == std::string::npos && drawOption.find("SURF") == std::string::npos) {
+      throw std::runtime_error(objectName + " must default to a 3D ROOT draw option.");
+    }
+
+    bool sawPositiveDensityBin = false;
+    for (int iBinX = 1; iBinX <= histogram.GetNbinsX(); ++iBinX) {
+      for (int iBinY = 1; iBinY <= histogram.GetNbinsY(); ++iBinY) {
+        const double binContent = histogram.GetBinContent(iBinX, iBinY);
+        if (!isFinite(binContent)) {
+          throw std::runtime_error(objectName + " contains NaN/Inf bin content.");
+        }
+        if (binContent < 0.0) {
+          throw std::runtime_error(objectName + " contains a negative density bin.");
+        }
+        sawPositiveDensityBin = sawPositiveDensityBin || binContent > 0.0;
+      }
+    }
+    if (!sawPositiveDensityBin) {
+      throw std::runtime_error(objectName + " must contain at least one positive density bin.");
+    }
+  }
+
 }  // namespace
 
 int main(int argc, char **argv) {
@@ -217,6 +243,19 @@ int main(int argc, char **argv) {
     auto *densityNormalEventDensityInput = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kDensityNormalEventDensityHistogramName));
     if (inputFile.Get(blastwave::io::kDensityNormalEventDensityHistogramName) != nullptr && densityNormalEventDensityInput == nullptr) {
       throw std::runtime_error("Input object 'density_normal_event_density_x-y' is not a TH2.");
+    }
+    auto *affineEffectiveInitialDensityInput = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kAffineEffectiveInitialDensityHistogramName));
+    auto *affineEffectiveFinalDensityInput = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kAffineEffectiveFinalDensityHistogramName));
+    if (inputFile.Get(blastwave::io::kAffineEffectiveInitialDensityHistogramName) != nullptr && affineEffectiveInitialDensityInput == nullptr) {
+      throw std::runtime_error("Input object 'affine_effective_density_initial_x-y' is not a TH2.");
+    }
+    if (inputFile.Get(blastwave::io::kAffineEffectiveFinalDensityHistogramName) != nullptr && affineEffectiveFinalDensityInput == nullptr) {
+      throw std::runtime_error("Input object 'affine_effective_density_final_x-y' is not a TH2.");
+    }
+    const bool hasAnyAffineEffectiveDensityMap = affineEffectiveInitialDensityInput != nullptr || affineEffectiveFinalDensityInput != nullptr;
+    if (hasAnyAffineEffectiveDensityMap && (affineEffectiveInitialDensityInput == nullptr || affineEffectiveFinalDensityInput == nullptr)) {
+      throw std::runtime_error(
+          "Affine-effective density map payload must contain both histograms: affine_effective_density_initial_x-y, affine_effective_density_final_x-y.");
     }
     auto *gradientS0Input = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kGradientS0HistogramName));
     auto *gradientSEmInput = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kGradientSEmHistogramName));
@@ -505,7 +544,13 @@ int main(int argc, char **argv) {
                                  flowEllipseBranches.affineSurfaceBetaInRaw,
                                  flowEllipseBranches.affineSurfaceBetaOutRaw,
                                  flowEllipseBranches.affineSurfaceBetaInClipped,
-                                 flowEllipseBranches.affineSurfaceBetaOutClipped};
+                                 flowEllipseBranches.affineSurfaceBetaOutClipped,
+                                 flowEllipseBranches.affineSurfaceRhoBase,
+                                 flowEllipseBranches.affineSurfaceRhoGeomIso,
+                                 flowEllipseBranches.affineSurfaceRhoGeomIn,
+                                 flowEllipseBranches.affineSurfaceRhoGeomOut,
+                                 flowEllipseBranches.affineSurfaceRhoTotalIn,
+                                 flowEllipseBranches.affineSurfaceRhoTotalOut};
         for (double field : fields) {
           if (!isFinite(field)) {
             throw std::runtime_error("Detected NaN/Inf in flow_ellipse_debug tree.");
@@ -550,17 +595,82 @@ int main(int argc, char **argv) {
           if (!(flowEllipseBranches.affineUMax > 0.0 && flowEllipseBranches.affineUMax < 1.0)) {
             throw std::runtime_error("affine-effective debug affine_u_max must satisfy 0 < u_max < 1.");
           }
+          if (flowEllipseBranches.affineEffectiveMode != 0 && flowEllipseBranches.affineEffectiveMode != 1) {
+            throw std::runtime_error("affine_effective_mode must be 0(additive-rho) or 1(full-tensor).");
+          }
+
           const double rawSurfaceBetas[] = {flowEllipseBranches.affineSurfaceBetaInRaw, flowEllipseBranches.affineSurfaceBetaOutRaw};
           const double clippedSurfaceBetas[] = {flowEllipseBranches.affineSurfaceBetaInClipped, flowEllipseBranches.affineSurfaceBetaOutClipped};
           for (int iAxis = 0; iAxis < 2; ++iAxis) {
-            if (rawSurfaceBetas[iAxis] < 0.0 || clippedSurfaceBetas[iAxis] < 0.0) {
-              throw std::runtime_error("affine-effective surface beta diagnostics must be non-negative magnitudes.");
+            if (rawSurfaceBetas[iAxis] < -1.0e-9 || clippedSurfaceBetas[iAxis] < -1.0e-9) {
+              throw std::runtime_error("affine-effective surface beta diagnostics must stay non-negative.");
             }
             if (clippedSurfaceBetas[iAxis] > flowEllipseBranches.affineUMax + 1.0e-9) {
               throw std::runtime_error("affine-effective clipped surface beta exceeds affine_u_max.");
             }
             if (!nearlyEqual(clippedSurfaceBetas[iAxis], std::min(rawSurfaceBetas[iAxis], flowEllipseBranches.affineUMax), 1.0e-9)) {
               throw std::runtime_error("affine-effective clipped surface beta must equal min(raw, affine_u_max).");
+            }
+          }
+
+          double inferredDeltaTau = 0.0;
+          bool hasInferredDeltaTau = false;
+          if (std::abs(flowEllipseBranches.affineHInEff) > 1.0e-12) {
+            inferredDeltaTau = flowEllipseBranches.affineLambdaIn / flowEllipseBranches.affineHInEff;
+            hasInferredDeltaTau = true;
+          }
+          if (std::abs(flowEllipseBranches.affineHOutEff) > 1.0e-12) {
+            const double deltaTauFromOut = flowEllipseBranches.affineLambdaOut / flowEllipseBranches.affineHOutEff;
+            if (!hasInferredDeltaTau) {
+              inferredDeltaTau = deltaTauFromOut;
+              hasInferredDeltaTau = true;
+            } else if (!nearlyEqual(inferredDeltaTau, deltaTauFromOut, 1.0e-9)) {
+              throw std::runtime_error("affine hInEff/hOutEff imply inconsistent affineDeltaTauRef values.");
+            }
+          }
+          if (!hasInferredDeltaTau || !isFinite(inferredDeltaTau) || inferredDeltaTau <= 0.0) {
+            throw std::runtime_error("affine hInEff/hOutEff must imply a finite positive affineDeltaTauRef.");
+          }
+
+          if (flowEllipseBranches.affineEffectiveMode == 0) {
+            const double rhoTotalIn = std::max(0.0,
+                                               flowEllipseBranches.affineSurfaceRhoBase + flowEllipseBranches.affineSurfaceRhoGeomIn
+                                                   - flowEllipseBranches.affineSurfaceRhoGeomIso);
+            const double rhoTotalOut = std::max(0.0,
+                                                flowEllipseBranches.affineSurfaceRhoBase + flowEllipseBranches.affineSurfaceRhoGeomOut
+                                                    - flowEllipseBranches.affineSurfaceRhoGeomIso);
+            if (!nearlyEqual(flowEllipseBranches.affineSurfaceRhoTotalIn, rhoTotalIn, 1.0e-9)
+                || !nearlyEqual(flowEllipseBranches.affineSurfaceRhoTotalOut, rhoTotalOut, 1.0e-9)) {
+              throw std::runtime_error("additive-rho surface rho decomposition is inconsistent.");
+            }
+            if (!nearlyEqual(flowEllipseBranches.affineSurfaceBetaInRaw, std::tanh(flowEllipseBranches.affineSurfaceRhoTotalIn), 1.0e-9)
+                || !nearlyEqual(flowEllipseBranches.affineSurfaceBetaOutRaw, std::tanh(flowEllipseBranches.affineSurfaceRhoTotalOut), 1.0e-9)) {
+              throw std::runtime_error("additive-rho surface beta raw must equal tanh(surface rho total).");
+            }
+          } else {
+            double inferredKappaFlow = 0.0;
+            bool hasInferredKappaFlow = false;
+            const double denominatorIn = std::abs(flowEllipseBranches.affineHInEff * flowEllipseBranches.affineSigmaInF);
+            if (denominatorIn > 1.0e-12) {
+              inferredKappaFlow = flowEllipseBranches.affineSurfaceBetaInRaw / denominatorIn;
+              hasInferredKappaFlow = true;
+            }
+            const double denominatorOut = std::abs(flowEllipseBranches.affineHOutEff * flowEllipseBranches.affineSigmaOutF);
+            if (denominatorOut > 1.0e-12) {
+              const double kappaFromOut = flowEllipseBranches.affineSurfaceBetaOutRaw / denominatorOut;
+              if (!hasInferredKappaFlow) {
+                inferredKappaFlow = kappaFromOut;
+                hasInferredKappaFlow = true;
+              } else if (!nearlyEqual(inferredKappaFlow, kappaFromOut, 1.0e-9)) {
+                throw std::runtime_error("full-tensor surface beta raw implies inconsistent affineKappaFlow values.");
+              }
+            }
+            if (!hasInferredKappaFlow) {
+              if (std::abs(flowEllipseBranches.affineSurfaceBetaInRaw) > 1.0e-9 || std::abs(flowEllipseBranches.affineSurfaceBetaOutRaw) > 1.0e-9) {
+                throw std::runtime_error("full-tensor surface beta raw must vanish when both principal-axis denominators vanish.");
+              }
+            } else if (!isFinite(inferredKappaFlow)) {
+              throw std::runtime_error("full-tensor surface beta raw implies a non-finite affineKappaFlow.");
             }
           }
         }
@@ -594,27 +704,12 @@ int main(int argc, char **argv) {
     }
 
     if (densityNormalEventDensityInput != nullptr) {
-      const std::string drawOption = toUpperCopy(densityNormalEventDensityInput->GetOption());
-      if (drawOption.find("LEGO") == std::string::npos && drawOption.find("SURF") == std::string::npos) {
-        throw std::runtime_error("density_normal_event_density_x-y must default to a 3D ROOT draw option.");
-      }
+      validateDensityMapHistogram(*densityNormalEventDensityInput, blastwave::io::kDensityNormalEventDensityHistogramName);
+    }
 
-      bool sawPositiveDensityBin = false;
-      for (int iBinX = 1; iBinX <= densityNormalEventDensityInput->GetNbinsX(); ++iBinX) {
-        for (int iBinY = 1; iBinY <= densityNormalEventDensityInput->GetNbinsY(); ++iBinY) {
-          const double binContent = densityNormalEventDensityInput->GetBinContent(iBinX, iBinY);
-          if (!isFinite(binContent)) {
-            throw std::runtime_error("density_normal_event_density_x-y contains NaN/Inf bin content.");
-          }
-          if (binContent < 0.0) {
-            throw std::runtime_error("density_normal_event_density_x-y contains a negative density bin.");
-          }
-          sawPositiveDensityBin = sawPositiveDensityBin || binContent > 0.0;
-        }
-      }
-      if (!sawPositiveDensityBin) {
-        throw std::runtime_error("density_normal_event_density_x-y must contain at least one positive density bin.");
-      }
+    if (affineEffectiveInitialDensityInput != nullptr) {
+      validateDensityMapHistogram(*affineEffectiveInitialDensityInput, blastwave::io::kAffineEffectiveInitialDensityHistogramName);
+      validateDensityMapHistogram(*affineEffectiveFinalDensityInput, blastwave::io::kAffineEffectiveFinalDensityHistogramName);
     }
 
     const double eventCount = static_cast<double>(eventsTree->GetEntries());

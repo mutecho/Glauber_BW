@@ -41,6 +41,7 @@ Do not turn this file back into a second copy of `docs/项目说明.md`.
 - optional affine-effective closure path:
   - `density-evolution = affine-gaussian`
   - `flow-velocity-sampler = affine-effective`
+  - default `affine-effective-mode = additive-rho`, optional `full-tensor`
 - optional coupled V2 path:
   - `density-evolution = gradient-response`
   - `flow-velocity-sampler = gradient-response`
@@ -94,7 +95,10 @@ For exact example commands, use `docs/项目说明.md`.
 - `events.v2` is the event-level final-state summary observable.
 - differential `v2{2}(pT)` is a separate analysis payload and currently uses unit track weights only.
 - `density-normal-kappa-compensation` is opt-in and only meaningful for `affine-gaussian + density-normal`.
-- `affine-effective` is opt-in, only valid for `affine-gaussian`, and intentionally ignores `rho0`, `kappa2`, and `density-normal-kappa-compensation`.
+- `affine-effective` is opt-in and only valid for `affine-gaussian`.
+- `affine-effective-mode = additive-rho` keeps density-normal direction and keeps `rho0` as baseline average flow.
+- `affine-effective-mode = full-tensor` is opt-in and directly uses principal-axis tensor velocity closure.
+- `affine-kappa-aniso` remains parse/finite-compatible but is legacy/no-op in both affine-effective modes.
 - `gradient-response` medium and flow are intentionally coupled; enabling only one side is invalid.
 - `v2pt-output-mode = separate-file` may leave the main result file in a metadata-only state with `v2_2_pt_edges` but without `v2_2_pt` or `v2_2_pt_canvas`.
 - sandboxed `alienv` ROOT smoke output on this machine is not authoritative when PCM/module noise appears; rerun outside the sandbox.
@@ -120,6 +124,7 @@ For exact example commands, use `docs/项目说明.md`.
   - `emission_weight`
 - optional payload groups:
   - flow-ellipse debug objects, optionally extended with affine closure diagnostics
+  - affine-effective before/after density maps for the first valid event
   - density-normal event-density snapshot
   - gradient-response debug histograms
   - differential `v2{2}(pT)` metadata and analysis objects

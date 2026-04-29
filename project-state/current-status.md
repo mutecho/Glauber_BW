@@ -4,9 +4,9 @@
 
 - Date: 2026-04-29
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
-- Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in affine-effective closure path, the opt-in V2 gradient-response path, and optional differential `v2{2}(pT)` analysis.
-- Latest durable verification anchor: 2026-04-29 outside-sandbox ROOT validation and local `ctest` evidence summarized in `project-state/tests.md`.
-- This task added a new opt-in affine-effective flow sampler, extended optional debug/QA coverage, and refreshed the synchronized docs/state files.
+- Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in affine-effective closure path with `additive-rho` and `full-tensor` submodes, the opt-in V2 gradient-response path, and optional differential `v2{2}(pT)` analysis.
+- Latest durable verification anchor: 2026-04-29 O2Physics build, local `ctest`, outside-sandbox O2Physics ROOT validation, and ROOT file inspection summarized in `project-state/tests.md`.
+- This task extended affine-effective output with first-valid-event before/after x-y density maps rendered by default as ROOT lego plots.
 
 ## Current Runtime Baseline
 
@@ -19,6 +19,8 @@
 - opt-in affine-effective closure path:
   - `density-evolution = affine-gaussian`
   - `flow-velocity-sampler = affine-effective`
+  - `affine-effective-mode = additive-rho` by default
+  - `affine-effective-mode = full-tensor` as opt-in tensor closure
 - opt-in V2 path:
   - `density-evolution = gradient-response`
   - `flow-velocity-sampler = gradient-response`
@@ -52,7 +54,8 @@
   - `particles.y0`
   - `particles.emission_weight`
 - optional payload groups:
-  - flow-ellipse debug objects, including affine closure diagnostics when `affine-effective` is selected
+  - flow-ellipse debug objects, including affine mode encoding, closure diagnostics, and additive-rho surface decomposition when `affine-effective` is selected
+  - affine-effective density maps `affine_effective_density_initial_x-y` and `affine_effective_density_final_x-y`, captured as a first-valid-event pair with `LEGO1` default draw options
   - `density_normal_event_density_x-y`
   - V2 gradient debug histograms
   - `v2_2_pt_edges`
@@ -72,7 +75,9 @@
   - default V1a generation + QA
   - legacy `none` comparison
   - affine `density-normal` default and compensated cases
-  - affine-effective generation + QA with debug-flow-ellipse enabled
+  - affine-effective `additive-rho` generation + QA with debug-flow-ellipse enabled
+  - affine-effective `full-tensor` generation + QA with debug-flow-ellipse enabled
+  - affine-effective before/after density map presence and QA validation
   - V2 gradient-response path
   - differential `v2{2}(pT)` same-file and separate-file modes
   - standalone differential post-processing

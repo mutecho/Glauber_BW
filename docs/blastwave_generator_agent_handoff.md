@@ -11,7 +11,8 @@
 - An opt-in affine-effective closure flow sampler is now available:
   - `density-evolution = affine-gaussian`
   - `flow-velocity-sampler = affine-effective`
-  It recovers event-level in/out growth rates from the initial and freeze-out covariance semi-axes and turns them into an effective local flow field.
+  - `affine-effective-mode = additive-rho|full-tensor`
+  It recovers event-level in/out growth rates from the initial and freeze-out covariance semi-axes and turns them into an effective local flow field. The default `additive-rho` mode keeps the density-normal direction and uses `rho0` as the baseline average flow; `full-tensor` is opt-in and directly maps the principal-axis tensor velocity field.
 - V2 `GradientResponse` is now available as an opt-in coupled medium/flow mode:
   - `density-evolution = gradient-response`
   - `flow-velocity-sampler = gradient-response`
@@ -34,8 +35,9 @@
   - `flow-density-sigma`
   - `affine-delta-tau-ref`
   - `affine-kappa-flow`
-  - `affine-kappa-aniso`
+  - `affine-kappa-aniso` as a legacy/no-op affine-effective compatibility key
   - `affine-u-max`
+  - `affine-effective-mode`
   - `debug-flow-ellipse`
   - V2 `gradient-*` parameters
   - `debug-gradient-response`
@@ -96,8 +98,9 @@
   - `--density-evolution <affine-gaussian|none|gradient-response>`
   - `--affine-delta-tau-ref`
   - `--affine-kappa-flow`
-  - `--affine-kappa-aniso`
+  - `--affine-kappa-aniso` (legacy/no-op for current affine-effective formulas)
   - `--affine-u-max`
+  - `--affine-effective-mode <additive-rho|full-tensor>`
   - `--debug-flow-ellipse`
   - `--no-debug-flow-ellipse`
   - `--gradient-sigma-em`
@@ -168,7 +171,7 @@
 - Optional debug payload, emitted only when `debug-flow-ellipse` is enabled:
   - `flow_ellipse_debug`
   - `flow_ellipse_participant_norm_x-y`
-  - when `flow-velocity-sampler = affine-effective`, `flow_ellipse_debug` also carries affine closure branches such as `affine_sigma_*`, `affine_growth_*`, `affine_lambda_*`, `affine_h_*`, and raw/clipped surface beta diagnostics
+  - when `flow-velocity-sampler = affine-effective`, `flow_ellipse_debug` also carries affine closure branches such as `affine_sigma_*`, `affine_growth_*`, `affine_lambda_*`, `affine_h_*`, `affine_effective_mode`, raw/clipped surface beta diagnostics, and additive-rho surface rapidity decomposition branches
 - Optional sampler-specific payload, emitted only when `flow-velocity-sampler = density-normal`:
   - `density_normal_event_density_x-y`
 - Optional V2 debug payload, emitted when `debug-gradient-response` is enabled and at least one event has participants and particles:
@@ -212,7 +215,7 @@
   - `test_physics_utils`
 - The current durable verification baseline is recorded in `project-state/current-status.md` and `project-state/tests.md`.
 - The authoritative runtime path on this machine is still the outside-sandbox O2Physics `alienv` path; sandboxed ROOT smoke output is not the source of truth when PCM/module noise appears.
-- The 2026-04-29 affine-effective baseline passed build, full CTest, authoritative default V1a generate+QA, and authoritative affine-effective generate+QA with `debug-flow-ellipse`.
+- The latest affine-effective correction keeps the previous sampler boundary but supersedes its internal formula: default `additive-rho`, opt-in `full-tensor`, and `affine-kappa-aniso` legacy/no-op compatibility.
 
 ## Remaining Follow-Up
 

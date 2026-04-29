@@ -38,6 +38,10 @@ namespace {
     return config.flowVelocitySamplerMode == blastwave::FlowVelocitySamplerMode::DensityNormal;
   }
 
+  bool shouldWriteAffineEffectiveDensityMaps(const blastwave::BlastWaveConfig &config) {
+    return config.flowVelocitySamplerMode == blastwave::FlowVelocitySamplerMode::AffineEffective;
+  }
+
   std::unique_ptr<TH2F> makeDensityNormalEventDensityHistogram(const blastwave::BlastWaveConfig &config) {
     const double extent = computeParticipantDisplayExtent(config);
     auto histogram = std::make_unique<TH2F>(blastwave::io::kDensityNormalEventDensityHistogramName,
@@ -50,6 +54,15 @@ namespace {
                                             extent);
     histogram->SetStats(false);
     histogram->SetOption("LEGO1");
+    return histogram;
+  }
+
+  std::unique_ptr<TH2F> makeAffineEffectiveDensityHistogram(const char *name, const char *title, const blastwave::BlastWaveConfig &config) {
+    const double extent = computeParticipantDisplayExtent(config);
+    auto histogram = std::make_unique<TH2F>(name, title, 200, -extent, extent, 200, -extent, extent);
+    histogram->SetStats(false);
+    histogram->SetOption("LEGO1");
+    histogram->SetDirectory(nullptr);
     return histogram;
   }
 
@@ -181,6 +194,7 @@ namespace {
           config.affineKappaFlow,
           config.affineKappaAniso,
           config.affineUMax,
+          config.affineEffectiveMode,
       };
       const blastwave::AffineEffectiveFlowInfo affineInfo = blastwave::computeAffineEffectiveFlowInfo(event.medium, flowParameters);
       if (affineInfo.valid) {
@@ -198,10 +212,17 @@ namespace {
         branches.affineHInEff = affineInfo.hInEff;
         branches.affineHOutEff = affineInfo.hOutEff;
         branches.affineUMax = affineInfo.affineUMax;
+        branches.affineEffectiveMode = affineInfo.affineEffectiveMode == blastwave::AffineEffectiveMode::FullTensor ? 1 : 0;
         branches.affineSurfaceBetaInRaw = affineInfo.surfaceBetaInRaw;
         branches.affineSurfaceBetaOutRaw = affineInfo.surfaceBetaOutRaw;
         branches.affineSurfaceBetaInClipped = affineInfo.surfaceBetaInClipped;
         branches.affineSurfaceBetaOutClipped = affineInfo.surfaceBetaOutClipped;
+        branches.affineSurfaceRhoBase = affineInfo.surfaceRhoBase;
+        branches.affineSurfaceRhoGeomIso = affineInfo.surfaceRhoGeomIso;
+        branches.affineSurfaceRhoGeomIn = affineInfo.surfaceRhoGeomIn;
+        branches.affineSurfaceRhoGeomOut = affineInfo.surfaceRhoGeomOut;
+        branches.affineSurfaceRhoTotalIn = affineInfo.surfaceRhoTotalIn;
+        branches.affineSurfaceRhoTotalOut = affineInfo.surfaceRhoTotalOut;
       }
     }
 
@@ -325,6 +346,7 @@ namespace blastwave::app {
       }
 
       maybeCaptureDensityNormalEventDensity(event);
+      maybeCaptureAffineEffectiveDensityMaps(event);
       maybeCaptureGradientResponseDebug(event);
 
       for (const blastwave::ParticipantRecord &participant : event.participants) {
@@ -372,6 +394,33 @@ namespace blastwave::app {
 
       hDensityNormalEventDensity = makeDensityNormalEventDensityHistogram(config);
       fillDensityNormalEventDensityHistogram(*hDensityNormalEventDensity, event);
+    }
+
+    // Capture one before/after affine density snapshot pair from the same event
+    // used by the affine-effective closure so ROOT viewers can compare s0 and sf.
+    void maybeCaptureAffineEffectiveDensityMaps(const blastwave::GeneratedEvent &event) {
+      if (affineEffectiveDensityMapsCaptured || !shouldWriteAffineEffectiveDensityMaps(config) || event.participants.empty()) {
+        return;
+      }
+
+      hAffineEffectiveInitialDensity =
+          makeAffineEffectiveDensityHistogram(blastwave::io::kAffineEffectiveInitialDensityHistogramName,
+                                              "Affine-effective initial density before evolution;x [fm];y [fm];s_{0}(x,y) [fm^{-2}]",
+                                              config);
+      hAffineEffectiveFinalDensity =
+          makeAffineEffectiveDensityHistogram(blastwave::io::kAffineEffectiveFinalDensityHistogramName,
+                                              "Affine-effective freeze-out density after evolution;x [fm];y [fm];s_{f}(x,y) [fm^{-2}]",
+                                              config);
+
+      const std::string initialTitle = "Affine-effective initial density before evolution (event " + std::to_string(event.info.eventId)
+                                       + ");x [fm];y [fm];s_{0}(x,y) [fm^{-2}]";
+      const std::string finalTitle = "Affine-effective freeze-out density after evolution (event " + std::to_string(event.info.eventId)
+                                     + ");x [fm];y [fm];s_{f}(x,y) [fm^{-2}]";
+      hAffineEffectiveInitialDensity->SetTitle(initialTitle.c_str());
+      hAffineEffectiveFinalDensity->SetTitle(finalTitle.c_str());
+      fillDensityHistogramFromField(*hAffineEffectiveInitialDensity, event.medium.initialDensity);
+      fillDensityHistogramFromField(*hAffineEffectiveFinalDensity, event.medium.emissionDensity);
+      affineEffectiveDensityMapsCaptured = true;
     }
 
     // Capture optional V2 gradient-response debug payload from the first event
@@ -461,6 +510,14 @@ namespace blastwave::app {
         hDensityNormalEventDensity->Write();
         hDensityNormalEventDensity->SetDirectory(nullptr);
       }
+      if (affineEffectiveDensityMapsCaptured && hAffineEffectiveInitialDensity != nullptr) {
+        hAffineEffectiveInitialDensity->Write();
+        hAffineEffectiveInitialDensity->SetDirectory(nullptr);
+      }
+      if (affineEffectiveDensityMapsCaptured && hAffineEffectiveFinalDensity != nullptr) {
+        hAffineEffectiveFinalDensity->Write();
+        hAffineEffectiveFinalDensity->SetDirectory(nullptr);
+      }
       if (gradientDebugCaptured && hGradientS0 != nullptr) {
         hGradientS0->Write();
         hGradientS0->SetDirectory(nullptr);
@@ -505,6 +562,8 @@ namespace blastwave::app {
       flowEllipseDebugTree.reset();
       hFlowEllipseParticipantNormXY.reset();
       hDensityNormalEventDensity.reset();
+      hAffineEffectiveInitialDensity.reset();
+      hAffineEffectiveFinalDensity.reset();
       hGradientS0.reset();
       hGradientSEm.reset();
       hGradientSDyn.reset();
@@ -517,6 +576,7 @@ namespace blastwave::app {
     std::string outputPath;
     bool finished = false;
     bool gradientDebugCaptured = false;
+    bool affineEffectiveDensityMapsCaptured = false;
 
     TFile outputFile;
     TTree eventsTree;
@@ -543,6 +603,8 @@ namespace blastwave::app {
     TH2F hParticipantXY;
     std::unique_ptr<TH2F> hFlowEllipseParticipantNormXY;
     std::unique_ptr<TH2F> hDensityNormalEventDensity;
+    std::unique_ptr<TH2F> hAffineEffectiveInitialDensity;
+    std::unique_ptr<TH2F> hAffineEffectiveFinalDensity;
     std::unique_ptr<TH2F> hGradientS0;
     std::unique_ptr<TH2F> hGradientSEm;
     std::unique_ptr<TH2F> hGradientSDyn;
