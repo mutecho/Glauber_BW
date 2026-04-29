@@ -23,6 +23,20 @@ Long command transcripts and repeated smoke-command variants were intentionally 
 - authoritative outside-sandbox `analyze_blastwave_v2pt ...`
 - ROOT key inspection through the shared inspector scripts when payload placement needs confirmation
 
+## T-017 Opt-In Affine-Effective Closure Flow Sampler
+
+- Status: passed on 2026-04-29
+- Evidence:
+  - local build passed after extending `EventMedium`, `FlowFieldModel`, generator validation, ROOT debug writing, and QA
+  - local `ctest` passed with new affine-effective coverage in `test_flow_field_model` and `test_run_options`
+  - authoritative default V1a generate + QA smoke passed
+  - authoritative `config/test_b8_affine_effective.cfg` generate + QA smoke passed
+- Locked conclusions:
+  - `flow-velocity-sampler = affine-effective` is opt-in and only valid with `density-evolution = affine-gaussian`
+  - `affine-delta-tau-ref`, `affine-kappa-flow`, `affine-kappa-aniso`, and `affine-u-max` are public validated knobs
+  - `debug-flow-ellipse` may now carry affine closure diagnostics, and QA validates them when present
+  - `rho0`, `kappa2`, and `density-normal-kappa-compensation` remain public but are intentionally unused by affine-effective
+
 ## T-016 Differential `v2{2}(pT)` Joint And Standalone Contract
 
 - Status: passed on 2026-04-29
@@ -118,6 +132,8 @@ Long command transcripts and repeated smoke-command variants were intentionally 
   - `flow-velocity-sampler` and `flow-density-sigma` remain the public abstraction
 - T-009 `EventMedium` and `EmissionSite` interface refactor
   - the internal medium/emission split remains the intended extension boundary
+- T-011 `kappa2` public flow response contract
+  - covariance-style V1a flow still uses initial `eps2/psi2`
 
 ## Environment Note
 

@@ -134,6 +134,38 @@ namespace {
     return {covXX, covXY, covYY};
   }
 
+  // Recover the affine-effective geometry-only closure from the initial and
+  // freeze-out covariance semi-axes used by the affine-gaussian response.
+  blastwave::AffineEffectiveClosure buildAffineEffectiveClosure(const blastwave::FlowEllipseInfo &participantGeometry,
+                                                                const blastwave::FlowEllipseInfo &emissionGeometry) {
+    blastwave::AffineEffectiveClosure closure;
+    closure.psi2 = participantGeometry.psi2;
+    closure.sigmaInInitial = participantGeometry.radiusMinor;
+    closure.sigmaOutInitial = participantGeometry.radiusMajor;
+    closure.sigmaInFinal = emissionGeometry.radiusMinor;
+    closure.sigmaOutFinal = emissionGeometry.radiusMajor;
+
+    const double sigmas[] = {closure.sigmaInInitial, closure.sigmaOutInitial, closure.sigmaInFinal, closure.sigmaOutFinal};
+    for (double sigma : sigmas) {
+      if (!std::isfinite(sigma) || sigma <= 0.0) {
+        return closure;
+      }
+    }
+
+    closure.growthIn = closure.sigmaInFinal / closure.sigmaInInitial;
+    closure.growthOut = closure.sigmaOutFinal / closure.sigmaOutInitial;
+    if (!std::isfinite(closure.growthIn) || !std::isfinite(closure.growthOut) || closure.growthIn <= 0.0 || closure.growthOut <= 0.0) {
+      return closure;
+    }
+
+    closure.lambdaIn = std::log(closure.growthIn);
+    closure.lambdaOut = std::log(closure.growthOut);
+    closure.lambdaBar = 0.5 * (closure.lambdaIn + closure.lambdaOut);
+    closure.deltaLambda = 0.5 * (closure.lambdaIn - closure.lambdaOut);
+    closure.valid = std::isfinite(closure.lambdaIn) && std::isfinite(closure.lambdaOut) && std::isfinite(closure.lambdaBar) && std::isfinite(closure.deltaLambda);
+    return closure;
+  }
+
 }  // namespace
 
 namespace blastwave {
@@ -191,6 +223,9 @@ namespace blastwave {
 
     medium.markerDensityScale = computeSupportDensityScale(medium.markerDensity);
     medium.dynamicsDensityScale = computeSupportDensityScale(medium.dynamicsDensity);
+    if (parameters.densityEvolutionMode == DensityEvolutionMode::AffineGaussianResponse) {
+      medium.affineEffectiveClosure = buildAffineEffectiveClosure(medium.participantGeometry, medium.emissionGeometry);
+    }
 
     return medium;
   }

@@ -289,6 +289,45 @@ namespace {
     require(chi2 > 0.0 && chi2 < 1.0, "Affine response should yield 0<chi2<1 in this axis-aligned probe.");
   }
 
+  void runAffineEffectiveClosureTest() {
+    const blastwave::EventMedium medium = buildAffineAxisAlignedMedium();
+    require(medium.affineEffectiveClosure.valid, "Affine-effective closure should be valid for the affine-gaussian baseline.");
+    requireNear(medium.affineEffectiveClosure.sigmaInInitial, 1.0, 1.0e-12, "Affine-effective sigma_in_0 mismatch.");
+    requireNear(medium.affineEffectiveClosure.sigmaOutInitial, 2.0, 1.0e-12, "Affine-effective sigma_out_0 mismatch.");
+    requireNear(medium.affineEffectiveClosure.sigmaInFinal, medium.emissionGeometry.radiusMinor, 1.0e-12, "Affine-effective sigma_in_f mismatch.");
+    requireNear(medium.affineEffectiveClosure.sigmaOutFinal, medium.emissionGeometry.radiusMajor, 1.0e-12, "Affine-effective sigma_out_f mismatch.");
+    requireNear(medium.affineEffectiveClosure.growthIn,
+                medium.affineEffectiveClosure.sigmaInFinal / medium.affineEffectiveClosure.sigmaInInitial,
+                1.0e-12,
+                "Affine-effective growth_in mismatch.");
+    requireNear(medium.affineEffectiveClosure.growthOut,
+                medium.affineEffectiveClosure.sigmaOutFinal / medium.affineEffectiveClosure.sigmaOutInitial,
+                1.0e-12,
+                "Affine-effective growth_out mismatch.");
+    requireNear(medium.affineEffectiveClosure.lambdaBar,
+                0.5 * (medium.affineEffectiveClosure.lambdaIn + medium.affineEffectiveClosure.lambdaOut),
+                1.0e-12,
+                "Affine-effective lambdaBar mismatch.");
+    requireNear(medium.affineEffectiveClosure.deltaLambda,
+                0.5 * (medium.affineEffectiveClosure.lambdaIn - medium.affineEffectiveClosure.lambdaOut),
+                1.0e-12,
+                "Affine-effective deltaLambda mismatch.");
+  }
+
+  void runAffineEffectiveFlowInfoTest() {
+    const blastwave::EventMedium medium = buildAffineAxisAlignedMedium();
+    const blastwave::AffineEffectiveFlowInfo isotropicInfo = blastwave::computeAffineEffectiveFlowInfo(
+        medium, {blastwave::FlowVelocitySamplerMode::AffineEffective, 0.0, 0.0, 1.0, false, 10.0, 10.0, 0.0, 0.95});
+    require(isotropicInfo.valid, "Affine-effective flow info should be valid for a well-formed affine medium.");
+    requireNear(isotropicInfo.hInEff, isotropicInfo.hOutEff, 1.0e-12, "kappa_aniso=0 should equalize H_in and H_out.");
+
+    const blastwave::AffineEffectiveFlowInfo anisotropicInfo = blastwave::computeAffineEffectiveFlowInfo(
+        medium, {blastwave::FlowVelocitySamplerMode::AffineEffective, 0.0, 0.0, 1.0, false, 10.0, 10.0, 2.0, 0.95});
+    require(anisotropicInfo.valid, "Affine-effective anisotropic flow info should stay valid.");
+    require(std::abs(anisotropicInfo.hInEff - anisotropicInfo.hOutEff) > std::abs(isotropicInfo.hInEff - isotropicInfo.hOutEff),
+            "Increasing kappa_aniso should increase the H_in/H_out splitting.");
+  }
+
   void runAffineFlowResponseTest() {
     blastwave::EventMedium medium = buildAffineAxisAlignedMedium();
     // Deliberately perturb the freeze-out diagnostics after geometry setup so
@@ -330,6 +369,37 @@ namespace {
     const double expectedRhoRaw = 0.8 * std::pow(sample.rTilde, 1.2)
                                   * std::exp(2.0 * a2 * std::cos(2.0 * (sample.phiB - medium.participantGeometry.psi2)));
     requireNear(sample.rhoRaw, expectedRhoRaw, 1.0e-12, "Affine density-normal compensation rhoRaw formula mismatch.");
+  }
+
+  void runAffineEffectiveCenterZeroFlowTest() {
+    const blastwave::EventMedium medium = buildAffineAxisAlignedMedium();
+    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(
+        medium, medium.emissionGeometry.centerX, medium.emissionGeometry.centerY, {blastwave::FlowVelocitySamplerMode::AffineEffective});
+    requireNear(sample.betaT, 0.0, 1.0e-12, "Affine-effective center probe should return zero transverse flow.");
+  }
+
+  void runAffineEffectiveSurfaceClippingTest() {
+    const blastwave::EventMedium medium = buildAffineAxisAlignedMedium();
+    const blastwave::FlowFieldParameters parameters{
+        blastwave::FlowVelocitySamplerMode::AffineEffective,
+        0.0,
+        0.0,
+        1.0,
+        false,
+        1.0,
+        10.0,
+        1.0,
+        0.20,
+    };
+    const blastwave::AffineEffectiveFlowInfo flowInfo = blastwave::computeAffineEffectiveFlowInfo(medium, parameters);
+    require(flowInfo.valid, "Affine-effective surface clipping diagnostic should be valid.");
+    require(flowInfo.surfaceBetaInRaw > parameters.affineUMax || flowInfo.surfaceBetaOutRaw > parameters.affineUMax,
+            "Affine-effective clipping test needs at least one raw surface beta above affine-u-max.");
+
+    const double probeX = medium.emissionGeometry.centerX + medium.emissionGeometry.radiusMinor * medium.emissionGeometry.minorAxisX;
+    const double probeY = medium.emissionGeometry.centerY + medium.emissionGeometry.radiusMinor * medium.emissionGeometry.minorAxisY;
+    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(medium, probeX, probeY, parameters);
+    requireNear(sample.betaT, parameters.affineUMax, 1.0e-12, "Affine-effective probe should clip exactly to affine-u-max.");
   }
 
   void runLegacyCovarianceKappa2ResponseTest() {
@@ -374,12 +444,16 @@ int main() {
     runFullCovarianceDensityTest();
     runDensityWeightFilteringTest();
     runAffineMediumGeometryTest();
+    runAffineEffectiveClosureTest();
+    runAffineEffectiveFlowInfoTest();
     runCovarianceEllipseDirectionTest();
     runDensityNormalDirectionTest();
     runDensityNormalCenterFallbackTest();
     runDensityNormalIgnoresKappa2Test();
     runAffineFlowResponseTest();
     runAffineDensityNormalCompensationTest();
+    runAffineEffectiveCenterZeroFlowTest();
+    runAffineEffectiveSurfaceClippingTest();
     runLegacyCovarianceKappa2ResponseTest();
     runSharedRTildeTest();
     runGradientResponseSiteOverloadTest();

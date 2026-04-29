@@ -125,9 +125,12 @@ namespace {
     if (rawValue == "gradient-response") {
       return blastwave::FlowVelocitySamplerMode::GradientResponse;
     }
+    if (rawValue == "affine-effective") {
+      return blastwave::FlowVelocitySamplerMode::AffineEffective;
+    }
 
     throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription
-                                + ". Expected 'covariance-ellipse', 'density-normal', or 'gradient-response'.");
+                                + ". Expected 'covariance-ellipse', 'density-normal', 'gradient-response', or 'affine-effective'.");
   }
 
   blastwave::DensityEvolutionMode parseDensityEvolutionMode(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
@@ -271,6 +274,14 @@ namespace {
       runOptions.config.affineLambdaOut = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "affine-sigma-evo") {
       runOptions.config.affineSigmaEvo = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "affine-delta-tau-ref") {
+      runOptions.config.affineDeltaTauRef = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "affine-kappa-flow") {
+      runOptions.config.affineKappaFlow = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "affine-kappa-aniso") {
+      runOptions.config.affineKappaAniso = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "affine-u-max") {
+      runOptions.config.affineUMax = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "density-normal-kappa-compensation") {
       runOptions.config.densityNormalKappaCompensation = parseBool(rawValue, optionName, sourceDescription);
     } else if (optionName == "debug-flow-ellipse") {
@@ -377,7 +388,9 @@ namespace blastwave::app {
               << "  progress,\n"
               << "  rho0, kappa2, flow-power, flow-velocity-sampler, density-evolution,\n"
               << "  flow-density-sigma, affine-lambda-in, affine-lambda-out,\n"
-              << "  affine-sigma-evo, density-normal-kappa-compensation,\n"
+              << "  affine-sigma-evo, affine-delta-tau-ref, affine-kappa-flow,\n"
+              << "  affine-kappa-aniso, affine-u-max,\n"
+              << "  density-normal-kappa-compensation,\n"
               << "  gradient-sigma-em, gradient-sigma-dyn,\n"
               << "  gradient-density-floor-fraction, gradient-density-cutoff-fraction,\n"
               << "  gradient-displacement-max, gradient-displacement-kappa,\n"
@@ -409,16 +422,21 @@ namespace blastwave::app {
               << "  --density-normal-kappa-compensation\n"
               << "  --no-density-normal-kappa-compensation\n"
               << "QA-facing tuning knobs:\n"
-              << "  (gradient-response requires matching density/flow modes)\n"
+              << "  (gradient-response requires matching density/flow modes;\n"
+              << "   affine-effective requires affine-gaussian density evolution)\n"
               << "  --rho0 <value>\n"
               << "  --kappa2 <value>\n"
               << "  --flow-power <value>\n"
-              << "  --flow-velocity-sampler <covariance-ellipse|density-normal|gradient-response>\n"
+              << "  --flow-velocity-sampler <covariance-ellipse|density-normal|gradient-response|affine-effective>\n"
               << "  --density-evolution <affine-gaussian|none|gradient-response>\n"
               << "  --flow-density-sigma <fm>\n"
               << "  --affine-lambda-in <value>\n"
               << "  --affine-lambda-out <value>\n"
               << "  --affine-sigma-evo <fm>\n"
+              << "  --affine-delta-tau-ref <fm/c>\n"
+              << "  --affine-kappa-flow <value>\n"
+              << "  --affine-kappa-aniso <value>\n"
+              << "  --affine-u-max <value>\n"
               << "  --density-normal-kappa-compensation\n"
               << "  --no-density-normal-kappa-compensation\n"
               << "  --gradient-sigma-em <fm>\n"

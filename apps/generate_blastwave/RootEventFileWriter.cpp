@@ -150,7 +150,7 @@ namespace {
     return branches;
   }
 
-  blastwave::io::FlowEllipseDebugBranches toFlowEllipseDebugBranches(const blastwave::GeneratedEvent &event) {
+  blastwave::io::FlowEllipseDebugBranches toFlowEllipseDebugBranches(const blastwave::GeneratedEvent &event, const blastwave::BlastWaveConfig &config) {
     blastwave::io::FlowEllipseDebugBranches branches;
     branches.eventId = static_cast<Int_t>(event.info.eventId);
     branches.valid = static_cast<Bool_t>(event.medium.emissionGeometry.valid);
@@ -169,6 +169,42 @@ namespace {
     branches.minorAxisY = event.medium.emissionGeometry.minorAxisY;
     branches.eps2 = event.medium.emissionGeometry.eps2;
     branches.psi2 = event.medium.emissionGeometry.psi2;
+
+    if (config.flowVelocitySamplerMode == blastwave::FlowVelocitySamplerMode::AffineEffective) {
+      const blastwave::FlowFieldParameters flowParameters{
+          config.flowVelocitySamplerMode,
+          config.rho0,
+          config.kappa2,
+          config.flowPower,
+          config.densityNormalKappaCompensation,
+          config.affineDeltaTauRef,
+          config.affineKappaFlow,
+          config.affineKappaAniso,
+          config.affineUMax,
+      };
+      const blastwave::AffineEffectiveFlowInfo affineInfo = blastwave::computeAffineEffectiveFlowInfo(event.medium, flowParameters);
+      if (affineInfo.valid) {
+        branches.affineEffectiveValid = true;
+        branches.affineSigmaIn0 = event.medium.affineEffectiveClosure.sigmaInInitial;
+        branches.affineSigmaOut0 = event.medium.affineEffectiveClosure.sigmaOutInitial;
+        branches.affineSigmaInF = event.medium.affineEffectiveClosure.sigmaInFinal;
+        branches.affineSigmaOutF = event.medium.affineEffectiveClosure.sigmaOutFinal;
+        branches.affineGrowthIn = event.medium.affineEffectiveClosure.growthIn;
+        branches.affineGrowthOut = event.medium.affineEffectiveClosure.growthOut;
+        branches.affineLambdaIn = event.medium.affineEffectiveClosure.lambdaIn;
+        branches.affineLambdaOut = event.medium.affineEffectiveClosure.lambdaOut;
+        branches.affineLambdaBar = event.medium.affineEffectiveClosure.lambdaBar;
+        branches.affineDeltaLambda = event.medium.affineEffectiveClosure.deltaLambda;
+        branches.affineHInEff = affineInfo.hInEff;
+        branches.affineHOutEff = affineInfo.hOutEff;
+        branches.affineUMax = affineInfo.affineUMax;
+        branches.affineSurfaceBetaInRaw = affineInfo.surfaceBetaInRaw;
+        branches.affineSurfaceBetaOutRaw = affineInfo.surfaceBetaOutRaw;
+        branches.affineSurfaceBetaInClipped = affineInfo.surfaceBetaInClipped;
+        branches.affineSurfaceBetaOutClipped = affineInfo.surfaceBetaOutClipped;
+      }
+    }
+
     return branches;
   }
 
@@ -284,7 +320,7 @@ namespace blastwave::app {
       hCentrality.Fill(eventBranches.centrality);
 
       if (flowEllipseDebugTree != nullptr) {
-        flowEllipseDebugBranches = toFlowEllipseDebugBranches(event);
+        flowEllipseDebugBranches = toFlowEllipseDebugBranches(event, config);
         flowEllipseDebugTree->Fill();
       }
 

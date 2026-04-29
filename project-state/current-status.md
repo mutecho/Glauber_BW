@@ -4,9 +4,9 @@
 
 - Date: 2026-04-29
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
-- Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in V2 gradient-response path, and optional differential `v2{2}(pT)` analysis.
+- Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in affine-effective closure path, the opt-in V2 gradient-response path, and optional differential `v2{2}(pT)` analysis.
 - Latest durable verification anchor: 2026-04-29 outside-sandbox ROOT validation and local `ctest` evidence summarized in `project-state/tests.md`.
-- This task updated documentation structure only. It did not change runtime behavior and did not add a new validation run.
+- This task added a new opt-in affine-effective flow sampler, extended optional debug/QA coverage, and refreshed the synchronized docs/state files.
 
 ## Current Runtime Baseline
 
@@ -16,6 +16,9 @@
   - `flow-velocity-sampler = covariance-ellipse`
 - legacy comparison path:
   - `density-evolution = none`
+- opt-in affine-effective closure path:
+  - `density-evolution = affine-gaussian`
+  - `flow-velocity-sampler = affine-effective`
 - opt-in V2 path:
   - `density-evolution = gradient-response`
   - `flow-velocity-sampler = gradient-response`
@@ -32,6 +35,7 @@
   - `analyze_blastwave_v2pt`
 - canonical tracked example config:
   - `config/test_b8.cfg`
+  - `config/test_b8_affine_effective.cfg`
 - mandatory ROOT payload highlights:
   - `events`
   - `participants`
@@ -48,7 +52,7 @@
   - `particles.y0`
   - `particles.emission_weight`
 - optional payload groups:
-  - flow-ellipse debug objects
+  - flow-ellipse debug objects, including affine closure diagnostics when `affine-effective` is selected
   - `density_normal_event_density_x-y`
   - V2 gradient debug histograms
   - `v2_2_pt_edges`
@@ -68,6 +72,7 @@
   - default V1a generation + QA
   - legacy `none` comparison
   - affine `density-normal` default and compensated cases
+  - affine-effective generation + QA with debug-flow-ellipse enabled
   - V2 gradient-response path
   - differential `v2{2}(pT)` same-file and separate-file modes
   - standalone differential post-processing
@@ -81,6 +86,7 @@ Use `project-state/tests.md` for the summarized evidence trail.
 - historical files under `qa/` span multiple schema generations and may not match the latest contract
 - `v2pt-output-mode = separate-file` intentionally allows a metadata-only main result file that keeps `v2_2_pt_edges` but omits the full analysis payload
 - `events.eps2` / `events.psi2` remain initial-state observables, while `eps2_f` / `psi2_f` / `chi2` remain freeze-out diagnostics
+- `shell_weight` and any `EmissionSite::emissionWeight` restructuring remain intentionally deferred; the current affine-effective rollout changes flow closure only
 
 ## Documentation Layout After Compaction
 

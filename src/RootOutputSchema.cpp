@@ -52,6 +52,24 @@ namespace blastwave::io {
     constexpr char kMajorAxisYBranchName[] = "major_axis_y";
     constexpr char kMinorAxisXBranchName[] = "minor_axis_x";
     constexpr char kMinorAxisYBranchName[] = "minor_axis_y";
+    constexpr char kAffineEffectiveValidBranchName[] = "affine_effective_valid";
+    constexpr char kAffineSigmaIn0BranchName[] = "affine_sigma_in_0";
+    constexpr char kAffineSigmaOut0BranchName[] = "affine_sigma_out_0";
+    constexpr char kAffineSigmaInFBranchName[] = "affine_sigma_in_f";
+    constexpr char kAffineSigmaOutFBranchName[] = "affine_sigma_out_f";
+    constexpr char kAffineGrowthInBranchName[] = "affine_growth_in";
+    constexpr char kAffineGrowthOutBranchName[] = "affine_growth_out";
+    constexpr char kAffineLambdaInBranchName[] = "affine_lambda_in";
+    constexpr char kAffineLambdaOutBranchName[] = "affine_lambda_out";
+    constexpr char kAffineLambdaBarBranchName[] = "affine_lambda_bar";
+    constexpr char kAffineDeltaLambdaBranchName[] = "affine_delta_lambda";
+    constexpr char kAffineHInEffBranchName[] = "affine_h_in_eff";
+    constexpr char kAffineHOutEffBranchName[] = "affine_h_out_eff";
+    constexpr char kAffineUMaxBranchName[] = "affine_u_max";
+    constexpr char kAffineSurfaceBetaInRawBranchName[] = "affine_surface_beta_in_raw";
+    constexpr char kAffineSurfaceBetaOutRawBranchName[] = "affine_surface_beta_out_raw";
+    constexpr char kAffineSurfaceBetaInClippedBranchName[] = "affine_surface_beta_in_clipped";
+    constexpr char kAffineSurfaceBetaOutClippedBranchName[] = "affine_surface_beta_out_clipped";
 
   }  // namespace
 
@@ -119,6 +137,24 @@ namespace blastwave::io {
     tree.Branch(kMinorAxisYBranchName, &branches.minorAxisY, "minor_axis_y/D");
     tree.Branch(kEps2BranchName, &branches.eps2, "eps2/D");
     tree.Branch(kPsi2BranchName, &branches.psi2, "psi2/D");
+    tree.Branch(kAffineEffectiveValidBranchName, &branches.affineEffectiveValid, "affine_effective_valid/O");
+    tree.Branch(kAffineSigmaIn0BranchName, &branches.affineSigmaIn0, "affine_sigma_in_0/D");
+    tree.Branch(kAffineSigmaOut0BranchName, &branches.affineSigmaOut0, "affine_sigma_out_0/D");
+    tree.Branch(kAffineSigmaInFBranchName, &branches.affineSigmaInF, "affine_sigma_in_f/D");
+    tree.Branch(kAffineSigmaOutFBranchName, &branches.affineSigmaOutF, "affine_sigma_out_f/D");
+    tree.Branch(kAffineGrowthInBranchName, &branches.affineGrowthIn, "affine_growth_in/D");
+    tree.Branch(kAffineGrowthOutBranchName, &branches.affineGrowthOut, "affine_growth_out/D");
+    tree.Branch(kAffineLambdaInBranchName, &branches.affineLambdaIn, "affine_lambda_in/D");
+    tree.Branch(kAffineLambdaOutBranchName, &branches.affineLambdaOut, "affine_lambda_out/D");
+    tree.Branch(kAffineLambdaBarBranchName, &branches.affineLambdaBar, "affine_lambda_bar/D");
+    tree.Branch(kAffineDeltaLambdaBranchName, &branches.affineDeltaLambda, "affine_delta_lambda/D");
+    tree.Branch(kAffineHInEffBranchName, &branches.affineHInEff, "affine_h_in_eff/D");
+    tree.Branch(kAffineHOutEffBranchName, &branches.affineHOutEff, "affine_h_out_eff/D");
+    tree.Branch(kAffineUMaxBranchName, &branches.affineUMax, "affine_u_max/D");
+    tree.Branch(kAffineSurfaceBetaInRawBranchName, &branches.affineSurfaceBetaInRaw, "affine_surface_beta_in_raw/D");
+    tree.Branch(kAffineSurfaceBetaOutRawBranchName, &branches.affineSurfaceBetaOutRaw, "affine_surface_beta_out_raw/D");
+    tree.Branch(kAffineSurfaceBetaInClippedBranchName, &branches.affineSurfaceBetaInClipped, "affine_surface_beta_in_clipped/D");
+    tree.Branch(kAffineSurfaceBetaOutClippedBranchName, &branches.affineSurfaceBetaOutClipped, "affine_surface_beta_out_clipped/D");
   }
 
   void bindEventBranches(TTree &tree, EventBranches &branches) {
@@ -185,6 +221,24 @@ namespace blastwave::io {
     tree.SetBranchAddress(kMinorAxisYBranchName, &branches.minorAxisY);
     tree.SetBranchAddress(kEps2BranchName, &branches.eps2);
     tree.SetBranchAddress(kPsi2BranchName, &branches.psi2);
+    tree.SetBranchAddress(kAffineEffectiveValidBranchName, &branches.affineEffectiveValid);
+    tree.SetBranchAddress(kAffineSigmaIn0BranchName, &branches.affineSigmaIn0);
+    tree.SetBranchAddress(kAffineSigmaOut0BranchName, &branches.affineSigmaOut0);
+    tree.SetBranchAddress(kAffineSigmaInFBranchName, &branches.affineSigmaInF);
+    tree.SetBranchAddress(kAffineSigmaOutFBranchName, &branches.affineSigmaOutF);
+    tree.SetBranchAddress(kAffineGrowthInBranchName, &branches.affineGrowthIn);
+    tree.SetBranchAddress(kAffineGrowthOutBranchName, &branches.affineGrowthOut);
+    tree.SetBranchAddress(kAffineLambdaInBranchName, &branches.affineLambdaIn);
+    tree.SetBranchAddress(kAffineLambdaOutBranchName, &branches.affineLambdaOut);
+    tree.SetBranchAddress(kAffineLambdaBarBranchName, &branches.affineLambdaBar);
+    tree.SetBranchAddress(kAffineDeltaLambdaBranchName, &branches.affineDeltaLambda);
+    tree.SetBranchAddress(kAffineHInEffBranchName, &branches.affineHInEff);
+    tree.SetBranchAddress(kAffineHOutEffBranchName, &branches.affineHOutEff);
+    tree.SetBranchAddress(kAffineUMaxBranchName, &branches.affineUMax);
+    tree.SetBranchAddress(kAffineSurfaceBetaInRawBranchName, &branches.affineSurfaceBetaInRaw);
+    tree.SetBranchAddress(kAffineSurfaceBetaOutRawBranchName, &branches.affineSurfaceBetaOutRaw);
+    tree.SetBranchAddress(kAffineSurfaceBetaInClippedBranchName, &branches.affineSurfaceBetaInClipped);
+    tree.SetBranchAddress(kAffineSurfaceBetaOutClippedBranchName, &branches.affineSurfaceBetaOutClipped);
   }
 
 }  // namespace blastwave::io

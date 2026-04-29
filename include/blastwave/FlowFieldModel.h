@@ -6,7 +6,7 @@
 
 namespace blastwave {
 
-  enum class FlowVelocitySamplerMode { CovarianceEllipse, DensityNormal, GradientResponse };
+  enum class FlowVelocitySamplerMode { CovarianceEllipse, DensityNormal, GradientResponse, AffineEffective };
   struct EmissionSite;
   struct EventMedium;
 
@@ -48,6 +48,10 @@ namespace blastwave {
     double kappa2 = 0.0;
     double flowPower = 1.0;
     bool densityNormalKappaCompensation = false;
+    double affineDeltaTauRef = 10.0;
+    double affineKappaFlow = 10.0;
+    double affineKappaAniso = 1.0;
+    double affineUMax = 0.95;
   };
 
   /**
@@ -64,7 +68,23 @@ namespace blastwave {
     double phiB = 0.0;
   };
 
+  /**
+   * Event-level affine-effective diagnostics derived from the geometry-only
+   * closure and the current sampler parameters.
+   */
+  struct AffineEffectiveFlowInfo {
+    bool valid = false;
+    double hInEff = 0.0;
+    double hOutEff = 0.0;
+    double affineUMax = 0.0;
+    double surfaceBetaInRaw = 0.0;
+    double surfaceBetaOutRaw = 0.0;
+    double surfaceBetaInClipped = 0.0;
+    double surfaceBetaOutClipped = 0.0;
+  };
+
   [[nodiscard]] FlowEllipseInfo computeFlowEllipseInfo(const std::vector<WeightedTransversePoint> &points);
+  [[nodiscard]] AffineEffectiveFlowInfo computeAffineEffectiveFlowInfo(const EventMedium &medium, const FlowFieldParameters &parameters);
   [[nodiscard]] FlowFieldSample evaluateFlowField(const EventMedium &medium, double x, double y, const FlowFieldParameters &parameters);
   [[nodiscard]] FlowFieldSample evaluateFlowField(const EventMedium &medium, const EmissionSite &site, const FlowFieldParameters &parameters);
 

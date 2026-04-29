@@ -224,3 +224,28 @@
   - V1a parameter scans can now be expressed entirely through the public runtime surface without editing source
   - sample configs, help text, RunOptions regression coverage, and durable docs must list the three knobs
   - historical notes may still mention the old defaults, but current high-authority docs must describe them as defaults rather than fixed internals
+
+## DEC-012 Add Opt-In Affine-Effective Closure Flow Sampling
+
+- Status: accepted
+- Date: 2026-04-29
+- Context:
+  - `docs/affine方案流补偿.md` defines a closure layer that maps the `affine-gaussian` initial and freeze-out geometry into an effective local flow field
+  - the repository already had `EventMedium` and `FlowFieldModel` as the intended medium-to-flow extension boundary
+  - the default V1a runtime behavior had to remain unchanged while exposing the closure path for controlled opt-in scans
+- Decision:
+  - add `flow-velocity-sampler = affine-effective` as a new opt-in transverse-flow source
+  - only allow `affine-effective` with `density-evolution = affine-gaussian`
+  - store the event-level closure diagnostics in a dedicated `EventMedium::affineEffectiveClosure` block instead of overloading `FlowEllipseInfo`
+  - expose public CLI/config knobs:
+    - `affine-delta-tau-ref`
+    - `affine-kappa-flow`
+    - `affine-kappa-aniso`
+    - `affine-u-max`
+  - keep `rho0`, `kappa2`, and `density-normal-kappa-compensation` public for other samplers, but intentionally unused by `affine-effective`
+  - extend optional `debug-flow-ellipse` serialization and independent QA so affine closure diagnostics are validated only when present
+  - keep `shell_weight` and `EmissionSite::emissionWeight` restructuring out of scope for this first affine-effective rollout
+- Consequences:
+  - the default `affine-gaussian + covariance-ellipse` runtime stays stable while affine-effective scans become reproducible from config files
+  - future closure-driven flow variants should continue to use the `EventMedium -> FlowFieldModel` boundary rather than smuggling affine diagnostics through unrelated geometry structs
+  - any later weighting or surface-sampling redesign must be documented as a separate contract change instead of being implied by the current closure-only sampler

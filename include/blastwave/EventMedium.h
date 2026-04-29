@@ -27,6 +27,26 @@ namespace blastwave {
   };
 
   /**
+   * Event-level affine-effective closure recovered from the initial and
+   * freeze-out covariance semi-axes. The in-plane direction follows the
+   * deterministic minor-axis convention shared by psi2 and flow sampling.
+   */
+  struct AffineEffectiveClosure {
+    bool valid = false;
+    double psi2 = 0.0;
+    double sigmaInInitial = 0.0;
+    double sigmaOutInitial = 0.0;
+    double sigmaInFinal = 0.0;
+    double sigmaOutFinal = 0.0;
+    double growthIn = 0.0;
+    double growthOut = 0.0;
+    double lambdaIn = 0.0;
+    double lambdaOut = 0.0;
+    double lambdaBar = 0.0;
+    double deltaLambda = 0.0;
+  };
+
+  /**
    * Event-level medium state shared by emission sampling, flow sampling, and
    * optional serialization. participantGeometry preserves initial-state
    * observables, while emissionDensity/emissionGeometry are the stage future
@@ -43,6 +63,7 @@ namespace blastwave {
     double dynamicsDensityScale = 0.0;
     DensityField emissionDensity;
     FlowEllipseInfo emissionGeometry;
+    AffineEffectiveClosure affineEffectiveClosure;
   };
 
   [[nodiscard]] EventMedium buildEventMedium(const std::vector<WeightedTransversePoint> &points, const EventMediumParameters &parameters);

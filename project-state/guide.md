@@ -12,6 +12,9 @@
 - 默认横向流方向：`flow-velocity-sampler = covariance-ellipse`
 - 默认热动量：`thermal-sampler = maxwell-juttner`
 - 默认末态汇总：`events.v2`、`events.centrality`、freeze-out 几何诊断、`r2_*`
+- 可选 affine 闭合流场：
+  - `density-evolution = affine-gaussian`
+  - `flow-velocity-sampler = affine-effective`
 - 可选 V2 扩展：
   - `density-evolution = gradient-response`
   - `flow-velocity-sampler = gradient-response`
@@ -50,6 +53,7 @@
   - `output` 和 `v2pt-output` 都相对配置文件目录解析
 - 当前规范示例配置：
   - `config/test_b8.cfg`
+  - `config/test_b8_affine_effective.cfg`
 - 当前强制 ROOT 主载荷：
   - `events`
   - `participants`
@@ -57,7 +61,7 @@
   - 事件级 `centrality`、`v2`、`eps2_f/psi2_f/chi2`、`r2_0/r2_f/r2_ratio`
   - 粒子级 `x0/y0/emission_weight`
 - 当前可选载荷：
-  - flow ellipse debug 对象
+  - flow ellipse debug 对象，以及 affine-effective 模式下附带的闭合诊断
   - `density-normal` 事件密度快照
   - V2 `gradient-response` debug 直方图
   - 差分 `v2{2}(pT)` 元数据和结果对象
@@ -86,6 +90,7 @@
 - `project-state/tests.md` 只保留验证结论和最小必要证据，不再堆完整命令转录。
 - `project-state/current-status.md` 只保留当前视图，不承担完整历史说明。
 - 历史演化过程放在 `project-state/changelog.md` 和 `project-state/decisions.md`，不要回灌到当前视图文件。
+- `shell_weight` 与 `EmissionSite::emissionWeight` 结构调整仍未进入当前 affine-effective rollout。
 
 ## 当前操作提醒
 

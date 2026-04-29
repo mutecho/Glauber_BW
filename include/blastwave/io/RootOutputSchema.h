@@ -106,6 +106,24 @@ namespace blastwave::io {
     Double_t minorAxisY = 1.0;
     Double_t eps2 = 0.0;
     Double_t psi2 = 0.0;
+    Bool_t affineEffectiveValid = false;
+    Double_t affineSigmaIn0 = 0.0;
+    Double_t affineSigmaOut0 = 0.0;
+    Double_t affineSigmaInF = 0.0;
+    Double_t affineSigmaOutF = 0.0;
+    Double_t affineGrowthIn = 0.0;
+    Double_t affineGrowthOut = 0.0;
+    Double_t affineLambdaIn = 0.0;
+    Double_t affineLambdaOut = 0.0;
+    Double_t affineLambdaBar = 0.0;
+    Double_t affineDeltaLambda = 0.0;
+    Double_t affineHInEff = 0.0;
+    Double_t affineHOutEff = 0.0;
+    Double_t affineUMax = 0.0;
+    Double_t affineSurfaceBetaInRaw = 0.0;
+    Double_t affineSurfaceBetaOutRaw = 0.0;
+    Double_t affineSurfaceBetaInClipped = 0.0;
+    Double_t affineSurfaceBetaOutClipped = 0.0;
   };
 
   void declareEventBranches(TTree &tree, EventBranches &branches);

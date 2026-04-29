@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-04-29 Affine-Effective Closure Flow Sampler
+
+- Added a dedicated `EventMedium::affineEffectiveClosure` block so affine closure diagnostics stay separate from covariance-ellipse geometry.
+- Implemented opt-in `flow-velocity-sampler = affine-effective` for `density-evolution = affine-gaussian`.
+- Added public CLI/config knobs:
+  - `affine-delta-tau-ref`
+  - `affine-kappa-flow`
+  - `affine-kappa-aniso`
+  - `affine-u-max`
+- Extended `debug-flow-ellipse` and the independent QA reader so affine closure diagnostics are serialized and validated when present.
+- Added ROOT-free parser/validation and flow-model coverage, plus a tracked opt-in example config `config/test_b8_affine_effective.cfg`.
+- Recorded fresh local build, `ctest`, authoritative default ROOT generate+QA, and authoritative affine-effective ROOT generate+QA evidence.
+- Intentionally did not change `shell_weight` semantics or restructure `EmissionSite::emissionWeight` in this rollout.
+
 ## 2026-04-29 Documentation Compaction For Project Knowledge Rules
 
 - Reduced `docs/agent_guide.md` to an actual agent-facing guide and removed the duplicated full runtime walk-through.

@@ -113,6 +113,10 @@ namespace blastwave {
         config_.kappa2,
         config_.flowPower,
         config_.densityNormalKappaCompensation,
+        config_.affineDeltaTauRef,
+        config_.affineKappaFlow,
+        config_.affineKappaAniso,
+        config_.affineUMax,
     };
     const FlowFieldSample sample = evaluateFlowField(medium, emissionSite, parameters);
     const double coshEta = std::cosh(etaS);

@@ -488,7 +488,24 @@ int main(int argc, char **argv) {
                                  flowEllipseBranches.minorAxisX,
                                  flowEllipseBranches.minorAxisY,
                                  flowEllipseBranches.eps2,
-                                 flowEllipseBranches.psi2};
+                                 flowEllipseBranches.psi2,
+                                 flowEllipseBranches.affineSigmaIn0,
+                                 flowEllipseBranches.affineSigmaOut0,
+                                 flowEllipseBranches.affineSigmaInF,
+                                 flowEllipseBranches.affineSigmaOutF,
+                                 flowEllipseBranches.affineGrowthIn,
+                                 flowEllipseBranches.affineGrowthOut,
+                                 flowEllipseBranches.affineLambdaIn,
+                                 flowEllipseBranches.affineLambdaOut,
+                                 flowEllipseBranches.affineLambdaBar,
+                                 flowEllipseBranches.affineDeltaLambda,
+                                 flowEllipseBranches.affineHInEff,
+                                 flowEllipseBranches.affineHOutEff,
+                                 flowEllipseBranches.affineUMax,
+                                 flowEllipseBranches.affineSurfaceBetaInRaw,
+                                 flowEllipseBranches.affineSurfaceBetaOutRaw,
+                                 flowEllipseBranches.affineSurfaceBetaInClipped,
+                                 flowEllipseBranches.affineSurfaceBetaOutClipped};
         for (double field : fields) {
           if (!isFinite(field)) {
             throw std::runtime_error("Detected NaN/Inf in flow_ellipse_debug tree.");
@@ -510,6 +527,42 @@ int main(int argc, char **argv) {
         }
         if (flowEllipseBranches.valid && (flowEllipseBranches.radiusMajor <= 0.0 || flowEllipseBranches.radiusMinor <= 0.0)) {
           throw std::runtime_error("flow_ellipse_debug valid events must have positive semi-axes.");
+        }
+        if (flowEllipseBranches.affineEffectiveValid) {
+          if (flowEllipseBranches.affineSigmaIn0 <= 0.0 || flowEllipseBranches.affineSigmaOut0 <= 0.0 || flowEllipseBranches.affineSigmaInF <= 0.0
+              || flowEllipseBranches.affineSigmaOutF <= 0.0) {
+            throw std::runtime_error("affine-effective debug sigmas must be strictly positive.");
+          }
+          if (!nearlyEqual(flowEllipseBranches.affineGrowthIn, flowEllipseBranches.affineSigmaInF / flowEllipseBranches.affineSigmaIn0, 1.0e-9)
+              || !nearlyEqual(flowEllipseBranches.affineGrowthOut, flowEllipseBranches.affineSigmaOutF / flowEllipseBranches.affineSigmaOut0, 1.0e-9)) {
+            throw std::runtime_error("affine-effective growth factors must match sigma_f / sigma_0.");
+          }
+          if (!nearlyEqual(flowEllipseBranches.affineLambdaIn, std::log(flowEllipseBranches.affineGrowthIn), 1.0e-9)
+              || !nearlyEqual(flowEllipseBranches.affineLambdaOut, std::log(flowEllipseBranches.affineGrowthOut), 1.0e-9)
+              || !nearlyEqual(flowEllipseBranches.affineLambdaBar,
+                              0.5 * (flowEllipseBranches.affineLambdaIn + flowEllipseBranches.affineLambdaOut),
+                              1.0e-9)
+              || !nearlyEqual(flowEllipseBranches.affineDeltaLambda,
+                              0.5 * (flowEllipseBranches.affineLambdaIn - flowEllipseBranches.affineLambdaOut),
+                              1.0e-9)) {
+            throw std::runtime_error("affine-effective lambda diagnostics are inconsistent with the growth-factor closure.");
+          }
+          if (!(flowEllipseBranches.affineUMax > 0.0 && flowEllipseBranches.affineUMax < 1.0)) {
+            throw std::runtime_error("affine-effective debug affine_u_max must satisfy 0 < u_max < 1.");
+          }
+          const double rawSurfaceBetas[] = {flowEllipseBranches.affineSurfaceBetaInRaw, flowEllipseBranches.affineSurfaceBetaOutRaw};
+          const double clippedSurfaceBetas[] = {flowEllipseBranches.affineSurfaceBetaInClipped, flowEllipseBranches.affineSurfaceBetaOutClipped};
+          for (int iAxis = 0; iAxis < 2; ++iAxis) {
+            if (rawSurfaceBetas[iAxis] < 0.0 || clippedSurfaceBetas[iAxis] < 0.0) {
+              throw std::runtime_error("affine-effective surface beta diagnostics must be non-negative magnitudes.");
+            }
+            if (clippedSurfaceBetas[iAxis] > flowEllipseBranches.affineUMax + 1.0e-9) {
+              throw std::runtime_error("affine-effective clipped surface beta exceeds affine_u_max.");
+            }
+            if (!nearlyEqual(clippedSurfaceBetas[iAxis], std::min(rawSurfaceBetas[iAxis], flowEllipseBranches.affineUMax), 1.0e-9)) {
+              throw std::runtime_error("affine-effective clipped surface beta must equal min(raw, affine_u_max).");
+            }
+          }
         }
 
         const bool inserted = flowEllipseValidByEvent.emplace(flowEllipseBranches.eventId, static_cast<bool>(flowEllipseBranches.valid)).second;

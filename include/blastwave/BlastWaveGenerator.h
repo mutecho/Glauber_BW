@@ -38,6 +38,10 @@ namespace blastwave {
     double affineLambdaIn = 1.20;
     double affineLambdaOut = 1.05;
     double affineSigmaEvo = 0.5;       // fm
+    double affineDeltaTauRef = 10.0;   // fm/c, effective affine closure timescale
+    double affineKappaFlow = 10.0;
+    double affineKappaAniso = 1.0;
+    double affineUMax = 0.95;
     bool densityNormalKappaCompensation = false;
     bool debugFlowEllipse = false;
     double gradientSigmaEm = 0.0;

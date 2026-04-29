@@ -8,6 +8,10 @@
   - a ROOT-writing generation app in `apps/generate_blastwave_events.cpp` plus `apps/generate_blastwave/`
   - an independent ROOT-reading QA app in `apps/qa_blastwave_output.cpp`
 - The default medium model is now V1a `AffineGaussianResponse`: participant density `s0` is transformed into freeze-out density `sf` through fixed affine expansion and smoothing before emission.
+- An opt-in affine-effective closure flow sampler is now available:
+  - `density-evolution = affine-gaussian`
+  - `flow-velocity-sampler = affine-effective`
+  It recovers event-level in/out growth rates from the initial and freeze-out covariance semi-axes and turns them into an effective local flow field.
 - V2 `GradientResponse` is now available as an opt-in coupled medium/flow mode:
   - `density-evolution = gradient-response`
   - `flow-velocity-sampler = gradient-response`
@@ -28,13 +32,18 @@
   - `flow-velocity-sampler`
   - `density-evolution`
   - `flow-density-sigma`
+  - `affine-delta-tau-ref`
+  - `affine-kappa-flow`
+  - `affine-kappa-aniso`
+  - `affine-u-max`
   - `debug-flow-ellipse`
   - V2 `gradient-*` parameters
   - `debug-gradient-response`
   - `cooper-frye-weight`
 - `density-evolution` and `flow-velocity-sampler` are orthogonal:
   - `affine-gaussian|none|gradient-response` controls the medium/emission stage
-  - `covariance-ellipse|density-normal|gradient-response` controls the transverse flow source
+  - `covariance-ellipse|density-normal|gradient-response|affine-effective` controls the transverse flow source
+  - `affine-effective` is only valid with `affine-gaussian`
   - the two `gradient-response` values must be selected together
 - Legacy flow knobs `vmax`, `rho2`, and `r-ref` are no longer accepted; they fail fast with migration guidance.
 - Event summaries now carry both:
@@ -83,8 +92,12 @@
   - `--rho0`
   - `--kappa2`
   - `--flow-power`
-  - `--flow-velocity-sampler <covariance-ellipse|density-normal|gradient-response>`
+  - `--flow-velocity-sampler <covariance-ellipse|density-normal|gradient-response|affine-effective>`
   - `--density-evolution <affine-gaussian|none|gradient-response>`
+  - `--affine-delta-tau-ref`
+  - `--affine-kappa-flow`
+  - `--affine-kappa-aniso`
+  - `--affine-u-max`
   - `--debug-flow-ellipse`
   - `--no-debug-flow-ellipse`
   - `--gradient-sigma-em`
@@ -106,6 +119,7 @@
 - The tracked example configs are:
   - `config/test_b8.cfg`
   - `config/b8.cfg`
+  - `config/test_b8_affine_effective.cfg`
 
 ### ROOT Output Contract
 
@@ -154,6 +168,7 @@
 - Optional debug payload, emitted only when `debug-flow-ellipse` is enabled:
   - `flow_ellipse_debug`
   - `flow_ellipse_participant_norm_x-y`
+  - when `flow-velocity-sampler = affine-effective`, `flow_ellipse_debug` also carries affine closure branches such as `affine_sigma_*`, `affine_growth_*`, `affine_lambda_*`, `affine_h_*`, and raw/clipped surface beta diagnostics
 - Optional sampler-specific payload, emitted only when `flow-velocity-sampler = density-normal`:
   - `density_normal_event_density_x-y`
 - Optional V2 debug payload, emitted when `debug-gradient-response` is enabled and at least one event has participants and particles:
@@ -178,6 +193,7 @@
 - The QA reader conditionally validates flow-ellipse debug objects:
   - absent: ignored
   - present: checked for entry counts, finite covariance content, eigenvalue/radius consistency, orthonormal axes, and normalized-participant fill counts
+  - when affine debug fields are present: also checked for positive affine sigmas, `growth = sigma_f / sigma_0`, finite closure rates, and clipped surface betas not exceeding `affine_u_max`
 - The QA reader conditionally validates `density_normal_event_density_x-y`:
   - absent: ignored
   - present: checked as a finite non-negative `TH2` with positive support and a 3D draw option
@@ -196,7 +212,7 @@
   - `test_physics_utils`
 - The current durable verification baseline is recorded in `project-state/current-status.md` and `project-state/tests.md`.
 - The authoritative runtime path on this machine is still the outside-sandbox O2Physics `alienv` path; sandboxed ROOT smoke output is not the source of truth when PCM/module noise appears.
-- The 2026-04-28 V2 baseline passed build, full CTest, default V1a smoke, `density-evolution none` smoke, V2 gradient smoke, V2 identity `r2_f == r2_0` smoke, V2 debug smoke, and zero-event debug QA.
+- The 2026-04-29 affine-effective baseline passed build, full CTest, authoritative default V1a generate+QA, and authoritative affine-effective generate+QA with `debug-flow-ellipse`.
 
 ## Remaining Follow-Up
 
@@ -205,4 +221,5 @@
 - Future density evolution variants should extend `buildEventMedium()` without changing the `participantGeometry` event-summary contract.
 - Future emission backends should continue to live behind `sampleEmissionSites()` and return `EmissionSite`.
 - Future V2-like modes should keep medium response and velocity source coupled explicitly if their physics assumes a shared gradient field.
+- `shell_weight` and any `EmissionSite::emissionWeight` restructuring remain intentionally out of scope for the current affine-effective rollout.
 - When future changes touch output schema or public knobs, update `docs/agent_guide.md`, `docs/项目说明.md`, and `project-state/guide.md` in the same patch so coordination docs do not drift again.

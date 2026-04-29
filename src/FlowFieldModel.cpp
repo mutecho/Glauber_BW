@@ -31,11 +31,52 @@ namespace {
     return std::min(kBetaTMax, std::tanh(std::max(0.0, rhoRaw)));
   }
 
+  bool affineParametersAreValid(const blastwave::FlowFieldParameters &parameters) {
+    return std::isfinite(parameters.affineDeltaTauRef) && parameters.affineDeltaTauRef > 0.0 && std::isfinite(parameters.affineKappaFlow)
+           && std::isfinite(parameters.affineKappaAniso) && std::isfinite(parameters.affineUMax) && parameters.affineUMax > 0.0 && parameters.affineUMax < 1.0;
+  }
+
   // Recover the shared V1a second-order response multiplier from the initial
   // participant eccentricity vector, independent of the evolved emission shape.
   double computeAffineKappaModulation(double phiBLab, const blastwave::EventMedium &medium, const blastwave::FlowFieldParameters &parameters) {
     const double a2 = parameters.kappa2 * medium.participantGeometry.eps2;
     return std::exp(2.0 * a2 * std::cos(2.0 * (phiBLab - medium.participantGeometry.psi2)));
+  }
+
+  // Convert the geometry-only affine closure plus runtime knobs into the
+  // effective in/out expansion rates and surface-speed diagnostics.
+  blastwave::AffineEffectiveFlowInfo computeAffineEffectiveFlowInfoImpl(const blastwave::EventMedium &medium,
+                                                                        const blastwave::FlowFieldParameters &parameters) {
+    blastwave::AffineEffectiveFlowInfo info;
+    if (!medium.affineEffectiveClosure.valid || !affineParametersAreValid(parameters)) {
+      return info;
+    }
+
+    info.hInEff =
+        (medium.affineEffectiveClosure.lambdaBar + parameters.affineKappaAniso * medium.affineEffectiveClosure.deltaLambda) / parameters.affineDeltaTauRef;
+    info.hOutEff =
+        (medium.affineEffectiveClosure.lambdaBar - parameters.affineKappaAniso * medium.affineEffectiveClosure.deltaLambda) / parameters.affineDeltaTauRef;
+    info.affineUMax = parameters.affineUMax;
+    info.surfaceBetaInRaw = std::abs(parameters.affineKappaFlow * info.hInEff * medium.affineEffectiveClosure.sigmaInFinal);
+    info.surfaceBetaOutRaw = std::abs(parameters.affineKappaFlow * info.hOutEff * medium.affineEffectiveClosure.sigmaOutFinal);
+    info.surfaceBetaInClipped = std::min(info.surfaceBetaInRaw, info.affineUMax);
+    info.surfaceBetaOutClipped = std::min(info.surfaceBetaOutRaw, info.affineUMax);
+
+    const double fields[] = {info.hInEff,
+                             info.hOutEff,
+                             info.affineUMax,
+                             info.surfaceBetaInRaw,
+                             info.surfaceBetaOutRaw,
+                             info.surfaceBetaInClipped,
+                             info.surfaceBetaOutClipped};
+    for (double field : fields) {
+      if (!std::isfinite(field)) {
+        return {};
+      }
+    }
+
+    info.valid = true;
+    return info;
   }
 
   EllipseMetricSample sampleEllipseMetric(const blastwave::FlowEllipseInfo &ellipse, double x, double y) {
@@ -146,6 +187,52 @@ namespace {
     return sample;
   }
 
+  // Build the affine-effective local transverse velocity directly from the
+  // freeze-out principal-axis coordinates and the geometry-only closure.
+  blastwave::FlowFieldSample evaluateAffineEffectiveFlow(const blastwave::EventMedium &medium, double x, double y, const blastwave::FlowFieldParameters &parameters) {
+    blastwave::FlowFieldSample sample;
+    const EllipseMetricSample metric = sampleEllipseMetric(medium.emissionGeometry, x, y);
+    if (!metric.valid) {
+      return sample;
+    }
+
+    const blastwave::AffineEffectiveFlowInfo affineInfo = computeAffineEffectiveFlowInfoImpl(medium, parameters);
+    if (!affineInfo.valid) {
+      return sample;
+    }
+
+    sample.rTilde = metric.rTilde;
+    const double radialProfile = std::pow(sample.rTilde, parameters.flowPower);
+    if (!std::isfinite(radialProfile)) {
+      return sample;
+    }
+
+    const double xPrime = metric.deltaX * medium.emissionGeometry.minorAxisX + metric.deltaY * medium.emissionGeometry.minorAxisY;
+    const double yPrime = metric.deltaX * medium.emissionGeometry.majorAxisX + metric.deltaY * medium.emissionGeometry.majorAxisY;
+    double betaX = parameters.affineKappaFlow * radialProfile * affineInfo.hInEff * xPrime * medium.emissionGeometry.minorAxisX
+                   + parameters.affineKappaFlow * radialProfile * affineInfo.hOutEff * yPrime * medium.emissionGeometry.majorAxisX;
+    double betaY = parameters.affineKappaFlow * radialProfile * affineInfo.hInEff * xPrime * medium.emissionGeometry.minorAxisY
+                   + parameters.affineKappaFlow * radialProfile * affineInfo.hOutEff * yPrime * medium.emissionGeometry.majorAxisY;
+    double betaT = std::hypot(betaX, betaY);
+    if (!std::isfinite(betaT)) {
+      return {};
+    }
+
+    if (betaT > affineInfo.affineUMax) {
+      const double scale = affineInfo.affineUMax / betaT;
+      betaX *= scale;
+      betaY *= scale;
+      betaT = affineInfo.affineUMax;
+    }
+
+    sample.betaX = betaX;
+    sample.betaY = betaY;
+    sample.betaT = betaT;
+    sample.phiB = betaT > 0.0 ? std::atan2(sample.betaY, sample.betaX) : 0.0;
+    sample.rhoRaw = betaT > 0.0 ? std::atanh(betaT) : 0.0;
+    return sample;
+  }
+
   // Interpret sampler-provided V2 gradient-response beta values as the full
   // transverse flow state for this emission site.
   blastwave::FlowFieldSample evaluateGradientResponseFlow(const blastwave::EmissionSite &site) {
@@ -177,6 +264,10 @@ namespace {
 
 namespace blastwave {
 
+  AffineEffectiveFlowInfo computeAffineEffectiveFlowInfo(const EventMedium &medium, const FlowFieldParameters &parameters) {
+    return computeAffineEffectiveFlowInfoImpl(medium, parameters);
+  }
+
   FlowFieldSample evaluateFlowField(const EventMedium &medium, double x, double y, const FlowFieldParameters &parameters) {
     switch (parameters.velocitySamplerMode) {
       case FlowVelocitySamplerMode::CovarianceEllipse:
@@ -185,6 +276,8 @@ namespace blastwave {
         return evaluateDensityNormalFlow(medium, x, y, parameters);
       case FlowVelocitySamplerMode::GradientResponse:
         return {};
+      case FlowVelocitySamplerMode::AffineEffective:
+        return evaluateAffineEffectiveFlow(medium, x, y, parameters);
     }
 
     return {};
@@ -194,6 +287,7 @@ namespace blastwave {
     switch (parameters.velocitySamplerMode) {
       case FlowVelocitySamplerMode::CovarianceEllipse:
       case FlowVelocitySamplerMode::DensityNormal:
+      case FlowVelocitySamplerMode::AffineEffective:
         return evaluateFlowField(medium, site.position.x, site.position.y, parameters);
       case FlowVelocitySamplerMode::GradientResponse:
         return evaluateGradientResponseFlow(site);
