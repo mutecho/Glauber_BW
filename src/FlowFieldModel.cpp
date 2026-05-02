@@ -109,12 +109,8 @@ namespace {
   }
 
   // Build shared affine-effective closure values used by both runtime modes.
-  bool computeAffineEffectiveSharedTerms(const blastwave::EventMedium &medium,
-                                         const blastwave::FlowFieldParameters &parameters,
-                                         double &hInEff,
-                                         double &hOutEff,
-                                         double &hBar,
-                                         double &rBar) {
+  bool computeAffineEffectiveSharedTerms(
+      const blastwave::EventMedium &medium, const blastwave::FlowFieldParameters &parameters, double &hInEff, double &hOutEff, double &hBar, double &rBar) {
     if (!medium.affineEffectiveClosure.valid || !affineParametersAreValid(parameters)) {
       return false;
     }
@@ -146,10 +142,9 @@ namespace {
     if (parameters.affineEffectiveMode == blastwave::AffineEffectiveMode::AdditiveRho) {
       // Additive-rho mode keeps a rho0 baseline plus affine geometry correction.
       const double uGeomIso = parameters.affineKappaFlow * hBar * rBar;
-      const double uGeomIn = parameters.affineKappaFlow * std::sqrt((hInEff * medium.affineEffectiveClosure.sigmaInFinal)
-                                                                     * (hInEff * medium.affineEffectiveClosure.sigmaInFinal));
-      const double uGeomOut = parameters.affineKappaFlow * std::sqrt((hOutEff * medium.affineEffectiveClosure.sigmaOutFinal)
-                                                                      * (hOutEff * medium.affineEffectiveClosure.sigmaOutFinal));
+      const double uGeomIn = parameters.affineKappaFlow * std::sqrt((hInEff * medium.affineEffectiveClosure.sigmaInFinal) * (hInEff * medium.affineEffectiveClosure.sigmaInFinal));
+      const double uGeomOut =
+          parameters.affineKappaFlow * std::sqrt((hOutEff * medium.affineEffectiveClosure.sigmaOutFinal) * (hOutEff * medium.affineEffectiveClosure.sigmaOutFinal));
       const double uGeomIsoClipped = std::min(uGeomIso, parameters.affineUMax);
       const double uGeomInClipped = std::min(uGeomIn, parameters.affineUMax);
       const double uGeomOutClipped = std::min(uGeomOut, parameters.affineUMax);
@@ -303,11 +298,8 @@ namespace {
   }
 
   // Full-tensor mode directly maps principal-axis closure into local transverse velocity.
-  blastwave::FlowFieldSample evaluateAffineEffectiveFullTensor(const blastwave::EventMedium &medium,
-                                                               const blastwave::FlowFieldParameters &parameters,
-                                                               const EllipseMetricSample &metric,
-                                                               double hInEff,
-                                                               double hOutEff) {
+  blastwave::FlowFieldSample evaluateAffineEffectiveFullTensor(
+      const blastwave::EventMedium &medium, const blastwave::FlowFieldParameters &parameters, const EllipseMetricSample &metric, double hInEff, double hOutEff) {
     blastwave::FlowFieldSample sample;
     sample.rTilde = metric.rTilde;
 

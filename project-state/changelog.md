@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-05-02 Formula-Oriented Workflow Documentation
+
+- Added `docs/数学物理公式流程说明.md` as a math-heavy walkthrough of the current generator chain from Woods-Saxon participants through medium evolution, emission sampling, thermal momentum, flow boost, event observables, and optional `v2{2}(pT)` analysis.
+- Expanded the formula walkthrough with per-section code locations for the relevant headers, source files, entrypoints, writer paths, QA paths, and core functions.
+- Added lightweight pointers from `README.md`, `docs/agent_guide.md`, `project-state/guide.md`, and `project-state/current-status.md`.
+- Documentation-only update; no runtime behavior, config contract, ROOT schema, QA logic, or validation baseline changed.
+
 ## 2026-04-29 Affine-Effective Density Map Output
 
 - Added `affine_effective_density_initial_x-y` and `affine_effective_density_final_x-y` to affine-effective ROOT output as first-valid-event before/after density snapshots.

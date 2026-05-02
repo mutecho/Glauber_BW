@@ -42,6 +42,8 @@
 
 - 项目说明：[docs/项目说明.md](/Users/allenzhou/Research_software/Blast_wave/docs/项目说明.md)
   当前最详细的运行与物理说明。
+- 数学/物理公式流程说明：[docs/数学物理公式流程说明.md](/Users/allenzhou/Research_software/Blast_wave/docs/数学物理公式流程说明.md)
+  公式导向地串起 participant 几何、密度演化、发射抽样、热动量、流场 boost 和 flow 观测量。
 - Agent 指南：[docs/agent_guide.md](/Users/allenzhou/Research_software/Blast_wave/docs/agent_guide.md)
   只保留 agent 需要的语义边界与同步规则。
 - 简明手记：[docs/手记文档.md](/Users/allenzhou/Research_software/Blast_wave/docs/手记文档.md)

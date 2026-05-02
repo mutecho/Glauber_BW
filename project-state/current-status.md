@@ -96,6 +96,7 @@ Use `project-state/tests.md` for the summarized evidence trail.
 ## Documentation Layout After Compaction
 
 - detailed runtime explanation stays in `docs/项目说明.md`
+- formula-heavy workflow explanation stays in `docs/数学物理公式流程说明.md`
 - quick semantic reminders stay in `docs/手记文档.md`
 - agent-facing sync rules stay in `docs/agent_guide.md`
 - current coordination state stays in `project-state/guide.md`, this file, and `project-state/handoff.md`

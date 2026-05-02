@@ -75,6 +75,8 @@
 
 - `docs/项目说明.md`
   - 详细运行说明和当前物理/接口解释
+- `docs/数学物理公式流程说明.md`
+  - 公式导向的主链说明，串起 participant 几何、密度演化、发射抽样、热动量、流场 boost 和 flow 观测量
 - `docs/手记文档.md`
   - 简明主链和易混淆概念
 - `docs/agent_guide.md`

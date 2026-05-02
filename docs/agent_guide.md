@@ -14,6 +14,9 @@ It is intentionally shorter than the full project manual and focuses on:
 - `docs/项目说明.md`
   - main human-written runtime and physics reference
   - the right place for detailed operator usage, public parameter descriptions, and fuller algorithm walkthroughs
+- `docs/数学物理公式流程说明.md`
+  - formula-oriented map from participant geometry through medium evolution, emission sampling, flow boost, and flow observables
+  - the right place for math-heavy explanations that would make the runtime manual too dense
 - `docs/手记文档.md`
   - short note for easy-to-confuse semantics and the current mental model
 - `config/test_b8.cfg`
