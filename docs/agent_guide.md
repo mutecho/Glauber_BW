@@ -106,8 +106,10 @@ For exact example commands, use `docs/项目说明.md`.
 - `initial-geometry-a2/a3` are template mixture weights only; measured `eps2/eps3` should be used for response plots.
 - differential `v2{2}(pT)` / `v3{2}(pT)` are separate analysis payloads and currently use unit track weights only.
 - `density-normal-kappa-compensation` is opt-in and only meaningful for `affine-gaussian + density-normal`.
+- `flow-trans-rho0` and `flow-trans-profile-power` are the current public transverse rapidity baseline/profile names; old `rho0` and `flow-power` are rejected, not compatibility aliases.
+- `flow-trans-direction-gradient-fraction` and `flow-trans-radius` are valid only for `flow-velocity-sampler = density-normal`.
 - `affine-effective` is opt-in and only valid for `affine-gaussian`.
-- `affine-effective-mode = additive-rho` keeps density-normal direction and keeps `rho0` as baseline average flow.
+- `affine-effective-mode = additive-rho` keeps density-normal direction and keeps `flow-trans-rho0` as baseline average flow.
 - `affine-effective-mode = full-tensor` is opt-in and directly uses principal-axis tensor velocity closure.
 - `affine-kappa-aniso` remains parse/finite-compatible but is legacy/no-op in both affine-effective modes.
 - `gradient-response` medium and flow are intentionally coupled; enabling only one side is invalid.

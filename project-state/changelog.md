@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-05-06 Flow-Trans Naming And Density-Normal Radius Modes
+
+- Replaced public `rho0` / `flow-power` with `flow-trans-rho0` / `flow-trans-profile-power`; old names now fail in CLI and config with migration guidance.
+- Kept `kappa2` as the public second-order response coefficient.
+- Added density-normal-only `flow-trans-direction-gradient-fraction` and `flow-trans-radius = covariance | density-percentile:<p> | density-level:<fraction>`.
+- Added `EventMedium::emissionDensityScale` and an event-level angular radius profile cache for density-defined transverse-flow radii.
+- Added `config/test_b8_density_normal_flow_trans.cfg` as a Chinese explained example; optional flowpt bins stay commented so low-stat radius smokes are not coupled to differential cumulants.
+- Updated parser, validation, flow-field tests, active docs, and `project-state/`; recorded local build, full `ctest`, and outside-sandbox O2Physics generate+QA smokes for default plus three density-normal radius modes.
+
+## 2026-05-06 High-Order Transverse Radius Design Draft
+
+- Added `docs/高阶半径与梯度混合整合方案.md` as the reviewed design entry for future high-order transverse-flow direction, density-defined radius, and optional gradient-correction work.
+- Made config key cleanup the required first step before implementation, with the proposed new transverse-flow layer using `flow-trans-*`.
+- Recorded WI-005 for the required config audit and migration plan before code/config changes.
+
 ## 2026-05-06 Differential `v2/v3{2}(pT)` Flowpt Output
 
 - Generalized the previous v2-only differential cumulant path into a harmonic-aware `v2/v3{2}(pT)` analysis core.

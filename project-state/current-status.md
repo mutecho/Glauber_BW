@@ -5,8 +5,8 @@
 - Date: 2026-05-06
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
 - Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in affine-effective closure path with `additive-rho` and `full-tensor` submodes, the opt-in V2 gradient-response path, optional differential `v2/v3{2}(pT)` analysis, and the opt-in `response-test-023` initial-geometry response-test path.
-- Latest durable verification anchor: 2026-05-06 local build, full local `ctest`, outside-sandbox ROOT flowpt same-file/separate-file smokes, standalone `analyze_blastwave_vnpt` `--output` and `--inplace` smokes, and ROOT key inspection of v2/v3 differential payload placement.
-- Latest task generalized the optional differential `v2{2}(pT)` path into a harmonic-aware `v2/v3{2}(pT)` flowpt contract.
+- Latest durable verification anchor: 2026-05-06 local build, full local `ctest`, outside-sandbox ROOT default generate+QA smoke, and outside-sandbox ROOT generate+QA smokes for density-normal `flow-trans-radius = covariance`, `density-percentile:0.95`, and `density-level:1.0e-3`.
+- Latest task implemented the first high-order transverse-flow naming/radius packet from `docs/配置名整理高阶半径梯度混合最终方案.md`.
 
 ## Current Runtime Baseline
 
@@ -33,6 +33,11 @@
   - configure `v3pt-bins`
   - choose `flowpt-output-mode = same-file | separate-file`
   - optionally post-process with `analyze_blastwave_vnpt`
+- density-normal high-order transverse-flow path:
+  - `flow-velocity-sampler = density-normal`
+  - `flow-trans-direction-gradient-fraction = 0..1`
+  - `flow-trans-radius = covariance | density-percentile:<p> | density-level:<fraction>`
+  - `flow-trans-rho0` and `flow-trans-profile-power` are the public transverse rapidity baseline/profile names
 
 ## Current Contract Highlights
 
@@ -45,6 +50,11 @@
   - `config/test_b8_affine_effective.cfg`
   - `config/test_b8_response_023.cfg`
   - `config/test_b8_flowpt.cfg`
+  - `config/test_b8_density_normal_flow_trans.cfg`
+- public transverse-flow naming:
+  - `rho0` is rejected; use `flow-trans-rho0`
+  - `flow-power` is rejected; use `flow-trans-profile-power`
+  - `kappa2` is retained as the second-order response coefficient
 - mandatory ROOT payload highlights:
   - `events`
   - `participants`
@@ -101,6 +111,8 @@
   - V2 gradient-response path
   - differential `v2/v3{2}(pT)` same-file and separate-file modes
   - standalone differential post-processing
+  - flow-trans naming/parser contract with direct old-name rejection
+  - density-normal direction mixing and covariance/percentile/level radius modes
   - `chi2` TH1 contract
   - ROOT-free third-harmonic helper and response-template generator coverage
   - default Glauber generation + QA with the expanded third-harmonic schema
@@ -124,6 +136,7 @@ Use `project-state/tests.md` for the summarized evidence trail.
 
 - detailed runtime explanation stays in `docs/项目说明.md`
 - formula-heavy workflow explanation stays in `docs/数学物理公式流程说明.md`
+- high-order transverse-flow radius/direction planning stays in `docs/高阶半径与梯度混合整合方案.md`; the executed first packet is summarized in `docs/配置名整理高阶半径梯度混合最终方案.md`
 - quick semantic reminders stay in `docs/手记文档.md`
 - agent-facing sync rules stay in `docs/agent_guide.md`
 - current coordination state stays in `project-state/guide.md`, this file, and `project-state/handoff.md`

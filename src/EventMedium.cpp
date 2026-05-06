@@ -223,6 +223,7 @@ namespace blastwave {
 
     medium.markerDensityScale = computeSupportDensityScale(medium.markerDensity);
     medium.dynamicsDensityScale = computeSupportDensityScale(medium.dynamicsDensity);
+    medium.emissionDensityScale = computeSupportDensityScale(medium.emissionDensity);
     if (parameters.densityEvolutionMode == DensityEvolutionMode::AffineGaussianResponse) {
       medium.affineEffectiveClosure = buildAffineEffectiveClosure(medium.participantGeometry, medium.emissionGeometry);
     }

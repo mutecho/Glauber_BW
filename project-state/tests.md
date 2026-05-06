@@ -23,6 +23,25 @@ Long command transcripts and repeated smoke-command variants were intentionally 
 - authoritative outside-sandbox `analyze_blastwave_vnpt ...`
 - ROOT key inspection through the shared inspector scripts when payload placement needs confirmation
 
+## T-023 Flow-Trans Naming And Density-Normal Radius Modes
+
+- Status: passed on 2026-05-06
+- Evidence:
+  - local `cmake --build /Users/allenzhou/Research_software/Blast_wave/build -j4` passed after the parser/config/flow-field/cache changes
+  - local `ctest --test-dir /Users/allenzhou/Research_software/Blast_wave/build --output-on-failure` passed with 9/9 tests
+  - `test_run_options` covers new `flow-trans-*` parsing, CLI-over-config precedence, old `rho0` / `flow-power` rejection, radius value validation, and invalid non-density-normal direction/radius combinations
+  - `test_flow_field_model` covers density-normal direction interpolation, covariance radius baseline, circular density-defined radii, triangular/hotspot radius variation, and outside-boundary clipping
+  - authoritative outside-sandbox O2Physics generate + QA passed for default `config/test_b8.cfg --nevents 20`, written to `qa/test_flow_trans_default.root`
+  - authoritative outside-sandbox O2Physics generate + QA passed for `config/test_b8_density_normal_flow_trans.cfg --flow-trans-radius covariance --nevents 20`, written to `qa/test_flow_trans_covariance.root`
+  - authoritative outside-sandbox O2Physics generate + QA passed for `config/test_b8_density_normal_flow_trans.cfg --flow-trans-radius density-percentile:0.95 --nevents 20`, written to `qa/test_flow_trans_density_percentile.root`
+  - authoritative outside-sandbox O2Physics generate + QA passed for `config/test_b8_density_normal_flow_trans.cfg --flow-trans-radius density-level:1.0e-3 --nevents 20`, written to `qa/test_flow_trans_density_level.root`
+- Locked conclusions:
+  - `rho0` and `flow-power` are no longer compatible public names
+  - `flow-trans-rho0` and `flow-trans-profile-power` are the public transverse rapidity baseline/profile controls
+  - `kappa2` remains the second-order response coefficient
+  - density-normal direction/radius high-order controls are executable and QA-valid for covariance, percentile, and level radius definitions
+  - the sandboxed ROOT run hit known PCM/module noise and is not the authoritative result; the outside-sandbox run is the recorded evidence
+
 ## T-021 Response/Cross-Talk TH2 Display Window
 
 - Status: passed on 2026-05-06

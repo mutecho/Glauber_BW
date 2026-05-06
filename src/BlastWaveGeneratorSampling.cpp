@@ -107,18 +107,22 @@ namespace blastwave {
   // Evaluate the configured fluid-element velocity sampler and then compose in
   // the longitudinal Bjorken piece expected by the blast-wave generator.
   BlastWaveGenerator::FlowVelocity BlastWaveGenerator::sampleFlowVelocity(const EmissionSite &emissionSite, double etaS, const EventMedium &medium) const {
-    const FlowFieldParameters parameters{
-        config_.flowVelocitySamplerMode,
-        config_.rho0,
-        config_.kappa2,
-        config_.flowPower,
-        config_.densityNormalKappaCompensation,
-        config_.affineDeltaTauRef,
-        config_.affineKappaFlow,
-        config_.affineKappaAniso,
-        config_.affineUMax,
-        config_.affineEffectiveMode,
-    };
+    FlowFieldParameters parameters;
+    parameters.velocitySamplerMode = config_.flowVelocitySamplerMode;
+    parameters.flowTransRho0 = config_.flowTransRho0;
+    parameters.kappa2 = config_.kappa2;
+    parameters.flowTransProfilePower = config_.flowTransProfilePower;
+    parameters.densityNormalKappaCompensation = config_.densityNormalKappaCompensation;
+    parameters.affineDeltaTauRef = config_.affineDeltaTauRef;
+    parameters.affineKappaFlow = config_.affineKappaFlow;
+    parameters.affineKappaAniso = config_.affineKappaAniso;
+    parameters.affineUMax = config_.affineUMax;
+    parameters.affineEffectiveMode = config_.affineEffectiveMode;
+    parameters.flowTransDirectionGradientFraction = config_.flowTransDirectionGradientFraction;
+    parameters.flowTransRadiusMode = config_.flowTransRadiusMode;
+    parameters.flowTransRadiusFraction = config_.flowTransRadiusFraction;
+    parameters.hasFlowTransDirectionGradientFraction = config_.hasFlowTransDirectionGradientFraction;
+    parameters.hasFlowTransRadius = config_.hasFlowTransRadius;
     const FlowFieldSample sample = evaluateFlowField(medium, emissionSite, parameters);
     const double coshEta = std::cosh(etaS);
     return {sample.betaX / coshEta, sample.betaY / coshEta, std::tanh(etaS)};

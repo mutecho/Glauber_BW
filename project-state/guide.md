@@ -99,7 +99,8 @@
 ## 当前协作规则
 
 - 若修改算法语义、配置契约、ROOT schema、QA 逻辑或用户运行方式，必须同步相应 `project-state/` 文件。
-- 当前 affine-effective 语义以 DEC-013 为准：`additive-rho` 保留 `rho0` baseline，`full-tensor` 为 opt-in，`affine-kappa-aniso` 是 legacy/no-op。
+- 当前 affine-effective 语义以 DEC-013 与 DEC-016 为准：`additive-rho` 保留 `flow-trans-rho0` baseline，`full-tensor` 为 opt-in，`affine-kappa-aniso` 是 legacy/no-op。
+- 当前横向流强公开名以 DEC-016 为准：`flow-trans-rho0` / `flow-trans-profile-power` 替代旧 `rho0` / `flow-power`，旧名直接报错。
 - `project-state/` 的规范路径是 `project-state/`，不是旧写法 `.project-state/`。
 - `project-state/tests.md` 只保留验证结论和最小必要证据，不再堆完整命令转录。
 - `project-state/current-status.md` 只保留当前视图，不承担完整历史说明。
@@ -109,6 +110,7 @@
 ## 当前操作提醒
 
 - `flowpt-output-mode = separate-file` 时，主结果文件只有启用 harmonic 的 `*_2_pt_edges` 也是合法状态。
+- `flow-trans-direction-gradient-fraction` 与 `flow-trans-radius` 只允许 `flow-velocity-sampler = density-normal`，不能在其他 sampler 下静默配置。
 - `response-test-023` 是 opt-in response/closure test；默认 `initial-geometry = glauber` 不变。
 - `initial-geometry-a2/a3` 是模板权重，不是实际 `eps2/eps3`。
 - `qa/` 目录中存在旧 schema ROOT 文件；复用前先确认是否匹配当前契约。

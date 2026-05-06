@@ -58,3 +58,20 @@
   - or add a small wrapper/workflow that makes the authoritative execution path explicit
 - Exit condition:
   - future Codex-run ROOT smoke validations have one documented authoritative execution path
+
+## WI-005 Flow-Trans Config Audit Before High-Order Radius Work
+
+- Status: done on 2026-05-06
+- Goal: prepare the config contract before implementing high-order transverse-flow direction, radius, or gradient-correction changes.
+- Why it exists:
+  - `docs/高阶半径与梯度混合整合方案.md` defines config naming cleanup as the mandatory first step
+  - new transverse-flow internals should use a clear `flow-trans-*` layer rather than adding ambiguous `flow-*` keys
+  - current keys such as `rho0`, `kappa2`, `flow-power`, `flow-density-sigma`, and `gradient-*` need an explicit keep/rename/deprecate decision before new behavior is added
+- Suggested owner action:
+  - completed: audited the transverse-flow-facing config surface and recorded DEC-016
+  - completed: directly migrated `rho0` to `flow-trans-rho0` and `flow-power` to `flow-trans-profile-power`; both old names now fail with migration guidance
+  - completed: kept `kappa2` as the public second-order response coefficient
+  - completed: implemented `flow-trans-direction-gradient-fraction` and `flow-trans-radius = covariance | density-percentile:<p> | density-level:<fraction>` for `density-normal`
+  - completed: added the complete Chinese explained `config/test_b8_density_normal_flow_trans.cfg`
+- Exit condition:
+  - satisfied: the config naming contract is documented, parser tests cover old-name rejection and new-key validation, and the first high-order radius implementation landed after the audit decision

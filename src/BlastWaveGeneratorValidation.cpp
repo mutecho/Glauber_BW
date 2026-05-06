@@ -101,14 +101,26 @@ namespace blastwave {
     if (config_.mass <= 0.0) {
       throw std::invalid_argument("particle mass must be positive.");
     }
-    if (!isFinite(config_.rho0) || config_.rho0 < 0.0) {
-      throw std::invalid_argument("rho0 must be finite and non-negative.");
+    if (!isFinite(config_.flowTransRho0) || config_.flowTransRho0 < 0.0) {
+      throw std::invalid_argument("flow-trans-rho0 must be finite and non-negative.");
     }
     if (!isFinite(config_.kappa2)) {
       throw std::invalid_argument("kappa2 must be finite.");
     }
-    if (!isFinite(config_.flowPower) || config_.flowPower <= 0.0) {
-      throw std::invalid_argument("flowPower must be finite and positive.");
+    if (!isFinite(config_.flowTransProfilePower) || config_.flowTransProfilePower <= 0.0) {
+      throw std::invalid_argument("flow-trans-profile-power must be finite and positive.");
+    }
+    if (!isFinite(config_.flowTransDirectionGradientFraction) || config_.flowTransDirectionGradientFraction < 0.0 || config_.flowTransDirectionGradientFraction > 1.0) {
+      throw std::invalid_argument("flow-trans-direction-gradient-fraction must be finite and satisfy 0 <= value <= 1.");
+    }
+    if (config_.flowTransRadiusMode == FlowTransRadiusMode::DensityPercentile) {
+      if (!isFinite(config_.flowTransRadiusFraction) || config_.flowTransRadiusFraction <= 0.0 || config_.flowTransRadiusFraction >= 1.0) {
+        throw std::invalid_argument("flow-trans-radius=density-percentile requires 0 < p < 1.");
+      }
+    } else if (config_.flowTransRadiusMode == FlowTransRadiusMode::DensityLevel) {
+      if (!isFinite(config_.flowTransRadiusFraction) || config_.flowTransRadiusFraction <= 0.0) {
+        throw std::invalid_argument("flow-trans-radius=density-level requires a finite fraction > 0.");
+      }
     }
     if (!isFinite(config_.flowDensitySigma) || config_.flowDensitySigma <= 0.0) {
       throw std::invalid_argument("flowDensitySigma must be finite and positive.");
@@ -173,6 +185,11 @@ namespace blastwave {
     if (config_.flowVelocitySamplerMode == FlowVelocitySamplerMode::AffineEffective
         && config_.densityEvolutionMode != DensityEvolutionMode::AffineGaussianResponse) {
       throw std::invalid_argument("flowVelocitySamplerMode=affine-effective requires densityEvolutionMode=affine-gaussian.");
+    }
+    const bool hasDensityNormalOnlyFlowTransOverrides = config_.hasFlowTransDirectionGradientFraction || config_.hasFlowTransRadius;
+    if (hasDensityNormalOnlyFlowTransOverrides && config_.flowVelocitySamplerMode != FlowVelocitySamplerMode::DensityNormal) {
+      throw std::invalid_argument(
+          "flow-trans-direction-gradient-fraction and flow-trans-radius require flowVelocitySamplerMode=density-normal.");
     }
     if (config_.densityNormalKappaCompensation
         && (config_.densityEvolutionMode != DensityEvolutionMode::AffineGaussianResponse

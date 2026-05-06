@@ -22,7 +22,14 @@ namespace {
   // deterministic invalid_argument diagnostics across config and CLI.
   [[noreturn]] void throwDeprecatedFlowOptionError(const std::string &optionName, const std::string &sourceDescription) {
     if (optionName == "vmax") {
-      throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription + ". Migration: vmax -> rho0 = atanh(vmax).");
+      throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription
+                                  + ". Migration: vmax -> flow-trans-rho0 = atanh(vmax).");
+    }
+    if (optionName == "rho0") {
+      throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription + ". Migration: rho0 -> flow-trans-rho0.");
+    }
+    if (optionName == "flow-power") {
+      throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription + ". Migration: flow-power -> flow-trans-profile-power.");
     }
     if (optionName == "rho2") {
       throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription + ". Migration: rho2 -> kappa2.");
@@ -30,6 +37,11 @@ namespace {
 
     throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription + ". Migration: r-ref -> absorbed by event-ellipse semi-axes.");
   }
+
+  struct ParsedFlowTransRadius {
+    blastwave::FlowTransRadiusMode mode = blastwave::FlowTransRadiusMode::Covariance;
+    double fraction = 0.0;
+  };
 
   [[noreturn]] void throwDeprecatedFlowPtOptionError(const std::string &optionName, const std::string &sourceDescription) {
     if (optionName == "v2pt-output-mode") {
@@ -199,6 +211,44 @@ namespace {
     throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'same-file' or 'separate-file'.");
   }
 
+  ParsedFlowTransRadius parseFlowTransRadius(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
+    if (rawValue == "covariance") {
+      return {};
+    }
+
+    constexpr const char *kDensityPercentilePrefix = "density-percentile:";
+    constexpr const char *kDensityLevelPrefix = "density-level:";
+    if (rawValue.rfind(kDensityPercentilePrefix, 0) == 0) {
+      const std::string fractionToken = rawValue.substr(std::char_traits<char>::length(kDensityPercentilePrefix));
+      if (fractionToken.empty()) {
+        throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription
+                                    + ". Expected syntax 'density-percentile:<p>' with numeric <p>.");
+      }
+      const double fraction = parseDouble(fractionToken, optionName, sourceDescription);
+      if (!std::isfinite(fraction) || fraction <= 0.0 || fraction >= 1.0) {
+        throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription
+                                    + ". density-percentile requires 0 < p < 1.");
+      }
+      return {blastwave::FlowTransRadiusMode::DensityPercentile, fraction};
+    }
+    if (rawValue.rfind(kDensityLevelPrefix, 0) == 0) {
+      const std::string fractionToken = rawValue.substr(std::char_traits<char>::length(kDensityLevelPrefix));
+      if (fractionToken.empty()) {
+        throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription
+                                    + ". Expected syntax 'density-level:<fraction>' with numeric <fraction>.");
+      }
+      const double fraction = parseDouble(fractionToken, optionName, sourceDescription);
+      if (!std::isfinite(fraction) || fraction <= 0.0) {
+        throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription
+                                    + ". density-level requires a finite fraction > 0.");
+      }
+      return {blastwave::FlowTransRadiusMode::DensityLevel, fraction};
+    }
+
+    throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription
+                                + ". Expected 'covariance', 'density-percentile:<p>', or 'density-level:<fraction>'.");
+  }
+
   std::vector<double> parseDifferentialFlowPtBinEdges(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
     std::vector<double> edges;
     std::size_t start = 0;
@@ -316,12 +366,20 @@ namespace {
       runOptions.hasFlowPtOutputPathOption = true;
     } else if (optionName == "progress") {
       runOptions.progressMode = parseBool(rawValue, optionName, sourceDescription) ? blastwave::app::ProgressMode::Enabled : blastwave::app::ProgressMode::Disabled;
-    } else if (optionName == "rho0") {
-      runOptions.config.rho0 = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "flow-trans-rho0") {
+      runOptions.config.flowTransRho0 = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "kappa2") {
       runOptions.config.kappa2 = parseDouble(rawValue, optionName, sourceDescription);
-    } else if (optionName == "flow-power") {
-      runOptions.config.flowPower = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "flow-trans-profile-power") {
+      runOptions.config.flowTransProfilePower = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "flow-trans-direction-gradient-fraction") {
+      runOptions.config.flowTransDirectionGradientFraction = parseDouble(rawValue, optionName, sourceDescription);
+      runOptions.config.hasFlowTransDirectionGradientFraction = true;
+    } else if (optionName == "flow-trans-radius") {
+      const ParsedFlowTransRadius radiusSpec = parseFlowTransRadius(rawValue, optionName, sourceDescription);
+      runOptions.config.flowTransRadiusMode = radiusSpec.mode;
+      runOptions.config.flowTransRadiusFraction = radiusSpec.fraction;
+      runOptions.config.hasFlowTransRadius = true;
     } else if (optionName == "flow-velocity-sampler") {
       runOptions.config.flowVelocitySamplerMode = parseFlowVelocitySamplerMode(rawValue, optionName, sourceDescription);
     } else if (optionName == "density-evolution") {
@@ -380,7 +438,7 @@ namespace {
       runOptions.config.gradientVelocityKappa = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "cooper-frye-weight") {
       runOptions.config.cooperFryeWeightMode = parseCooperFryeWeightMode(rawValue, optionName, sourceDescription);
-    } else if (optionName == "vmax" || optionName == "rho2" || optionName == "r-ref") {
+    } else if (optionName == "rho0" || optionName == "flow-power" || optionName == "vmax" || optionName == "rho2" || optionName == "r-ref") {
       throwDeprecatedFlowOptionError(optionName, sourceDescription);
     } else {
       throw std::invalid_argument("Unknown option/key '" + optionName + "' from " + sourceDescription);
@@ -454,7 +512,9 @@ namespace blastwave::app {
               << "  tau0, smear, sigma-nn, seed, output,\n"
               << "  v2pt-bins, v3pt-bins, flowpt-output-mode, flowpt-output,\n"
               << "  progress,\n"
-              << "  rho0, kappa2, flow-power, flow-velocity-sampler, density-evolution,\n"
+              << "  flow-trans-rho0, kappa2, flow-trans-profile-power,\n"
+              << "  flow-trans-direction-gradient-fraction, flow-trans-radius,\n"
+              << "  flow-velocity-sampler, density-evolution,\n"
               << "  flow-density-sigma, affine-lambda-in, affine-lambda-out,\n"
               << "  affine-sigma-evo, affine-delta-tau-ref, affine-kappa-flow,\n"
               << "  affine-kappa-aniso, affine-u-max, affine-effective-mode,\n"
@@ -506,9 +566,11 @@ namespace blastwave::app {
               << "QA-facing tuning knobs:\n"
               << "  (gradient-response requires matching density/flow modes;\n"
               << "   affine-effective requires affine-gaussian density evolution)\n"
-              << "  --rho0 <value>\n"
+              << "  --flow-trans-rho0 <value>\n"
               << "  --kappa2 <value>\n"
-              << "  --flow-power <value>\n"
+              << "  --flow-trans-profile-power <value>\n"
+              << "  --flow-trans-direction-gradient-fraction <value>\n"
+              << "  --flow-trans-radius <covariance|density-percentile:<p>|density-level:<fraction>>\n"
               << "  --flow-velocity-sampler <covariance-ellipse|density-normal|gradient-response|affine-effective>\n"
               << "  --density-evolution <affine-gaussian|none|gradient-response>\n"
               << "  --flow-density-sigma <fm>\n"

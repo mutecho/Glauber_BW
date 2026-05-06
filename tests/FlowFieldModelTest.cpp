@@ -63,6 +63,59 @@ namespace {
         makeRotatedEllipse(angle), {blastwave::DensityEvolutionMode::AffineGaussianResponse, densitySigma, 1.20, 1.05, 0.5});
   }
 
+  blastwave::EventMedium buildCircularMedium(double densitySigma = 0.35) {
+    return blastwave::buildEventMedium({
+                                           {-1.0, 0.0, 1.0},
+                                           {1.0, 0.0, 1.0},
+                                           {0.0, -1.0, 1.0},
+                                           {0.0, 1.0, 1.0},
+                                       },
+                                       {blastwave::DensityEvolutionMode::None, densitySigma});
+  }
+
+  blastwave::EventMedium buildTriangularHotspotMedium(double densitySigma = 0.25) {
+    const double pi = std::acos(-1.0);
+    std::vector<blastwave::WeightedTransversePoint> points;
+    points.push_back({0.0, 0.0, 0.5});
+    for (int iPoint = 0; iPoint < 3; ++iPoint) {
+      const double phi = 2.0 * pi * static_cast<double>(iPoint) / 3.0;
+      points.push_back({2.0 * std::cos(phi), 2.0 * std::sin(phi), 1.0});
+    }
+    return blastwave::buildEventMedium(points, {blastwave::DensityEvolutionMode::None, densitySigma});
+  }
+
+  blastwave::FlowFieldParameters makeDensityNormalFlowTransParameters(double rho,
+                                                                      double kappa2,
+                                                                      double profilePower,
+                                                                      double gradientFraction,
+                                                                      blastwave::FlowTransRadiusMode radiusMode,
+                                                                      double radiusFraction) {
+    blastwave::FlowFieldParameters parameters;
+    parameters.velocitySamplerMode = blastwave::FlowVelocitySamplerMode::DensityNormal;
+    parameters.flowTransRho0 = rho;
+    parameters.kappa2 = kappa2;
+    parameters.flowTransProfilePower = profilePower;
+    parameters.flowTransDirectionGradientFraction = gradientFraction;
+    parameters.flowTransRadiusMode = radiusMode;
+    parameters.flowTransRadiusFraction = radiusFraction;
+    parameters.hasFlowTransDirectionGradientFraction = true;
+    parameters.hasFlowTransRadius = true;
+    return parameters;
+  }
+
+  void requireDirectionNear(const blastwave::FlowFieldSample &sample, double expectedX, double expectedY, double tolerance, const std::string &message) {
+    require(sample.betaT > 0.0, message + " requires non-zero betaT.");
+    requireNear(sample.betaX / sample.betaT, expectedX, tolerance, message + " x mismatch.");
+    requireNear(sample.betaY / sample.betaT, expectedY, tolerance, message + " y mismatch.");
+  }
+
+  void normalizeExpectedDirection(double &x, double &y, const std::string &message) {
+    const double magnitude = std::hypot(x, y);
+    require(std::isfinite(magnitude) && magnitude > 0.0, message);
+    x /= magnitude;
+    y /= magnitude;
+  }
+
   void runAxisAlignedEllipseRecoveryTest() {
     const blastwave::FlowEllipseInfo ellipse = blastwave::computeFlowEllipseInfo(makeAxisAlignedEllipse());
     require(ellipse.valid, "Axis-aligned ellipse should be valid.");
@@ -238,6 +291,91 @@ namespace {
     requireNear(sampleA.rhoRaw, sampleB.rhoRaw, 1.0e-12, "Legacy density-normal rhoRaw must ignore kappa2.");
   }
 
+  void runFlowTransCovarianceRadiusMatchesDensityNormalBaselineTest() {
+    const blastwave::EventMedium medium = buildAxisAlignedMedium(0.35);
+    const blastwave::FlowFieldSample baseline = blastwave::evaluateFlowField(
+        medium,
+        1.0,
+        0.5,
+        {blastwave::FlowVelocitySamplerMode::DensityNormal, 0.7, 0.0, 1.2});
+    const blastwave::FlowFieldParameters parameters = makeDensityNormalFlowTransParameters(
+        0.7, 0.0, 1.2, 1.0, blastwave::FlowTransRadiusMode::Covariance, 0.0);
+    const blastwave::FlowFieldSample upgraded = blastwave::evaluateFlowField(medium, 1.0, 0.5, parameters);
+    requireNear(upgraded.betaX, baseline.betaX, 1.0e-12, "flow-trans covariance radius should preserve density-normal betaX.");
+    requireNear(upgraded.betaY, baseline.betaY, 1.0e-12, "flow-trans covariance radius should preserve density-normal betaY.");
+    requireNear(upgraded.rhoRaw, baseline.rhoRaw, 1.0e-12, "flow-trans covariance radius should preserve density-normal rhoRaw.");
+  }
+
+  void runFlowTransGradientFractionZeroUsesGeometricRadialDirectionTest() {
+    const blastwave::EventMedium medium = buildAxisAlignedMedium(0.35);
+    const blastwave::FlowFieldParameters parameters = makeDensityNormalFlowTransParameters(
+        0.7, 0.0, 1.0, 0.0, blastwave::FlowTransRadiusMode::Covariance, 0.0);
+    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(medium, 1.0, 0.5, parameters);
+    double expectedX = 1.0 - medium.emissionGeometry.centerX;
+    double expectedY = 0.5 - medium.emissionGeometry.centerY;
+    normalizeExpectedDirection(expectedX, expectedY, "Geometric radial direction should be valid.");
+    requireDirectionNear(sample, expectedX, expectedY, 1.0e-12, "flow-trans gradient fraction 0 should use geometric radial direction.");
+  }
+
+  void runFlowTransIntermediateDirectionIsNormalizedBlendTest() {
+    const blastwave::EventMedium medium = buildTriangularHotspotMedium(0.35);
+    const double probeX = 1.4;
+    const double probeY = 0.35;
+    const double gradientFraction = 0.35;
+    const blastwave::FlowFieldParameters parameters = makeDensityNormalFlowTransParameters(
+        0.7, 0.0, 1.0, gradientFraction, blastwave::FlowTransRadiusMode::Covariance, 0.0);
+    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(medium, probeX, probeY, parameters);
+
+    double radialX = probeX - medium.emissionGeometry.centerX;
+    double radialY = probeY - medium.emissionGeometry.centerY;
+    normalizeExpectedDirection(radialX, radialY, "Radial direction should be valid for mixed-direction test.");
+
+    const blastwave::DensityFieldSample densitySample = blastwave::evaluateDensityField(medium.emissionDensity, probeX, probeY);
+    double gradientX = -densitySample.gradientX;
+    double gradientY = -densitySample.gradientY;
+    normalizeExpectedDirection(gradientX, gradientY, "Gradient direction should be valid for mixed-direction test.");
+
+    double expectedX = (1.0 - gradientFraction) * radialX + gradientFraction * gradientX;
+    double expectedY = (1.0 - gradientFraction) * radialY + gradientFraction * gradientY;
+    normalizeExpectedDirection(expectedX, expectedY, "Mixed direction should be normalizable.");
+    requireDirectionNear(sample, expectedX, expectedY, 1.0e-9, "flow-trans mixed direction should follow normalized blend.");
+  }
+
+  void runFlowTransDensityRadiiAreAngleIndependentForCircularFieldTest() {
+    const blastwave::EventMedium medium = buildCircularMedium(0.35);
+    const blastwave::FlowFieldParameters percentileParameters = makeDensityNormalFlowTransParameters(
+        0.7, 0.0, 1.0, 1.0, blastwave::FlowTransRadiusMode::DensityPercentile, 0.95);
+    const blastwave::FlowFieldSample percentileX = blastwave::evaluateFlowField(medium, 0.8, 0.0, percentileParameters);
+    const blastwave::FlowFieldSample percentileY = blastwave::evaluateFlowField(medium, 0.0, 0.8, percentileParameters);
+    requireNear(percentileX.rhoRaw, percentileY.rhoRaw, 1.0e-8, "Circular density-percentile radius should be angle independent.");
+
+    const blastwave::FlowFieldParameters levelParameters = makeDensityNormalFlowTransParameters(
+        0.7, 0.0, 1.0, 1.0, blastwave::FlowTransRadiusMode::DensityLevel, 1.0e-3);
+    const blastwave::FlowFieldSample levelX = blastwave::evaluateFlowField(medium, 0.8, 0.0, levelParameters);
+    const blastwave::FlowFieldSample levelY = blastwave::evaluateFlowField(medium, 0.0, 0.8, levelParameters);
+    requireNear(levelX.rhoRaw, levelY.rhoRaw, 1.0e-8, "Circular density-level radius should be angle independent.");
+  }
+
+  void runFlowTransDensityRadiusTracksTriangularStructureTest() {
+    const blastwave::EventMedium medium = buildTriangularHotspotMedium(0.25);
+    const blastwave::FlowFieldParameters parameters = makeDensityNormalFlowTransParameters(
+        0.7, 0.0, 1.0, 1.0, blastwave::FlowTransRadiusMode::DensityLevel, 1.0e-3);
+    const blastwave::FlowFieldSample hotspotDirection = blastwave::evaluateFlowField(medium, 1.5, 0.0, parameters);
+    const double valleyPhi = std::acos(-1.0) / 3.0;
+    const blastwave::FlowFieldSample valleyDirection =
+        blastwave::evaluateFlowField(medium, 1.5 * std::cos(valleyPhi), 1.5 * std::sin(valleyPhi), parameters);
+    require(hotspotDirection.rhoRaw < valleyDirection.rhoRaw,
+            "Density-level radius should give a larger boundary, hence smaller xi, along a triangular hotspot direction.");
+  }
+
+  void runFlowTransOutsideDensityRadiusClampsXiUsedTest() {
+    const blastwave::EventMedium medium = buildCircularMedium(0.35);
+    const blastwave::FlowFieldParameters parameters = makeDensityNormalFlowTransParameters(
+        0.7, 0.0, 1.3, 0.0, blastwave::FlowTransRadiusMode::DensityLevel, 1.0e-3);
+    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(medium, 50.0, 0.0, parameters);
+    requireNear(sample.rhoRaw, parameters.flowTransRho0, 1.0e-12, "Boundary-exterior density-defined xi should clamp to one.");
+  }
+
   void runSharedRTildeTest() {
     const blastwave::EventMedium medium = buildAxisAlignedMedium(0.35);
     const blastwave::FlowFieldSample covarianceSample = blastwave::evaluateFlowField(
@@ -387,7 +525,7 @@ namespace {
     require(covarianceSample.betaT > 0.0, "Affine covariance sample should produce non-zero betaT.");
 
     const double a2 = parameters.kappa2 * medium.participantGeometry.eps2;
-    const double expectedCovarianceRhoRaw = parameters.rho0 * std::pow(covarianceSample.rTilde, parameters.flowPower)
+    const double expectedCovarianceRhoRaw = parameters.flowTransRho0 * std::pow(covarianceSample.rTilde, parameters.flowTransProfilePower)
                                             * std::exp(2.0 * a2 * std::cos(2.0 * (covarianceSample.phiB - medium.participantGeometry.psi2)));
     requireNear(covarianceSample.rhoRaw, expectedCovarianceRhoRaw, 1.0e-12, "Affine covariance kappa2*eps2 rhoRaw formula mismatch.");
 
@@ -496,7 +634,7 @@ namespace {
     };
     const blastwave::FlowFieldSample sampleNoBaseline = blastwave::evaluateFlowField(medium, 2.0, 0.0, noBaseline);
     const blastwave::FlowFieldSample sampleWithBaseline = blastwave::evaluateFlowField(medium, 2.0, 0.0, withBaseline);
-    require(sampleWithBaseline.betaT > sampleNoBaseline.betaT, "Additive-rho rho0 baseline should increase mean flow magnitude.");
+    require(sampleWithBaseline.betaT > sampleNoBaseline.betaT, "Additive-rho flow-trans-rho0 baseline should increase mean flow magnitude.");
 
     const blastwave::FlowFieldParameters noCorrection{
         blastwave::FlowVelocitySamplerMode::AffineEffective,
@@ -531,7 +669,7 @@ namespace {
     const double anisotropyWithCorrection =
         std::abs(blastwave::evaluateFlowField(medium, inX, inY, withCorrection).betaT - blastwave::evaluateFlowField(medium, outX, outY, withCorrection).betaT);
     require(anisotropyWithCorrection > anisotropyNoCorrection + 1.0e-6,
-            "Additive-rho affine correction should increase principal-axis flow anisotropy at fixed rho0.");
+            "Additive-rho affine correction should increase principal-axis flow anisotropy at fixed flow-trans-rho0.");
   }
 
   void runAffineEffectiveSurfaceClippingTest() {
@@ -599,7 +737,7 @@ namespace {
                           + (probeY - axisMedium.emissionGeometry.centerY) * axisMedium.emissionGeometry.minorAxisY;
     const double yPrime = (probeX - axisMedium.emissionGeometry.centerX) * axisMedium.emissionGeometry.majorAxisX
                           + (probeY - axisMedium.emissionGeometry.centerY) * axisMedium.emissionGeometry.majorAxisY;
-    const double radialProfile = std::pow(sample.rTilde, parameters.flowPower);
+    const double radialProfile = std::pow(sample.rTilde, parameters.flowTransProfilePower);
     const double uXPrime = parameters.affineKappaFlow * radialProfile * hIn * xPrime;
     const double uYPrime = parameters.affineKappaFlow * radialProfile * hOut * yPrime;
     const double expectedBetaX = uXPrime * axisMedium.emissionGeometry.minorAxisX + uYPrime * axisMedium.emissionGeometry.majorAxisX;
@@ -652,7 +790,7 @@ namespace {
     require(sample.betaT > 0.0, "Legacy covariance kappa2 response test needs non-zero flow.");
 
     const double a2 = parameters.kappa2 * medium.participantGeometry.eps2;
-    const double expectedRhoRaw = std::pow(sample.rTilde, parameters.flowPower) * (parameters.rho0 + a2 * std::cos(2.0 * sample.phiB));
+    const double expectedRhoRaw = std::pow(sample.rTilde, parameters.flowTransProfilePower) * (parameters.flowTransRho0 + a2 * std::cos(2.0 * sample.phiB));
     requireNear(sample.rhoRaw, expectedRhoRaw, 1.0e-12, "Legacy covariance kappa2*eps2 rhoRaw formula mismatch.");
   }
 
@@ -688,6 +826,12 @@ int main() {
     runDensityNormalDirectionTest();
     runDensityNormalCenterFallbackTest();
     runDensityNormalIgnoresKappa2Test();
+    runFlowTransCovarianceRadiusMatchesDensityNormalBaselineTest();
+    runFlowTransGradientFractionZeroUsesGeometricRadialDirectionTest();
+    runFlowTransIntermediateDirectionIsNormalizedBlendTest();
+    runFlowTransDensityRadiiAreAngleIndependentForCircularFieldTest();
+    runFlowTransDensityRadiusTracksTriangularStructureTest();
+    runFlowTransOutsideDensityRadiusClampsXiUsedTest();
     runAffineFlowResponseTest();
     runAffineDensityNormalCompensationTest();
     runAffineEffectiveAdditiveDirectionAndCenterTest();

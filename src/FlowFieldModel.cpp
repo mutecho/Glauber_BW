@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <vector>
 
 #include "blastwave/EmissionSampler.h"
 #include "blastwave/EventMedium.h"
@@ -13,6 +14,9 @@ namespace {
   constexpr double kDirectionTolerance = 1.0e-12;
   constexpr double kFlatRegionTolerance = 1.0e-6;
   constexpr double kDensityEpsilon = 1.0e-18;
+  constexpr int kFlowTransAngularSamples = 360;
+  constexpr int kFlowTransRadialSamples = 512;
+  constexpr double kTwoPi = 6.28318530717958647692;
 
   struct EllipseMetricSample {
     bool valid = false;
@@ -108,6 +112,340 @@ namespace {
     return true;
   }
 
+  bool normalizeDirection(double &x, double &y) {
+    const double magnitude = std::hypot(x, y);
+    if (!std::isfinite(magnitude) || magnitude <= kDirectionTolerance) {
+      return false;
+    }
+    x /= magnitude;
+    y /= magnitude;
+    return true;
+  }
+
+  // Recover the geometric radial direction from the emission-geometry center.
+  bool sampleGeometricRadialDirection(const blastwave::FlowEllipseInfo &ellipse, double x, double y, double &directionX, double &directionY) {
+    directionX = x - ellipse.centerX;
+    directionY = y - ellipse.centerY;
+    return normalizeDirection(directionX, directionY);
+  }
+
+  // Recover the outward density-gradient direction without covariance fallback.
+  bool sampleDensityGradientDirection(const blastwave::EventMedium &medium, double x, double y, double &directionX, double &directionY) {
+    const blastwave::DensityFieldSample densitySample = blastwave::evaluateDensityField(medium.emissionDensity, x, y);
+    const double gradientMagnitude = std::hypot(densitySample.gradientX, densitySample.gradientY);
+    const double flatness = gradientMagnitude * medium.emissionDensity.gaussianSigma / std::max(densitySample.density, kDensityEpsilon);
+    if (!std::isfinite(gradientMagnitude) || gradientMagnitude <= kDirectionTolerance || !std::isfinite(flatness) || flatness < kFlatRegionTolerance) {
+      return false;
+    }
+
+    directionX = -densitySample.gradientX / gradientMagnitude;
+    directionY = -densitySample.gradientY / gradientMagnitude;
+    return normalizeDirection(directionX, directionY);
+  }
+
+  bool hasDensityNormalFlowTransOverrides(const blastwave::FlowFieldParameters &parameters) {
+    return parameters.hasFlowTransDirectionGradientFraction || parameters.hasFlowTransRadius;
+  }
+
+  // Resolve the configured fallback chain for mixed density-normal direction.
+  bool sampleConfiguredDensityNormalDirection(const blastwave::EventMedium &medium,
+                                              double x,
+                                              double y,
+                                              const blastwave::FlowFieldParameters &parameters,
+                                              const EllipseMetricSample &metric,
+                                              double &normalX,
+                                              double &normalY) {
+    double geometricX = 0.0;
+    double geometricY = 0.0;
+    const bool hasGeometricDirection = sampleGeometricRadialDirection(medium.emissionGeometry, x, y, geometricX, geometricY);
+
+    double gradientX = 0.0;
+    double gradientY = 0.0;
+    const bool hasGradientDirection = sampleDensityGradientDirection(medium, x, y, gradientX, gradientY);
+
+    const double gradientFraction = parameters.flowTransDirectionGradientFraction;
+    if (hasGeometricDirection && hasGradientDirection) {
+      const double geometricWeight = 1.0 - gradientFraction;
+      double mixedX = geometricWeight * geometricX + gradientFraction * gradientX;
+      double mixedY = geometricWeight * geometricY + gradientFraction * gradientY;
+      if (normalizeDirection(mixedX, mixedY)) {
+        normalX = mixedX;
+        normalY = mixedY;
+        return true;
+      }
+    }
+
+    if (hasGradientDirection) {
+      normalX = gradientX;
+      normalY = gradientY;
+      return true;
+    }
+    if (hasGeometricDirection) {
+      normalX = geometricX;
+      normalY = geometricY;
+      return true;
+    }
+    if (metric.valid) {
+      normalX = metric.normalX;
+      normalY = metric.normalY;
+      return normalizeDirection(normalX, normalY);
+    }
+    return false;
+  }
+
+  // Estimate a finite ray marching range from event geometry and density support.
+  double computeDensityRayUpperBound(const blastwave::EventMedium &medium) {
+    if (!medium.emissionGeometry.valid) {
+      return 0.0;
+    }
+
+    const double centerX = medium.emissionGeometry.centerX;
+    const double centerY = medium.emissionGeometry.centerY;
+    double supportRadiusMax = 0.0;
+    for (const blastwave::WeightedTransversePoint &point : medium.emissionDensity.supportPoints) {
+      if (!std::isfinite(point.x) || !std::isfinite(point.y)) {
+        continue;
+      }
+      supportRadiusMax = std::max(supportRadiusMax, std::hypot(point.x - centerX, point.y - centerY));
+    }
+
+    const double sigmaTail = std::max(0.0, medium.emissionDensity.gaussianSigma);
+    double upperBound = supportRadiusMax + 8.0 * sigmaTail;
+    if (!std::isfinite(upperBound) || upperBound <= kDirectionTolerance) {
+      upperBound = std::max(1.0, 4.0 * std::max(medium.emissionGeometry.radiusMajor, medium.emissionGeometry.radiusMinor));
+    }
+    return upperBound;
+  }
+
+  // Interpolate one radial threshold crossing on a density ray segment.
+  double interpolateThresholdCrossing(double r0, double d0, double r1, double d1, double threshold) {
+    if (!std::isfinite(r0) || !std::isfinite(r1) || !std::isfinite(d0) || !std::isfinite(d1)) {
+      return std::numeric_limits<double>::quiet_NaN();
+    }
+    const double deltaDensity = d1 - d0;
+    if (std::abs(deltaDensity) <= kDensityEpsilon) {
+      return r0;
+    }
+    const double weight = (threshold - d0) / deltaDensity;
+    if (!std::isfinite(weight)) {
+      return std::numeric_limits<double>::quiet_NaN();
+    }
+    return std::clamp(r0 + (r1 - r0) * weight, std::min(r0, r1), std::max(r0, r1));
+  }
+
+  // Find the percentile boundary radius from ray-integrated polar density.
+  double computeDensityPercentileBoundaryRadius(
+      const blastwave::EventMedium &medium, double directionX, double directionY, double percentileFraction, double radiusUpperBound) {
+    if (!(radiusUpperBound > 0.0) || !std::isfinite(radiusUpperBound)) {
+      return std::numeric_limits<double>::quiet_NaN();
+    }
+    const double radialStep = radiusUpperBound / static_cast<double>(kFlowTransRadialSamples);
+    if (!(radialStep > 0.0) || !std::isfinite(radialStep)) {
+      return std::numeric_limits<double>::quiet_NaN();
+    }
+
+    const double centerX = medium.emissionGeometry.centerX;
+    const double centerY = medium.emissionGeometry.centerY;
+    std::vector<double> cumulativeIntegrals(kFlowTransRadialSamples + 1U, 0.0);
+    std::vector<double> radii(kFlowTransRadialSamples + 1U, 0.0);
+    double previousWeight = 0.0;
+
+    for (int iSample = 1; iSample <= kFlowTransRadialSamples; ++iSample) {
+      const double radius = radialStep * static_cast<double>(iSample);
+      const blastwave::DensityFieldSample densitySample =
+          blastwave::evaluateDensityField(medium.emissionDensity, centerX + radius * directionX, centerY + radius * directionY);
+      const double weight = radius * std::max(0.0, densitySample.density);
+      cumulativeIntegrals[static_cast<std::size_t>(iSample)] =
+          cumulativeIntegrals[static_cast<std::size_t>(iSample - 1)] + 0.5 * (previousWeight + weight) * radialStep;
+      radii[static_cast<std::size_t>(iSample)] = radius;
+      previousWeight = weight;
+    }
+
+    const double totalIntegral = cumulativeIntegrals.back();
+    if (!std::isfinite(totalIntegral) || totalIntegral <= kDensityEpsilon) {
+      return std::numeric_limits<double>::quiet_NaN();
+    }
+
+    const double targetIntegral = percentileFraction * totalIntegral;
+    for (int iSample = 1; iSample <= kFlowTransRadialSamples; ++iSample) {
+      const std::size_t iCurrent = static_cast<std::size_t>(iSample);
+      if (cumulativeIntegrals[iCurrent] < targetIntegral) {
+        continue;
+      }
+      const double leftIntegral = cumulativeIntegrals[iCurrent - 1U];
+      const double rightIntegral = cumulativeIntegrals[iCurrent];
+      const double leftRadius = radii[iCurrent - 1U];
+      const double rightRadius = radii[iCurrent];
+      if (std::abs(rightIntegral - leftIntegral) <= kDensityEpsilon) {
+        return rightRadius;
+      }
+      const double interpolation = (targetIntegral - leftIntegral) / (rightIntegral - leftIntegral);
+      return leftRadius + (rightRadius - leftRadius) * std::clamp(interpolation, 0.0, 1.0);
+    }
+
+    return radiusUpperBound;
+  }
+
+  // Find the outermost density-level boundary radius on one angular ray.
+  double computeDensityLevelBoundaryRadius(const blastwave::EventMedium &medium,
+                                           double directionX,
+                                           double directionY,
+                                           double levelFraction,
+                                           double radiusUpperBound) {
+    if (!(radiusUpperBound > 0.0) || !std::isfinite(radiusUpperBound)) {
+      return std::numeric_limits<double>::quiet_NaN();
+    }
+
+    const double densityThreshold = levelFraction * medium.emissionDensityScale;
+    if (!std::isfinite(densityThreshold) || densityThreshold <= 0.0) {
+      return std::numeric_limits<double>::quiet_NaN();
+    }
+
+    const double radialStep = radiusUpperBound / static_cast<double>(kFlowTransRadialSamples);
+    if (!(radialStep > 0.0) || !std::isfinite(radialStep)) {
+      return std::numeric_limits<double>::quiet_NaN();
+    }
+
+    const double centerX = medium.emissionGeometry.centerX;
+    const double centerY = medium.emissionGeometry.centerY;
+    double previousRadius = 0.0;
+    double previousDensity = blastwave::evaluateDensityField(medium.emissionDensity, centerX, centerY).density;
+    double boundaryRadius = std::numeric_limits<double>::quiet_NaN();
+
+    for (int iSample = 1; iSample <= kFlowTransRadialSamples; ++iSample) {
+      const double radius = radialStep * static_cast<double>(iSample);
+      const double density = blastwave::evaluateDensityField(medium.emissionDensity, centerX + radius * directionX, centerY + radius * directionY).density;
+      const bool previousInside = std::isfinite(previousDensity) && previousDensity >= densityThreshold;
+      const bool currentInside = std::isfinite(density) && density >= densityThreshold;
+      if (previousInside && currentInside) {
+        boundaryRadius = radius;
+      } else if (previousInside && !currentInside) {
+        const double crossingRadius = interpolateThresholdCrossing(previousRadius, previousDensity, radius, density, densityThreshold);
+        if (std::isfinite(crossingRadius)) {
+          boundaryRadius = crossingRadius;
+        }
+      } else if (!previousInside && currentInside) {
+        boundaryRadius = radius;
+      }
+      previousRadius = radius;
+      previousDensity = density;
+    }
+
+    return boundaryRadius;
+  }
+
+  // Build or reuse the per-event angular boundary profile for density-defined radii.
+  const blastwave::FlowTransRadiusProfile &getFlowTransRadiusProfile(
+      const blastwave::EventMedium &medium, const blastwave::FlowFieldParameters &parameters, double radiusUpperBound) {
+    blastwave::FlowTransRadiusProfile &profile = medium.flowTransRadiusProfile;
+    const bool cacheMatches = profile.valid && profile.mode == parameters.flowTransRadiusMode
+                              && profile.fraction == parameters.flowTransRadiusFraction
+                              && profile.centerX == medium.emissionGeometry.centerX
+                              && profile.centerY == medium.emissionGeometry.centerY
+                              && profile.radiusUpperBound == radiusUpperBound
+                              && profile.angularSamples == kFlowTransAngularSamples
+                              && profile.boundaryRadii.size() == static_cast<std::size_t>(kFlowTransAngularSamples);
+    if (cacheMatches) {
+      return profile;
+    }
+
+    profile = {};
+    profile.mode = parameters.flowTransRadiusMode;
+    profile.fraction = parameters.flowTransRadiusFraction;
+    profile.centerX = medium.emissionGeometry.centerX;
+    profile.centerY = medium.emissionGeometry.centerY;
+    profile.radiusUpperBound = radiusUpperBound;
+    profile.angularSamples = kFlowTransAngularSamples;
+    profile.boundaryRadii.assign(static_cast<std::size_t>(kFlowTransAngularSamples), std::numeric_limits<double>::quiet_NaN());
+
+    if (!(radiusUpperBound > 0.0) || !std::isfinite(radiusUpperBound)) {
+      return profile;
+    }
+
+    bool hasFiniteBoundary = false;
+    for (int iAngle = 0; iAngle < kFlowTransAngularSamples; ++iAngle) {
+      const double angle = kTwoPi * static_cast<double>(iAngle) / static_cast<double>(kFlowTransAngularSamples);
+      const double directionX = std::cos(angle);
+      const double directionY = std::sin(angle);
+      double boundaryRadius = std::numeric_limits<double>::quiet_NaN();
+      if (parameters.flowTransRadiusMode == blastwave::FlowTransRadiusMode::DensityPercentile) {
+        boundaryRadius = computeDensityPercentileBoundaryRadius(medium, directionX, directionY, parameters.flowTransRadiusFraction, radiusUpperBound);
+      } else if (parameters.flowTransRadiusMode == blastwave::FlowTransRadiusMode::DensityLevel) {
+        boundaryRadius = computeDensityLevelBoundaryRadius(medium, directionX, directionY, parameters.flowTransRadiusFraction, radiusUpperBound);
+      }
+
+      if (std::isfinite(boundaryRadius) && boundaryRadius > kDirectionTolerance) {
+        profile.boundaryRadii[static_cast<std::size_t>(iAngle)] = boundaryRadius;
+        hasFiniteBoundary = true;
+      }
+    }
+
+    profile.valid = hasFiniteBoundary;
+    return profile;
+  }
+
+  // Interpolate the cached angular profile at the point's geometric ray direction.
+  double sampleBoundaryRadiusFromProfile(const blastwave::FlowTransRadiusProfile &profile, double directionX, double directionY) {
+    if (!profile.valid || profile.angularSamples <= 0 || profile.boundaryRadii.empty()) {
+      return std::numeric_limits<double>::quiet_NaN();
+    }
+
+    const double directionNorm = std::hypot(directionX, directionY);
+    if (!std::isfinite(directionNorm) || directionNorm <= kDirectionTolerance) {
+      return std::numeric_limits<double>::quiet_NaN();
+    }
+
+    double angle = std::atan2(directionY / directionNorm, directionX / directionNorm);
+    if (angle < 0.0) {
+      angle += kTwoPi;
+    }
+    const double scaledIndex = angle * static_cast<double>(profile.angularSamples) / kTwoPi;
+    const int leftIndex = static_cast<int>(std::floor(scaledIndex)) % profile.angularSamples;
+    const int rightIndex = (leftIndex + 1) % profile.angularSamples;
+    const double interpolation = scaledIndex - std::floor(scaledIndex);
+
+    const double leftRadius = profile.boundaryRadii[static_cast<std::size_t>(leftIndex)];
+    const double rightRadius = profile.boundaryRadii[static_cast<std::size_t>(rightIndex)];
+    if (std::isfinite(leftRadius) && std::isfinite(rightRadius)) {
+      return leftRadius + (rightRadius - leftRadius) * std::clamp(interpolation, 0.0, 1.0);
+    }
+    if (std::isfinite(leftRadius)) {
+      return leftRadius;
+    }
+    if (std::isfinite(rightRadius)) {
+      return rightRadius;
+    }
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+
+  // Convert one point into xi_used for density-defined transverse radii.
+  double computeDensityDefinedXiUsed(
+      const blastwave::EventMedium &medium, double x, double y, const blastwave::FlowFieldParameters &parameters, double radiusUpperBound) {
+    double rayX = 0.0;
+    double rayY = 0.0;
+    if (!sampleGeometricRadialDirection(medium.emissionGeometry, x, y, rayX, rayY)) {
+      return 0.0;
+    }
+
+    if (parameters.flowTransRadiusMode != blastwave::FlowTransRadiusMode::DensityPercentile
+        && parameters.flowTransRadiusMode != blastwave::FlowTransRadiusMode::DensityLevel) {
+      return std::numeric_limits<double>::quiet_NaN();
+    }
+
+    const blastwave::FlowTransRadiusProfile &profile = getFlowTransRadiusProfile(medium, parameters, radiusUpperBound);
+    const double boundaryRadius = sampleBoundaryRadiusFromProfile(profile, rayX, rayY);
+    if (!std::isfinite(boundaryRadius) || boundaryRadius <= kDirectionTolerance) {
+      return std::numeric_limits<double>::quiet_NaN();
+    }
+    const double radialDistance = std::hypot(x - medium.emissionGeometry.centerX, y - medium.emissionGeometry.centerY);
+    if (!std::isfinite(radialDistance) || radialDistance <= 0.0) {
+      return 0.0;
+    }
+
+    const double xi = radialDistance / boundaryRadius;
+    return std::min(1.0, std::max(0.0, xi));
+  }
+
   // Build shared affine-effective closure values used by both runtime modes.
   bool computeAffineEffectiveSharedTerms(
       const blastwave::EventMedium &medium, const blastwave::FlowFieldParameters &parameters, double &hInEff, double &hOutEff, double &hBar, double &rBar) {
@@ -140,7 +478,7 @@ namespace {
     info.affineUMax = parameters.affineUMax;
 
     if (parameters.affineEffectiveMode == blastwave::AffineEffectiveMode::AdditiveRho) {
-      // Additive-rho mode keeps a rho0 baseline plus affine geometry correction.
+      // Additive-rho mode keeps a transverse rapidity baseline plus affine geometry correction.
       const double uGeomIso = parameters.affineKappaFlow * hBar * rBar;
       const double uGeomIn = parameters.affineKappaFlow * std::sqrt((hInEff * medium.affineEffectiveClosure.sigmaInFinal) * (hInEff * medium.affineEffectiveClosure.sigmaInFinal));
       const double uGeomOut =
@@ -149,7 +487,7 @@ namespace {
       const double uGeomInClipped = std::min(uGeomIn, parameters.affineUMax);
       const double uGeomOutClipped = std::min(uGeomOut, parameters.affineUMax);
 
-      info.surfaceRhoBase = parameters.rho0;
+      info.surfaceRhoBase = parameters.flowTransRho0;
       info.surfaceRhoGeomIso = safeAtanh(uGeomIsoClipped);
       info.surfaceRhoGeomIn = safeAtanh(uGeomInClipped);
       info.surfaceRhoGeomOut = safeAtanh(uGeomOutClipped);
@@ -203,13 +541,14 @@ namespace {
     const double phiBLab = std::atan2(metric.normalY, metric.normalX);
     if (medium.densityEvolutionMode == blastwave::DensityEvolutionMode::AffineGaussianResponse) {
       sample.phiB = phiBLab;
-      sample.rhoRaw = parameters.rho0 * std::pow(sample.rTilde, parameters.flowPower) * computeAffineKappaModulation(phiBLab, medium, parameters);
+      sample.rhoRaw =
+          parameters.flowTransRho0 * std::pow(sample.rTilde, parameters.flowTransProfilePower) * computeAffineKappaModulation(phiBLab, medium, parameters);
     } else {
       // The public knob is kappa2 = a2 / eps2_initial. Keep the legacy
       // comparison path tied to the initial eccentricity vector.
       const double a2 = parameters.kappa2 * medium.participantGeometry.eps2;
       sample.phiB = std::atan2(metric.qMinor, metric.qMajor);
-      sample.rhoRaw = std::pow(sample.rTilde, parameters.flowPower) * (parameters.rho0 + a2 * std::cos(2.0 * sample.phiB));
+      sample.rhoRaw = std::pow(sample.rTilde, parameters.flowTransProfilePower) * (parameters.flowTransRho0 + a2 * std::cos(2.0 * sample.phiB));
     }
     sample.betaT = computeBetaT(sample.rhoRaw);
     sample.betaX = sample.betaT * metric.normalX;
@@ -217,9 +556,8 @@ namespace {
     return sample;
   }
 
-  // Sample the transverse velocity from the density-gradient normal while
-  // falling back to the inverse-covariance normal in flat or numerically
-  // degenerate regions.
+  // Sample density-normal flow with legacy behavior by default and a
+  // configured mixed-direction plus density-defined radius path when enabled.
   blastwave::FlowFieldSample evaluateDensityNormalFlow(const blastwave::EventMedium &medium, double x, double y, const blastwave::FlowFieldParameters &parameters) {
     blastwave::FlowFieldSample sample;
     const EllipseMetricSample metric = sampleEllipseMetric(medium.emissionGeometry, x, y);
@@ -229,23 +567,52 @@ namespace {
 
     double normalX = 0.0;
     double normalY = 0.0;
-    if (!sampleDensityNormalDirection(medium, x, y, metric, normalX, normalY)) {
+    sample.rTilde = metric.rTilde;
+
+    // Preserve historical density-normal behavior unless an explicit
+    // direction/radius flow-trans override has been provided.
+    if (!hasDensityNormalFlowTransOverrides(parameters)) {
+      if (!sampleDensityNormalDirection(medium, x, y, metric, normalX, normalY)) {
+        return sample;
+      }
+      const double phiBLab = std::atan2(normalY, normalX);
+      sample.phiB = phiBLab;
+      sample.rhoRaw = parameters.flowTransRho0 * std::pow(sample.rTilde, parameters.flowTransProfilePower);
+      if (medium.densityEvolutionMode == blastwave::DensityEvolutionMode::AffineGaussianResponse && parameters.densityNormalKappaCompensation) {
+        sample.rhoRaw *= computeAffineKappaModulation(phiBLab, medium, parameters);
+      }
+      sample.betaT = computeBetaT(sample.rhoRaw);
+      sample.betaX = sample.betaT * normalX;
+      sample.betaY = sample.betaT * normalY;
       return sample;
     }
 
-    sample.rTilde = metric.rTilde;
-    const double phiBLab = std::atan2(normalY, normalX);
-    sample.phiB = phiBLab;
-    if (medium.densityEvolutionMode == blastwave::DensityEvolutionMode::AffineGaussianResponse) {
-      // In the default affine density-normal mode, anisotropy is carried by
-      // the density-gradient normal itself; the explicit kappa2 multiplier is
-      // now an opt-in compensation knob for matching historical strength.
-      sample.rhoRaw = parameters.rho0 * std::pow(sample.rTilde, parameters.flowPower);
-      if (parameters.densityNormalKappaCompensation) {
-        sample.rhoRaw *= computeAffineKappaModulation(phiBLab, medium, parameters);
+    if (!sampleConfiguredDensityNormalDirection(medium, x, y, parameters, metric, normalX, normalY)) {
+      return sample;
+    }
+
+    double xiUsed = metric.rTilde;
+    if (parameters.flowTransRadiusMode == blastwave::FlowTransRadiusMode::DensityPercentile
+        || parameters.flowTransRadiusMode == blastwave::FlowTransRadiusMode::DensityLevel) {
+      const double radiusUpperBound = computeDensityRayUpperBound(medium);
+      xiUsed = computeDensityDefinedXiUsed(medium, x, y, parameters, radiusUpperBound);
+      if (!std::isfinite(xiUsed)) {
+        xiUsed = metric.rTilde;
       }
-    } else {
-      sample.rhoRaw = parameters.rho0 * std::pow(sample.rTilde, parameters.flowPower);
+    }
+
+    if (!std::isfinite(xiUsed) || xiUsed < 0.0) {
+      return {};
+    }
+    const double radialProfile = std::pow(xiUsed, parameters.flowTransProfilePower);
+    if (!std::isfinite(radialProfile)) {
+      return {};
+    }
+
+    sample.phiB = std::atan2(normalY, normalX);
+    sample.rhoRaw = parameters.flowTransRho0 * radialProfile;
+    if (medium.densityEvolutionMode == blastwave::DensityEvolutionMode::AffineGaussianResponse && parameters.densityNormalKappaCompensation) {
+      sample.rhoRaw *= computeAffineKappaModulation(sample.phiB, medium, parameters);
     }
     sample.betaT = computeBetaT(sample.rhoRaw);
     sample.betaX = sample.betaT * normalX;
@@ -272,7 +639,7 @@ namespace {
       return {};
     }
 
-    const double radialProfile = std::pow(sample.rTilde, parameters.flowPower);
+    const double radialProfile = std::pow(sample.rTilde, parameters.flowTransProfilePower);
     if (!std::isfinite(radialProfile)) {
       return {};
     }
@@ -285,7 +652,7 @@ namespace {
     const double uGeomClipped = std::min(uGeom, parameters.affineUMax);
     const double uGeomIsoClipped = std::min(uGeomIso, parameters.affineUMax);
 
-    const double rhoBase = parameters.rho0 * radialProfile;
+    const double rhoBase = parameters.flowTransRho0 * radialProfile;
     const double rhoGeom = safeAtanh(uGeomClipped);
     const double rhoGeomIso = safeAtanh(uGeomIsoClipped);
     sample.rhoRaw = std::max(0.0, rhoBase + (rhoGeom - rhoGeomIso));
@@ -303,7 +670,7 @@ namespace {
     blastwave::FlowFieldSample sample;
     sample.rTilde = metric.rTilde;
 
-    const double radialProfile = std::pow(sample.rTilde, parameters.flowPower);
+    const double radialProfile = std::pow(sample.rTilde, parameters.flowTransProfilePower);
     if (!std::isfinite(radialProfile)) {
       return {};
     }

@@ -90,6 +90,16 @@ namespace {
     require(threw, message);
   }
 
+  void requireParseFailureContains(const std::vector<std::string> &arguments, const std::string &expectedText, const std::string &message) {
+    bool threw = false;
+    try {
+      static_cast<void>(parseArguments(arguments));
+    } catch (const std::invalid_argument &error) {
+      threw = std::string(error.what()).find(expectedText) != std::string::npos;
+    }
+    require(threw, message);
+  }
+
   void runDefaultSamplerTest() {
     const ParsedRunOptions parsed = parseArguments({});
     require(!parsed.showHelp, "Default parse should not request help.");
@@ -97,7 +107,11 @@ namespace {
             "Default flow velocity sampler should stay covariance-ellipse.");
     require(parsed.runOptions.config.densityEvolutionMode == blastwave::DensityEvolutionMode::AffineGaussianResponse,
             "Default density evolution mode should stay affine-gaussian.");
+    requireNear(parsed.runOptions.config.flowTransRho0, 1.0986122886681098, 1.0e-12, "Default flow-trans-rho0 should preserve the previous rho0 numeric default.");
     requireNear(parsed.runOptions.config.kappa2, 1.0986122886681098, 1.0e-12, "Default kappa2 should preserve the previous rho2 numeric default.");
+    requireNear(parsed.runOptions.config.flowTransProfilePower, 1.0, 1.0e-12, "Default flow-trans-profile-power should stay 1.");
+    requireNear(parsed.runOptions.config.flowTransDirectionGradientFraction, 1.0, 1.0e-12, "Default flow-trans direction fraction should stay density-gradient.");
+    require(parsed.runOptions.config.flowTransRadiusMode == blastwave::FlowTransRadiusMode::Covariance, "Default flow-trans radius should stay covariance.");
     requireNear(parsed.runOptions.config.flowDensitySigma, 0.5, 1.0e-12, "Default flow density sigma should stay 0.5 fm.");
     requireNear(parsed.runOptions.config.affineLambdaIn, 1.20, 1.0e-12, "Default affine lambda in should stay 1.20.");
     requireNear(parsed.runOptions.config.affineLambdaOut, 1.05, 1.0e-12, "Default affine lambda out should stay 1.05.");
@@ -121,6 +135,137 @@ namespace {
     require(!parsed.runOptions.config.debugGradientResponse, "Debug gradient response should stay disabled by default.");
     require(parsed.runOptions.config.cooperFryeWeightMode == blastwave::CooperFryeWeightMode::None,
             "Cooper-Frye weight should default to none.");
+  }
+
+  void runFlowTransCliParseTest() {
+    const ParsedRunOptions parsed = parseArguments({"--flow-velocity-sampler",
+                                                    "density-normal",
+                                                    "--density-evolution",
+                                                    "affine-gaussian",
+                                                    "--flow-trans-rho0",
+                                                    "0.83",
+                                                    "--flow-trans-profile-power",
+                                                    "1.4",
+                                                    "--flow-trans-direction-gradient-fraction",
+                                                    "0.25",
+                                                    "--flow-trans-radius",
+                                                    "covariance",
+                                                    "--kappa2",
+                                                    "0.06"});
+    require(parsed.runOptions.config.flowVelocitySamplerMode == blastwave::FlowVelocitySamplerMode::DensityNormal,
+            "CLI should accept density-normal with flow-trans controls.");
+    requireNear(parsed.runOptions.config.flowTransRho0, 0.83, 1.0e-12, "CLI flow-trans-rho0 parse mismatch.");
+    requireNear(parsed.runOptions.config.flowTransProfilePower, 1.4, 1.0e-12, "CLI flow-trans-profile-power parse mismatch.");
+    requireNear(parsed.runOptions.config.flowTransDirectionGradientFraction, 0.25, 1.0e-12, "CLI flow-trans direction fraction parse mismatch.");
+    require(parsed.runOptions.config.flowTransRadiusMode == blastwave::FlowTransRadiusMode::Covariance, "CLI flow-trans-radius covariance parse mismatch.");
+    requireNear(parsed.runOptions.config.kappa2, 0.06, 1.0e-12, "CLI kappa2 parse should remain unchanged.");
+    requireGeneratorValidationSuccess(parsed.runOptions.config, "Density-normal flow-trans CLI config should validate.");
+  }
+
+  void runFlowTransConfigAndOverrideParseTest() {
+    const TemporaryConfigFile configFile(
+        "flow-velocity-sampler = density-normal\n"
+        "density-evolution = affine-gaussian\n"
+        "flow-trans-rho0 = 0.91\n"
+        "flow-trans-profile-power = 1.2\n"
+        "flow-trans-direction-gradient-fraction = 1.0\n"
+        "flow-trans-radius = density-level:1.0e-3\n");
+    const ParsedRunOptions configOnly = parseArguments({configFile.path().string()});
+    requireNear(configOnly.runOptions.config.flowTransRho0, 0.91, 1.0e-12, "Config flow-trans-rho0 parse mismatch.");
+    requireNear(configOnly.runOptions.config.flowTransProfilePower, 1.2, 1.0e-12, "Config flow-trans-profile-power parse mismatch.");
+    require(configOnly.runOptions.config.flowTransRadiusMode == blastwave::FlowTransRadiusMode::DensityLevel,
+            "Config flow-trans-radius should parse density-level.");
+    requireNear(configOnly.runOptions.config.flowTransRadiusFraction, 1.0e-3, 1.0e-15, "Config density-level fraction mismatch.");
+    requireGeneratorValidationSuccess(configOnly.runOptions.config, "Config-only density-normal flow-trans setup should validate.");
+
+    const ParsedRunOptions cliOverride = parseArguments(
+        {configFile.path().string(), "--flow-trans-rho0", "0.75", "--flow-trans-profile-power", "1.8", "--flow-trans-radius", "density-percentile:0.95"});
+    requireNear(cliOverride.runOptions.config.flowTransRho0, 0.75, 1.0e-12, "CLI should override config flow-trans-rho0.");
+    requireNear(cliOverride.runOptions.config.flowTransProfilePower, 1.8, 1.0e-12, "CLI should override config flow-trans-profile-power.");
+    require(cliOverride.runOptions.config.flowTransRadiusMode == blastwave::FlowTransRadiusMode::DensityPercentile,
+            "CLI should override config flow-trans-radius mode.");
+    requireNear(cliOverride.runOptions.config.flowTransRadiusFraction, 0.95, 1.0e-12, "CLI should override config flow-trans-radius fraction.");
+  }
+
+  void runDeprecatedTransverseFlowNamesRejectTest() {
+    requireParseFailureContains({"--rho0", "0.9"}, "flow-trans-rho0", "Deprecated CLI rho0 should point to flow-trans-rho0.");
+    requireParseFailureContains({"--flow-power", "1.2"}, "flow-trans-profile-power", "Deprecated CLI flow-power should point to flow-trans-profile-power.");
+
+    const TemporaryConfigFile rho0Config("rho0 = 0.9\n");
+    requireParseFailureContains({rho0Config.path().string()}, "flow-trans-rho0", "Deprecated config rho0 should point to flow-trans-rho0.");
+
+    const TemporaryConfigFile flowPowerConfig("flow-power = 1.2\n");
+    requireParseFailureContains(
+        {flowPowerConfig.path().string()}, "flow-trans-profile-power", "Deprecated config flow-power should point to flow-trans-profile-power.");
+  }
+
+  void runFlowTransRadiusParseVariantsTest() {
+    const ParsedRunOptions covariance =
+        parseArguments({"--flow-velocity-sampler", "density-normal", "--flow-trans-radius", "covariance"});
+    require(covariance.runOptions.config.flowTransRadiusMode == blastwave::FlowTransRadiusMode::Covariance,
+            "flow-trans-radius=covariance parse mismatch.");
+
+    const ParsedRunOptions percentile =
+        parseArguments({"--flow-velocity-sampler", "density-normal", "--flow-trans-radius", "density-percentile:0.95"});
+    require(percentile.runOptions.config.flowTransRadiusMode == blastwave::FlowTransRadiusMode::DensityPercentile,
+            "flow-trans-radius density-percentile parse mismatch.");
+    requireNear(percentile.runOptions.config.flowTransRadiusFraction, 0.95, 1.0e-12, "density-percentile fraction mismatch.");
+
+    const ParsedRunOptions level =
+        parseArguments({"--flow-velocity-sampler", "density-normal", "--flow-trans-radius", "density-level:1.0e-3"});
+    require(level.runOptions.config.flowTransRadiusMode == blastwave::FlowTransRadiusMode::DensityLevel,
+            "flow-trans-radius density-level parse mismatch.");
+    requireNear(level.runOptions.config.flowTransRadiusFraction, 1.0e-3, 1.0e-15, "density-level fraction mismatch.");
+  }
+
+  void runInvalidFlowTransRadiusRejectsTest() {
+    const std::vector<std::string> invalidValues = {
+        "density-percentile",
+        "density-percentile:0",
+        "density-percentile:1",
+        "density-percentile:-0.1",
+        "density-percentile:abc",
+        "density-level:0",
+        "density-level:-1.0e-3",
+        "density-level:abc",
+        "not-a-mode",
+    };
+    for (const std::string &invalidValue : invalidValues) {
+      requireParseFailureContains({"--flow-trans-radius", invalidValue}, "flow-trans-radius", "Invalid flow-trans-radius should be rejected: " + invalidValue);
+    }
+  }
+
+  void runFlowTransValidationRejectsTest() {
+    const ParsedRunOptions negativeDirection =
+        parseArguments({"--flow-velocity-sampler", "density-normal", "--flow-trans-direction-gradient-fraction", "-0.1"});
+    requireGeneratorValidationFailure(negativeDirection.runOptions.config, "Negative flow-trans direction fraction should fail validation.");
+
+    const ParsedRunOptions largeDirection =
+        parseArguments({"--flow-velocity-sampler", "density-normal", "--flow-trans-direction-gradient-fraction", "1.1"});
+    requireGeneratorValidationFailure(largeDirection.runOptions.config, "Large flow-trans direction fraction should fail validation.");
+
+    const ParsedRunOptions covarianceWithDirection =
+        parseArguments({"--flow-velocity-sampler", "covariance-ellipse", "--flow-trans-direction-gradient-fraction", "0.5"});
+    requireGeneratorValidationFailure(covarianceWithDirection.runOptions.config, "flow-trans direction should be rejected outside density-normal.");
+
+    const ParsedRunOptions affineWithRadius =
+        parseArguments({"--flow-velocity-sampler", "affine-effective", "--density-evolution", "affine-gaussian", "--flow-trans-radius", "covariance"});
+    requireGeneratorValidationFailure(affineWithRadius.runOptions.config, "flow-trans radius should be rejected outside density-normal.");
+
+    const ParsedRunOptions gradientWithRadius = parseArguments(
+        {"--flow-velocity-sampler", "gradient-response", "--density-evolution", "gradient-response", "--flow-trans-radius", "density-percentile:0.95"});
+    requireGeneratorValidationFailure(gradientWithRadius.runOptions.config, "flow-trans radius should be rejected for gradient-response.");
+  }
+
+  void runDensityNormalFlowTransValidationSuccessTest() {
+    requireGeneratorValidationSuccess(parseArguments({"--flow-velocity-sampler", "density-normal", "--flow-trans-radius", "covariance"}).runOptions.config,
+                                      "Density-normal covariance flow-trans radius should validate.");
+    requireGeneratorValidationSuccess(
+        parseArguments({"--flow-velocity-sampler", "density-normal", "--flow-trans-radius", "density-percentile:0.95"}).runOptions.config,
+        "Density-normal percentile flow-trans radius should validate.");
+    requireGeneratorValidationSuccess(
+        parseArguments({"--flow-velocity-sampler", "density-normal", "--flow-trans-radius", "density-level:1.0e-3"}).runOptions.config,
+        "Density-normal density-level flow-trans radius should validate.");
   }
 
   void runCliSamplerAndDensityEvolutionParseTest() {
@@ -650,6 +795,13 @@ namespace {
 int main() {
   try {
     runDefaultSamplerTest();
+    runFlowTransCliParseTest();
+    runFlowTransConfigAndOverrideParseTest();
+    runDeprecatedTransverseFlowNamesRejectTest();
+    runFlowTransRadiusParseVariantsTest();
+    runInvalidFlowTransRadiusRejectsTest();
+    runFlowTransValidationRejectsTest();
+    runDensityNormalFlowTransValidationSuccessTest();
     runInitialGeometryDefaultParseTest();
     runCliSamplerAndDensityEvolutionParseTest();
     runInitialGeometryParseAndOverrideTest();

@@ -47,6 +47,22 @@ namespace blastwave {
   };
 
   /**
+   * Cached angular boundary profile for density-defined transverse-flow
+   * radii. The mode/fraction pair is part of the cache key because percentile
+   * and level radii have different physical meanings.
+   */
+  struct FlowTransRadiusProfile {
+    bool valid = false;
+    FlowTransRadiusMode mode = FlowTransRadiusMode::Covariance;
+    double fraction = 0.0;
+    double centerX = 0.0;
+    double centerY = 0.0;
+    double radiusUpperBound = 0.0;
+    int angularSamples = 0;
+    std::vector<double> boundaryRadii;
+  };
+
+  /**
    * Event-level medium state shared by emission sampling, flow sampling, and
    * optional serialization. participantGeometry preserves initial-state
    * observables, while emissionDensity/emissionGeometry are the stage future
@@ -62,8 +78,10 @@ namespace blastwave {
     double markerDensityScale = 0.0;
     double dynamicsDensityScale = 0.0;
     DensityField emissionDensity;
+    double emissionDensityScale = 0.0;
     FlowEllipseInfo emissionGeometry;
     AffineEffectiveClosure affineEffectiveClosure;
+    mutable FlowTransRadiusProfile flowTransRadiusProfile;
   };
 
   [[nodiscard]] EventMedium buildEventMedium(const std::vector<WeightedTransversePoint> &points, const EventMediumParameters &parameters);

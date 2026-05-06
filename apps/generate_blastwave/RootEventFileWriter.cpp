@@ -230,9 +230,9 @@ namespace {
     if (config.flowVelocitySamplerMode == blastwave::FlowVelocitySamplerMode::AffineEffective) {
       const blastwave::FlowFieldParameters flowParameters{
           config.flowVelocitySamplerMode,
-          config.rho0,
+          config.flowTransRho0,
           config.kappa2,
-          config.flowPower,
+          config.flowTransProfilePower,
           config.densityNormalKappaCompensation,
           config.affineDeltaTauRef,
           config.affineKappaFlow,

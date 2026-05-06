@@ -312,3 +312,28 @@
   - older ROOT files without the new mandatory branches/histograms are no longer current-schema QA inputs
   - physics conclusions from the response test require controlled scans over measured `eps3`, not direct interpretation of template `A3`
   - future higher-harmonic work should either extend this response-test surface or introduce a separately documented flow-response coefficient, not silently overload `kappa2`
+
+## DEC-016 Use `flow-trans-*` For Transverse Rapidity Baseline/Profile And Add Density-Normal Radius Modes
+
+- Status: accepted
+- Date: 2026-05-06
+- Context:
+  - the high-order transverse-flow radius/direction plan required a clearer config namespace before adding new behavior
+  - the old `rho0` and `flow-power` names were too short to carry the transverse-flow layer explicitly
+  - the user explicitly chose not to keep compatibility for old names
+  - `kappa2` already has a stable meaning as the second-order response coefficient and should not be renamed in this packet
+- Decision:
+  - replace public `rho0` with `flow-trans-rho0`
+  - replace public `flow-power` with `flow-trans-profile-power`
+  - reject old `rho0` and `flow-power` in both CLI and config files with migration guidance
+  - keep `kappa2` as the public second-order response coefficient
+  - add density-normal-only `flow-trans-direction-gradient-fraction`
+  - add density-normal-only `flow-trans-radius = covariance | density-percentile:<p> | density-level:<fraction>`
+  - validate explicit direction/radius flow-trans keys as invalid under `covariance-ellipse`, `affine-effective`, or `gradient-response`
+  - use `EventMedium::emissionDensityScale` and an event-level angular boundary profile cache for density-defined radii
+  - keep the ROOT schema unchanged for this packet
+- Consequences:
+  - all tracked example configs now use `flow-trans-rho0` and `flow-trans-profile-power`
+  - old configs using `rho0` or `flow-power` need direct migration before running
+  - `density-normal` can now scan geometric-vs-density-gradient direction mixing and covariance/percentile/level radius definitions without changing other samplers
+  - future cumulative transverse-gradient corrections should extend the `flow-trans-*` layer instead of reusing generic `gradient-*` names

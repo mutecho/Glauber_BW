@@ -12,7 +12,7 @@
   - `density-evolution = affine-gaussian`
   - `flow-velocity-sampler = affine-effective`
   - `affine-effective-mode = additive-rho|full-tensor`
-  It recovers event-level in/out growth rates from the initial and freeze-out covariance semi-axes and turns them into an effective local flow field. The default `additive-rho` mode keeps the density-normal direction and uses `rho0` as the baseline average flow; `full-tensor` is opt-in and directly maps the principal-axis tensor velocity field.
+  It recovers event-level in/out growth rates from the initial and freeze-out covariance semi-axes and turns them into an effective local flow field. The default `additive-rho` mode keeps the density-normal direction and uses `flow-trans-rho0` as the baseline average flow; `full-tensor` is opt-in and directly maps the principal-axis tensor velocity field.
 - V2 `GradientResponse` is now available as an opt-in coupled medium/flow mode:
   - `density-evolution = gradient-response`
   - `flow-velocity-sampler = gradient-response`
@@ -27,9 +27,11 @@
   - `src/EventMedium.cpp`
   - `src/EmissionSampler.cpp`
 - The current public flow surface is:
-  - `rho0`
+  - `flow-trans-rho0`
   - `kappa2`
-  - `flow-power`
+  - `flow-trans-profile-power`
+  - `flow-trans-direction-gradient-fraction` for density-normal only
+  - `flow-trans-radius` for density-normal only
   - `flow-velocity-sampler`
   - `density-evolution`
   - `flow-density-sigma`
@@ -47,7 +49,7 @@
   - `covariance-ellipse|density-normal|gradient-response|affine-effective` controls the transverse flow source
   - `affine-effective` is only valid with `affine-gaussian`
   - the two `gradient-response` values must be selected together
-- Legacy flow knobs `vmax`, `rho2`, and `r-ref` are no longer accepted; they fail fast with migration guidance.
+- Legacy flow knobs `vmax`, `rho0`, `flow-power`, `rho2`, and `r-ref` are no longer accepted; they fail fast with migration guidance.
 - Event summaries now carry both:
   - initial-state geometry observables `eps2` and `psi2`
   - freeze-out geometry observables `eps2_f`, `psi2_f`, and `chi2`
@@ -91,9 +93,11 @@
   - config-file values override built-in defaults
   - relative `output` paths resolve relative to the config file directory
 - Flow-facing public knobs:
-  - `--rho0`
+  - `--flow-trans-rho0`
   - `--kappa2`
-  - `--flow-power`
+  - `--flow-trans-profile-power`
+  - `--flow-trans-direction-gradient-fraction`
+  - `--flow-trans-radius <covariance|density-percentile:<p>|density-level:<fraction>>`
   - `--flow-velocity-sampler <covariance-ellipse|density-normal|gradient-response|affine-effective>`
   - `--density-evolution <affine-gaussian|none|gradient-response>`
   - `--affine-delta-tau-ref`

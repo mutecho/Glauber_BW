@@ -42,9 +42,14 @@ namespace blastwave {
     double etaPlateauHalfWidth = 1.0;  // Flat |eta_s| core half width
     double nbdMu = 2.0;
     double nbdK = 1.5;
-    double rho0 = 1.0986122886681098;
+    double flowTransRho0 = 1.0986122886681098;
     double kappa2 = 1.0986122886681098;
-    double flowPower = 1.0;
+    double flowTransProfilePower = 1.0;
+    double flowTransDirectionGradientFraction = 1.0;
+    FlowTransRadiusMode flowTransRadiusMode = FlowTransRadiusMode::Covariance;
+    double flowTransRadiusFraction = 0.0;
+    bool hasFlowTransDirectionGradientFraction = false;
+    bool hasFlowTransRadius = false;
     DensityEvolutionMode densityEvolutionMode = DensityEvolutionMode::AffineGaussianResponse;
     FlowVelocitySamplerMode flowVelocitySamplerMode = FlowVelocitySamplerMode::CovarianceEllipse;
     double flowDensitySigma = 0.5;     // fm

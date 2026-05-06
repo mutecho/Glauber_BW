@@ -8,6 +8,7 @@ namespace blastwave {
 
   enum class FlowVelocitySamplerMode { CovarianceEllipse, DensityNormal, GradientResponse, AffineEffective };
   enum class AffineEffectiveMode { AdditiveRho, FullTensor };
+  enum class FlowTransRadiusMode { Covariance, DensityPercentile, DensityLevel };
   struct EmissionSite;
   struct EventMedium;
 
@@ -45,15 +46,20 @@ namespace blastwave {
    */
   struct FlowFieldParameters {
     FlowVelocitySamplerMode velocitySamplerMode = FlowVelocitySamplerMode::CovarianceEllipse;
-    double rho0 = 0.0;
+    double flowTransRho0 = 0.0;
     double kappa2 = 0.0;
-    double flowPower = 1.0;
+    double flowTransProfilePower = 1.0;
     bool densityNormalKappaCompensation = false;
     double affineDeltaTauRef = 10.0;
     double affineKappaFlow = 10.0;
     double affineKappaAniso = 1.0;
     double affineUMax = 0.95;
     AffineEffectiveMode affineEffectiveMode = AffineEffectiveMode::AdditiveRho;
+    double flowTransDirectionGradientFraction = 1.0;
+    FlowTransRadiusMode flowTransRadiusMode = FlowTransRadiusMode::Covariance;
+    double flowTransRadiusFraction = 0.0;
+    bool hasFlowTransDirectionGradientFraction = false;
+    bool hasFlowTransRadius = false;
   };
 
   /**
