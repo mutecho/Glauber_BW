@@ -2,16 +2,16 @@
 
 ## Latest Durable Handoff
 
-- Stage completed: flow-trans naming and density-normal radius/direction first packet
+- Stage completed: flow-trans radius resolution optimization packet
 - What changed:
-  - replaced public `rho0` / `flow-power` with `flow-trans-rho0` / `flow-trans-profile-power`
-  - old `rho0` and `flow-power` now fail in config and CLI with explicit migration guidance
-  - kept `kappa2` as the public second-order response coefficient
-  - added density-normal-only `flow-trans-direction-gradient-fraction`
-  - added density-normal-only `flow-trans-radius = covariance | density-percentile:<p> | density-level:<fraction>`
-  - added `EventMedium::emissionDensityScale` plus an event-level angular boundary profile cache for density-defined radii
-  - added `config/test_b8_density_normal_flow_trans.cfg` as the complete Chinese explained flow-trans example
-  - migrated tracked configs and refreshed active docs plus `project-state/`
+  - added density-normal-only `flow-trans-radius-resolution = balanced | precise | fast`
+  - made `balanced = 240 x 256` the default density-defined boundary profile grid
+  - kept `precise = 360 x 512` as the old-grid precision baseline and added `fast = 120 x 128`
+  - changed `density-percentile` / `density-level` boundary construction to use scalar density queries instead of full density-gradient samples
+  - reused percentile cumulative buffers across angular rays and removed per-ray radius-vector allocation
+  - moved density-defined `radiusUpperBound` computation into profile cache construction so cache hits do not rescan support points
+  - extended the cached profile key with resolution and radial sample count
+  - updated parser, validation, help text, tests, complete Chinese configs, active docs, and `project-state/`
 - Current documentation ownership:
   - detailed runtime and physics explanation: `docs/项目说明.md`
   - formula walkthrough: `docs/数学物理公式流程说明.md`
@@ -31,7 +31,8 @@
 - affine-effective remains opt-in and only valid for `affine-gaussian`
 - affine-effective defaults to `additive-rho`; use `--affine-effective-mode full-tensor` for the tensor closure path
 - `flow-trans-rho0` and `flow-trans-profile-power` are the current transverse rapidity baseline/profile names; `rho0` and `flow-power` are rejected
-- `flow-trans-direction-gradient-fraction` and `flow-trans-radius` are only valid when `flow-velocity-sampler = density-normal`
+- `flow-trans-direction-gradient-fraction`, `flow-trans-radius`, and explicit `flow-trans-radius-resolution` are only valid when `flow-velocity-sampler = density-normal`
+- `flow-trans-radius-resolution` only changes density-percentile/level profile sampling; it does not change `R(phi)` or `xi = r / R(phi)`, and has no effect on `flow-trans-radius = covariance`
 - V2 `gradient-response` remains opt-in and coupled across medium and flow selection
 - differential `v2{2}(pT)` / `v3{2}(pT)` remain separate analysis payloads and do not replace `events.v2/events.v3`
 - `flowpt-output-mode = separate-file` may leave the main result file metadata-only
@@ -46,9 +47,13 @@
 
 ## Verification Status
 
-- durable baseline after this task: `verified` on 2026-05-06
-- local full build and full local `ctest` passed after integrating the flow-trans naming/radius implementation
-- `test_run_options` and `test_flow_field_model` carry the focused ROOT-free coverage for this packet
-- authoritative outside-sandbox O2Physics default generate + QA passed for `config/test_b8.cfg --nevents 20`
-- authoritative outside-sandbox O2Physics generate + QA passed for `config/test_b8_density_normal_flow_trans.cfg` with `flow-trans-radius = covariance`, `density-percentile:0.95`, and `density-level:1.0e-3`
-- sandboxed ROOT run hit known PCM/module noise; do not use it as the evidence source
+- durable baseline after this task: `verified` on 2026-05-07
+- local `cmake --build /Users/allenzhou/Research_software/Blast_wave/build -j4` passed
+- local full `ctest --test-dir /Users/allenzhou/Research_software/Blast_wave/build --output-on-failure` passed with 9/9 tests
+- `test_run_options` covers resolution parse/default/override/invalid values and density-normal-only validation
+- `test_flow_field_model` covers resolution-aware cache rebuild and balanced-vs-precise stability
+- O2Physics ROOT executor `PRIMARY_OK` generate + QA passed for `config/test_b8_density_normal_flow_trans.cfg` with:
+  - `flow-trans-radius = covariance`
+  - `flow-trans-radius = density-percentile:0.95`, `flow-trans-radius-resolution = balanced`
+  - `flow-trans-radius = density-percentile:0.95`, `flow-trans-radius-resolution = precise`
+  - `flow-trans-radius = density-level:1.0e-3`, `flow-trans-radius-resolution = balanced`

@@ -2,11 +2,11 @@
 
 ## Snapshot
 
-- Date: 2026-05-06
+- Date: 2026-05-07
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
 - Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in affine-effective closure path with `additive-rho` and `full-tensor` submodes, the opt-in V2 gradient-response path, optional differential `v2/v3{2}(pT)` analysis, and the opt-in `response-test-023` initial-geometry response-test path.
-- Latest durable verification anchor: 2026-05-06 local build, full local `ctest`, outside-sandbox ROOT default generate+QA smoke, and outside-sandbox ROOT generate+QA smokes for density-normal `flow-trans-radius = covariance`, `density-percentile:0.95`, and `density-level:1.0e-3`.
-- Latest task implemented the first high-order transverse-flow naming/radius packet from `docs/配置名整理高阶半径梯度混合最终方案.md`.
+- Latest durable verification anchor: 2026-05-07 local build, full local `ctest`, and O2Physics ROOT generate+QA smokes for density-normal `flow-trans-radius = covariance`, `density-percentile:0.95` with `balanced` and `precise` resolution, and `density-level:1.0e-3` with `balanced` resolution.
+- Latest task implemented the `flow-trans-radius-resolution` optimization packet from `docs/高阶半径优化方案.md`.
 
 ## Current Runtime Baseline
 
@@ -37,6 +37,7 @@
   - `flow-velocity-sampler = density-normal`
   - `flow-trans-direction-gradient-fraction = 0..1`
   - `flow-trans-radius = covariance | density-percentile:<p> | density-level:<fraction>`
+  - `flow-trans-radius-resolution = balanced | precise | fast` for density-defined profile construction only
   - `flow-trans-rho0` and `flow-trans-profile-power` are the public transverse rapidity baseline/profile names
 
 ## Current Contract Highlights
@@ -113,6 +114,7 @@
   - standalone differential post-processing
   - flow-trans naming/parser contract with direct old-name rejection
   - density-normal direction mixing and covariance/percentile/level radius modes
+  - density-normal flow-trans radius resolution parsing, cache-key separation, and balanced-vs-precise stability
   - `chi2` TH1 contract
   - ROOT-free third-harmonic helper and response-template generator coverage
   - default Glauber generation + QA with the expanded third-harmonic schema

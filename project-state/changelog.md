@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-05-07 Flow-Trans Radius Resolution Presets
+
+- Added density-normal-only `flow-trans-radius-resolution = balanced | precise | fast`, with `balanced` as the new default profile grid and `precise` preserving the old `360 x 512` grid.
+- Changed density-defined radius profile construction to use scalar density queries and reuse percentile cumulative buffers across angular rays.
+- Extended the flow-trans radius profile cache key with resolution and radial sample count so fast/precise profiles cannot be reused across presets.
+- Updated parser, validation, help text, tests, example configs, docs, and `project-state/`.
+- Recorded local build, full `ctest`, and O2Physics ROOT generate+QA smokes for covariance, percentile balanced, percentile precise, and level balanced radius runs.
+
 ## 2026-05-06 Flow-Trans Naming And Density-Normal Radius Modes
 
 - Replaced public `rho0` / `flow-power` with `flow-trans-rho0` / `flow-trans-profile-power`; old names now fail in CLI and config with migration guidance.

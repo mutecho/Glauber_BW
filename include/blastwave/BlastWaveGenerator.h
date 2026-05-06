@@ -50,6 +50,8 @@ namespace blastwave {
     double flowTransRadiusFraction = 0.0;
     bool hasFlowTransDirectionGradientFraction = false;
     bool hasFlowTransRadius = false;
+    FlowTransRadiusResolution flowTransRadiusResolution = FlowTransRadiusResolution::Balanced;
+    bool hasFlowTransRadiusResolution = false;
     DensityEvolutionMode densityEvolutionMode = DensityEvolutionMode::AffineGaussianResponse;
     FlowVelocitySamplerMode flowVelocitySamplerMode = FlowVelocitySamplerMode::CovarianceEllipse;
     double flowDensitySigma = 0.5;     // fm

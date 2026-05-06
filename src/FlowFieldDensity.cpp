@@ -6,6 +6,40 @@ namespace {
 
   constexpr double kPi = 3.14159265358979323846;
 
+  // Evaluate the Gaussian point-cloud density without gradient terms for
+  // boundary-profile callers that only need scalar density values.
+  [[nodiscard]] double evaluateDensityValueUnchecked(const blastwave::DensityField &field, double x, double y) {
+    const double determinant = field.kernelCovXX * field.kernelCovYY - field.kernelCovXY * field.kernelCovXY;
+    if (!std::isfinite(determinant) || determinant <= 0.0) {
+      return 0.0;
+    }
+
+    const double inverseCovXX = field.kernelCovYY / determinant;
+    const double inverseCovXY = -field.kernelCovXY / determinant;
+    const double inverseCovYY = field.kernelCovXX / determinant;
+    const double normalization = 1.0 / (2.0 * kPi * std::sqrt(determinant));
+
+    double density = 0.0;
+    for (const blastwave::WeightedTransversePoint &point : field.supportPoints) {
+      if (!std::isfinite(point.weight) || point.weight <= 0.0) {
+        continue;
+      }
+
+      const double dx = x - point.x;
+      const double dy = y - point.y;
+      const double qx = inverseCovXX * dx + inverseCovXY * dy;
+      const double qy = inverseCovXY * dx + inverseCovYY * dy;
+      const double quadraticForm = dx * qx + dy * qy;
+      if (!std::isfinite(quadraticForm)) {
+        continue;
+      }
+
+      const double exponent = -0.5 * quadraticForm;
+      density += point.weight * normalization * std::exp(exponent);
+    }
+    return density;
+  }
+
 }  // namespace
 
 namespace blastwave {
@@ -76,6 +110,18 @@ namespace blastwave {
     }
 
     return sample;
+  }
+
+  // Density-only query used by boundary-profile construction to avoid
+  // gradient computation in the tight radial-marching loop.
+  double evaluateDensityValue(const DensityField &field, double x, double y) {
+    if (!std::isfinite(field.kernelCovXX) || !std::isfinite(field.kernelCovXY) || !std::isfinite(field.kernelCovYY)) {
+      return 0.0;
+    }
+    if (field.supportPoints.empty()) {
+      return 0.0;
+    }
+    return evaluateDensityValueUnchecked(field, x, y);
   }
 
 }  // namespace blastwave

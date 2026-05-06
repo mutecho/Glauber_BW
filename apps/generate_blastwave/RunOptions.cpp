@@ -249,6 +249,21 @@ namespace {
                                 + ". Expected 'covariance', 'density-percentile:<p>', or 'density-level:<fraction>'.");
   }
 
+  blastwave::FlowTransRadiusResolution parseFlowTransRadiusResolution(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
+    if (rawValue == "balanced") {
+      return blastwave::FlowTransRadiusResolution::Balanced;
+    }
+    if (rawValue == "precise") {
+      return blastwave::FlowTransRadiusResolution::Precise;
+    }
+    if (rawValue == "fast") {
+      return blastwave::FlowTransRadiusResolution::Fast;
+    }
+
+    throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription
+                                + ". Expected 'balanced', 'precise', or 'fast'.");
+  }
+
   std::vector<double> parseDifferentialFlowPtBinEdges(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
     std::vector<double> edges;
     std::size_t start = 0;
@@ -380,6 +395,9 @@ namespace {
       runOptions.config.flowTransRadiusMode = radiusSpec.mode;
       runOptions.config.flowTransRadiusFraction = radiusSpec.fraction;
       runOptions.config.hasFlowTransRadius = true;
+    } else if (optionName == "flow-trans-radius-resolution") {
+      runOptions.config.flowTransRadiusResolution = parseFlowTransRadiusResolution(rawValue, optionName, sourceDescription);
+      runOptions.config.hasFlowTransRadiusResolution = true;
     } else if (optionName == "flow-velocity-sampler") {
       runOptions.config.flowVelocitySamplerMode = parseFlowVelocitySamplerMode(rawValue, optionName, sourceDescription);
     } else if (optionName == "density-evolution") {
@@ -514,6 +532,7 @@ namespace blastwave::app {
               << "  progress,\n"
               << "  flow-trans-rho0, kappa2, flow-trans-profile-power,\n"
               << "  flow-trans-direction-gradient-fraction, flow-trans-radius,\n"
+              << "  flow-trans-radius-resolution,\n"
               << "  flow-velocity-sampler, density-evolution,\n"
               << "  flow-density-sigma, affine-lambda-in, affine-lambda-out,\n"
               << "  affine-sigma-evo, affine-delta-tau-ref, affine-kappa-flow,\n"
@@ -571,6 +590,7 @@ namespace blastwave::app {
               << "  --flow-trans-profile-power <value>\n"
               << "  --flow-trans-direction-gradient-fraction <value>\n"
               << "  --flow-trans-radius <covariance|density-percentile:<p>|density-level:<fraction>>\n"
+              << "  --flow-trans-radius-resolution <balanced|precise|fast>\n"
               << "  --flow-velocity-sampler <covariance-ellipse|density-normal|gradient-response|affine-effective>\n"
               << "  --density-evolution <affine-gaussian|none|gradient-response>\n"
               << "  --flow-density-sigma <fm>\n"

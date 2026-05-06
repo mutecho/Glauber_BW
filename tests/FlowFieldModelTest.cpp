@@ -89,7 +89,8 @@ namespace {
                                                                       double profilePower,
                                                                       double gradientFraction,
                                                                       blastwave::FlowTransRadiusMode radiusMode,
-                                                                      double radiusFraction) {
+                                                                      double radiusFraction,
+                                                                      blastwave::FlowTransRadiusResolution resolution = blastwave::FlowTransRadiusResolution::Balanced) {
     blastwave::FlowFieldParameters parameters;
     parameters.velocitySamplerMode = blastwave::FlowVelocitySamplerMode::DensityNormal;
     parameters.flowTransRho0 = rho;
@@ -98,6 +99,7 @@ namespace {
     parameters.flowTransDirectionGradientFraction = gradientFraction;
     parameters.flowTransRadiusMode = radiusMode;
     parameters.flowTransRadiusFraction = radiusFraction;
+    parameters.flowTransRadiusResolution = resolution;
     parameters.hasFlowTransDirectionGradientFraction = true;
     parameters.hasFlowTransRadius = true;
     return parameters;
@@ -354,6 +356,61 @@ namespace {
     const blastwave::FlowFieldSample levelX = blastwave::evaluateFlowField(medium, 0.8, 0.0, levelParameters);
     const blastwave::FlowFieldSample levelY = blastwave::evaluateFlowField(medium, 0.0, 0.8, levelParameters);
     requireNear(levelX.rhoRaw, levelY.rhoRaw, 1.0e-8, "Circular density-level radius should be angle independent.");
+  }
+
+  // Verify the cached density-defined radius profile is rebuilt when only the resolution preset changes.
+  void runFlowTransRadiusProfileResolutionCacheKeyTest() {
+    blastwave::EventMedium medium = buildCircularMedium(0.35);
+
+    const blastwave::FlowFieldParameters fastParameters = makeDensityNormalFlowTransParameters(
+        0.7, 0.0, 1.0, 1.0, blastwave::FlowTransRadiusMode::DensityPercentile, 0.95, blastwave::FlowTransRadiusResolution::Fast);
+    const blastwave::FlowFieldSample fastSample = blastwave::evaluateFlowField(medium, 0.8, 0.0, fastParameters);
+    require(fastSample.betaT > 0.0, "Fast flow-trans profile should produce a finite transverse flow.");
+    const blastwave::FlowTransRadiusProfile fastProfile = medium.flowTransRadiusProfile;
+    require(fastProfile.valid, "Fast flow-trans profile cache should be valid.");
+    require(fastProfile.resolution == blastwave::FlowTransRadiusResolution::Fast, "Fast flow-trans profile should record the fast preset.");
+    require(fastProfile.angularSamples == 120, "Fast flow-trans profile should use 120 angular samples.");
+    require(fastProfile.radialSamples == 128, "Fast flow-trans profile should use 128 radial samples.");
+    require(fastProfile.boundaryRadii.size() == 120U, "Fast flow-trans profile should cache 120 angular radii.");
+
+    const blastwave::FlowFieldParameters preciseParameters = makeDensityNormalFlowTransParameters(
+        0.7, 0.0, 1.0, 1.0, blastwave::FlowTransRadiusMode::DensityPercentile, 0.95, blastwave::FlowTransRadiusResolution::Precise);
+    const blastwave::FlowFieldSample preciseSample = blastwave::evaluateFlowField(medium, 0.8, 0.0, preciseParameters);
+    require(preciseSample.betaT > 0.0, "Precise flow-trans profile should produce a finite transverse flow.");
+    const blastwave::FlowTransRadiusProfile preciseProfile = medium.flowTransRadiusProfile;
+    require(preciseProfile.valid, "Precise flow-trans profile cache should be valid.");
+    require(preciseProfile.resolution == blastwave::FlowTransRadiusResolution::Precise, "Precise flow-trans profile should record the precise preset.");
+    require(preciseProfile.angularSamples == 360, "Precise flow-trans profile should use 360 angular samples.");
+    require(preciseProfile.radialSamples == 512, "Precise flow-trans profile should use 512 radial samples.");
+    require(preciseProfile.boundaryRadii.size() == 360U, "Precise flow-trans profile should cache 360 angular radii.");
+  }
+
+  // Compare balanced and precise presets on a circular medium so the profile resolution stays numerically stable.
+  void runFlowTransResolutionStabilityTest() {
+    const blastwave::EventMedium balancedMedium = buildCircularMedium(0.35);
+    const blastwave::EventMedium preciseMedium = buildCircularMedium(0.35);
+
+    const blastwave::FlowFieldParameters percentileBalanced = makeDensityNormalFlowTransParameters(
+        0.7, 0.0, 1.0, 1.0, blastwave::FlowTransRadiusMode::DensityPercentile, 0.95, blastwave::FlowTransRadiusResolution::Balanced);
+    const blastwave::FlowFieldParameters percentilePrecise = makeDensityNormalFlowTransParameters(
+        0.7, 0.0, 1.0, 1.0, blastwave::FlowTransRadiusMode::DensityPercentile, 0.95, blastwave::FlowTransRadiusResolution::Precise);
+    const blastwave::FlowFieldSample percentileBalancedSample = blastwave::evaluateFlowField(balancedMedium, 0.8, 0.2, percentileBalanced);
+    const blastwave::FlowFieldSample percentilePreciseSample = blastwave::evaluateFlowField(preciseMedium, 0.8, 0.2, percentilePrecise);
+    requireNear(percentileBalancedSample.rhoRaw,
+                percentilePreciseSample.rhoRaw,
+                1.0e-2,
+                "Balanced and precise density-percentile rhoRaw should stay stable on a circular medium.");
+
+    const blastwave::FlowFieldParameters levelBalanced = makeDensityNormalFlowTransParameters(
+        0.7, 0.0, 1.0, 1.0, blastwave::FlowTransRadiusMode::DensityLevel, 1.0e-3, blastwave::FlowTransRadiusResolution::Balanced);
+    const blastwave::FlowFieldParameters levelPrecise = makeDensityNormalFlowTransParameters(
+        0.7, 0.0, 1.0, 1.0, blastwave::FlowTransRadiusMode::DensityLevel, 1.0e-3, blastwave::FlowTransRadiusResolution::Precise);
+    const blastwave::FlowFieldSample levelBalancedSample = blastwave::evaluateFlowField(balancedMedium, 0.8, 0.2, levelBalanced);
+    const blastwave::FlowFieldSample levelPreciseSample = blastwave::evaluateFlowField(preciseMedium, 0.8, 0.2, levelPrecise);
+    requireNear(levelBalancedSample.rhoRaw,
+                levelPreciseSample.rhoRaw,
+                1.0e-2,
+                "Balanced and precise density-level rhoRaw should stay stable on a circular medium.");
   }
 
   void runFlowTransDensityRadiusTracksTriangularStructureTest() {
@@ -830,6 +887,8 @@ int main() {
     runFlowTransGradientFractionZeroUsesGeometricRadialDirectionTest();
     runFlowTransIntermediateDirectionIsNormalizedBlendTest();
     runFlowTransDensityRadiiAreAngleIndependentForCircularFieldTest();
+    runFlowTransRadiusProfileResolutionCacheKeyTest();
+    runFlowTransResolutionStabilityTest();
     runFlowTransDensityRadiusTracksTriangularStructureTest();
     runFlowTransOutsideDensityRadiusClampsXiUsedTest();
     runAffineFlowResponseTest();

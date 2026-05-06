@@ -50,6 +50,9 @@ namespace blastwave {
                                                                  double kernelCovXX,
                                                                  double kernelCovXY,
                                                                  double kernelCovYY);
+  // density-only evaluation used by flow-trans radius construction to avoid
+  // gradient work in boundary profiling.
+  [[nodiscard]] double evaluateDensityValue(const DensityField &field, double x, double y);
   [[nodiscard]] DensityFieldSample evaluateDensityField(const DensityField &field, double x, double y);
 
 }  // namespace blastwave

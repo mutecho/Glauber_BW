@@ -23,6 +23,25 @@ Long command transcripts and repeated smoke-command variants were intentionally 
 - authoritative outside-sandbox `analyze_blastwave_vnpt ...`
 - ROOT key inspection through the shared inspector scripts when payload placement needs confirmation
 
+## T-024 Flow-Trans Radius Resolution Presets
+
+- Status: passed on 2026-05-07
+- Evidence:
+  - local `cmake --build /Users/allenzhou/Research_software/Blast_wave/build -j4` passed after the resolution parser, cache, density-only query, docs, and config updates
+  - local `ctest --test-dir /Users/allenzhou/Research_software/Blast_wave/build --output-on-failure` passed with 9/9 tests
+  - `test_run_options` covers default implicit `balanced`, config/CLI parsing for `balanced|precise|fast`, CLI-over-config precedence, invalid labels, empty value rejection, and explicit non-density-normal validation rejection
+  - `test_flow_field_model` covers resolution-aware profile cache rebuilding and balanced-vs-precise stability for `density-percentile:0.95` and `density-level:1.0e-3`
+  - O2Physics ROOT executor `PRIMARY_OK` generate + QA passed for `config/test_b8_density_normal_flow_trans.cfg --flow-trans-radius covariance --nevents 20`, written to `qa/test_flow_trans_covariance.root`
+  - O2Physics ROOT executor `PRIMARY_OK` generate + QA passed for `config/test_b8_density_normal_flow_trans.cfg --flow-trans-radius density-percentile:0.95 --flow-trans-radius-resolution balanced --nevents 20`, written to `qa/test_flow_trans_density_percentile_balanced.root`
+  - O2Physics ROOT executor `PRIMARY_OK` generate + QA passed for `config/test_b8_density_normal_flow_trans.cfg --flow-trans-radius density-percentile:0.95 --flow-trans-radius-resolution precise --nevents 20`, written to `qa/test_flow_trans_density_percentile_precise.root`
+  - O2Physics ROOT executor `PRIMARY_OK` generate + QA passed for `config/test_b8_density_normal_flow_trans.cfg --flow-trans-radius density-level:1.0e-3 --flow-trans-radius-resolution balanced --nevents 20`, written to `qa/test_flow_trans_density_level_balanced.root`
+- Locked conclusions:
+  - `balanced` is the default density-defined flow-trans boundary profile resolution
+  - `precise` preserves the old `360 x 512` grid for precision baselines and rollback comparisons
+  - `fast` is available as a low-cost pre-scan preset
+  - resolution changes do not alter the `R(phi)` / `xi = r / R(phi)` definition and do not affect `flow-trans-radius = covariance`
+  - boundary profile construction now uses scalar density queries instead of full density-gradient samples
+
 ## T-023 Flow-Trans Naming And Density-Normal Radius Modes
 
 - Status: passed on 2026-05-06

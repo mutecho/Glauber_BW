@@ -186,10 +186,11 @@ namespace blastwave {
         && config_.densityEvolutionMode != DensityEvolutionMode::AffineGaussianResponse) {
       throw std::invalid_argument("flowVelocitySamplerMode=affine-effective requires densityEvolutionMode=affine-gaussian.");
     }
-    const bool hasDensityNormalOnlyFlowTransOverrides = config_.hasFlowTransDirectionGradientFraction || config_.hasFlowTransRadius;
+    const bool hasDensityNormalOnlyFlowTransOverrides = config_.hasFlowTransDirectionGradientFraction || config_.hasFlowTransRadius
+                                                     || config_.hasFlowTransRadiusResolution;
     if (hasDensityNormalOnlyFlowTransOverrides && config_.flowVelocitySamplerMode != FlowVelocitySamplerMode::DensityNormal) {
       throw std::invalid_argument(
-          "flow-trans-direction-gradient-fraction and flow-trans-radius require flowVelocitySamplerMode=density-normal.");
+          "flow-trans-direction-gradient-fraction, flow-trans-radius, and flow-trans-radius-resolution require flowVelocitySamplerMode=density-normal.");
     }
     if (config_.densityNormalKappaCompensation
         && (config_.densityEvolutionMode != DensityEvolutionMode::AffineGaussianResponse

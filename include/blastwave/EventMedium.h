@@ -58,7 +58,9 @@ namespace blastwave {
     double centerX = 0.0;
     double centerY = 0.0;
     double radiusUpperBound = 0.0;
+    FlowTransRadiusResolution resolution = FlowTransRadiusResolution::Balanced;
     int angularSamples = 0;
+    int radialSamples = 0;
     std::vector<double> boundaryRadii;
   };
 

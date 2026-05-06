@@ -123,6 +123,7 @@ namespace blastwave {
     parameters.flowTransRadiusFraction = config_.flowTransRadiusFraction;
     parameters.hasFlowTransDirectionGradientFraction = config_.hasFlowTransDirectionGradientFraction;
     parameters.hasFlowTransRadius = config_.hasFlowTransRadius;
+    parameters.flowTransRadiusResolution = config_.flowTransRadiusResolution;
     const FlowFieldSample sample = evaluateFlowField(medium, emissionSite, parameters);
     const double coshEta = std::cosh(etaS);
     return {sample.betaX / coshEta, sample.betaY / coshEta, std::tanh(etaS)};

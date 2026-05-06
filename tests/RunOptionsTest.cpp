@@ -105,6 +105,10 @@ namespace {
     require(!parsed.showHelp, "Default parse should not request help.");
     require(parsed.runOptions.config.flowVelocitySamplerMode == blastwave::FlowVelocitySamplerMode::CovarianceEllipse,
             "Default flow velocity sampler should stay covariance-ellipse.");
+    require(parsed.runOptions.config.flowTransRadiusResolution == blastwave::FlowTransRadiusResolution::Balanced,
+            "Default flow-trans-radius-resolution should stay balanced.");
+    require(!parsed.runOptions.config.hasFlowTransRadiusResolution,
+            "Default flow-trans-radius-resolution should stay implicit.");
     require(parsed.runOptions.config.densityEvolutionMode == blastwave::DensityEvolutionMode::AffineGaussianResponse,
             "Default density evolution mode should stay affine-gaussian.");
     requireNear(parsed.runOptions.config.flowTransRho0, 1.0986122886681098, 1.0e-12, "Default flow-trans-rho0 should preserve the previous rho0 numeric default.");
@@ -135,6 +139,7 @@ namespace {
     require(!parsed.runOptions.config.debugGradientResponse, "Debug gradient response should stay disabled by default.");
     require(parsed.runOptions.config.cooperFryeWeightMode == blastwave::CooperFryeWeightMode::None,
             "Cooper-Frye weight should default to none.");
+    requireGeneratorValidationSuccess(parsed.runOptions.config, "Default covariance sampler should validate with implicit balanced radius resolution.");
   }
 
   void runFlowTransCliParseTest() {
@@ -185,6 +190,102 @@ namespace {
     require(cliOverride.runOptions.config.flowTransRadiusMode == blastwave::FlowTransRadiusMode::DensityPercentile,
             "CLI should override config flow-trans-radius mode.");
     requireNear(cliOverride.runOptions.config.flowTransRadiusFraction, 0.95, 1.0e-12, "CLI should override config flow-trans-radius fraction.");
+  }
+
+  // Verify the new radius-resolution preset parses from config and CLI and keeps validation happy.
+  void runFlowTransRadiusResolutionParseTest() {
+    const TemporaryConfigFile balancedConfig(
+        "flow-velocity-sampler = density-normal\n"
+        "flow-trans-radius-resolution = balanced\n");
+    const ParsedRunOptions balanced = parseArguments({balancedConfig.path().string()});
+    require(balanced.runOptions.config.flowTransRadiusResolution == blastwave::FlowTransRadiusResolution::Balanced,
+            "Config flow-trans-radius-resolution should parse balanced.");
+    require(balanced.runOptions.config.hasFlowTransRadiusResolution,
+            "Config flow-trans-radius-resolution should mark the option explicit.");
+    requireGeneratorValidationSuccess(balanced.runOptions.config, "Balanced flow-trans-radius-resolution should validate for density-normal.");
+
+    const TemporaryConfigFile preciseConfig(
+        "flow-velocity-sampler = density-normal\n"
+        "flow-trans-radius-resolution = precise\n");
+    const ParsedRunOptions precise = parseArguments({preciseConfig.path().string()});
+    require(precise.runOptions.config.flowTransRadiusResolution == blastwave::FlowTransRadiusResolution::Precise,
+            "Config flow-trans-radius-resolution should parse precise.");
+    require(precise.runOptions.config.hasFlowTransRadiusResolution,
+            "Config precise flow-trans-radius-resolution should mark the option explicit.");
+    requireGeneratorValidationSuccess(precise.runOptions.config, "Precise flow-trans-radius-resolution should validate for density-normal.");
+
+    const TemporaryConfigFile fastConfig(
+        "flow-velocity-sampler = density-normal\n"
+        "flow-trans-radius-resolution = fast\n");
+    const ParsedRunOptions fast = parseArguments({fastConfig.path().string()});
+    require(fast.runOptions.config.flowTransRadiusResolution == blastwave::FlowTransRadiusResolution::Fast,
+            "Config flow-trans-radius-resolution should parse fast.");
+    require(fast.runOptions.config.hasFlowTransRadiusResolution,
+            "Config fast flow-trans-radius-resolution should mark the option explicit.");
+    requireGeneratorValidationSuccess(fast.runOptions.config, "Fast flow-trans-radius-resolution should validate for density-normal.");
+
+    const ParsedRunOptions cliBalanced =
+        parseArguments({"--flow-velocity-sampler", "density-normal", "--flow-trans-radius-resolution", "balanced"});
+    require(cliBalanced.runOptions.config.flowTransRadiusResolution == blastwave::FlowTransRadiusResolution::Balanced,
+            "CLI flow-trans-radius-resolution should parse balanced.");
+    require(cliBalanced.runOptions.config.hasFlowTransRadiusResolution,
+            "CLI balanced flow-trans-radius-resolution should mark the option explicit.");
+    requireGeneratorValidationSuccess(cliBalanced.runOptions.config, "CLI balanced flow-trans-radius-resolution should validate for density-normal.");
+
+    const ParsedRunOptions cliPrecise =
+        parseArguments({"--flow-velocity-sampler", "density-normal", "--flow-trans-radius-resolution", "precise"});
+    require(cliPrecise.runOptions.config.flowTransRadiusResolution == blastwave::FlowTransRadiusResolution::Precise,
+            "CLI flow-trans-radius-resolution should parse precise.");
+    require(cliPrecise.runOptions.config.hasFlowTransRadiusResolution,
+            "CLI precise flow-trans-radius-resolution should mark the option explicit.");
+    requireGeneratorValidationSuccess(cliPrecise.runOptions.config, "CLI precise flow-trans-radius-resolution should validate for density-normal.");
+
+    const ParsedRunOptions cliFast =
+        parseArguments({"--flow-velocity-sampler", "density-normal", "--flow-trans-radius-resolution", "fast"});
+    require(cliFast.runOptions.config.flowTransRadiusResolution == blastwave::FlowTransRadiusResolution::Fast,
+            "CLI flow-trans-radius-resolution should parse fast.");
+    require(cliFast.runOptions.config.hasFlowTransRadiusResolution,
+            "CLI fast flow-trans-radius-resolution should mark the option explicit.");
+    requireGeneratorValidationSuccess(cliFast.runOptions.config, "CLI fast flow-trans-radius-resolution should validate for density-normal.");
+  }
+
+  // Verify explicit CLI overrides win over config-file presets for the new resolution knob.
+  void runFlowTransRadiusResolutionCliOverrideParseTest() {
+    const TemporaryConfigFile configFile(
+        "flow-velocity-sampler = density-normal\n"
+        "flow-trans-radius-resolution = precise\n");
+    const ParsedRunOptions parsed = parseArguments({configFile.path().string(), "--flow-trans-radius-resolution", "fast"});
+    require(parsed.runOptions.config.flowTransRadiusResolution == blastwave::FlowTransRadiusResolution::Fast,
+            "CLI flow-trans-radius-resolution should override the config-file preset.");
+    require(parsed.runOptions.config.hasFlowTransRadiusResolution,
+            "CLI override should still mark flow-trans-radius-resolution explicit.");
+    requireGeneratorValidationSuccess(parsed.runOptions.config, "CLI override flow-trans-radius-resolution should validate for density-normal.");
+  }
+
+  // Reject unsupported resolution labels and empty values before they can reach validation.
+  void runInvalidFlowTransRadiusResolutionRejectsTest() {
+    const std::vector<std::string> invalidValues = {"medium", "240x256", ""};
+    for (const std::string &invalidValue : invalidValues) {
+      requireParseFailureContains({"--flow-trans-radius-resolution", invalidValue},
+                                  "flow-trans-radius-resolution",
+                                  "Invalid flow-trans-radius-resolution should be rejected: " + invalidValue);
+    }
+
+    const TemporaryConfigFile emptyConfig(
+        "flow-velocity-sampler = density-normal\n"
+        "flow-trans-radius-resolution =\n");
+    requireParseFailureContains({emptyConfig.path().string()},
+                                "flow-trans-radius-resolution",
+                                "Empty config flow-trans-radius-resolution should be rejected.");
+  }
+
+  // Explicitly configured resolution must stay density-normal-only without breaking the default covariance path.
+  void runFlowTransRadiusResolutionValidationRejectsTest() {
+    blastwave::BlastWaveConfig config;
+    config.flowVelocitySamplerMode = blastwave::FlowVelocitySamplerMode::CovarianceEllipse;
+    config.flowTransRadiusResolution = blastwave::FlowTransRadiusResolution::Balanced;
+    config.hasFlowTransRadiusResolution = true;
+    requireGeneratorValidationFailure(config, "Explicit flow-trans-radius-resolution should be rejected outside density-normal.");
   }
 
   void runDeprecatedTransverseFlowNamesRejectTest() {
@@ -797,6 +898,10 @@ int main() {
     runDefaultSamplerTest();
     runFlowTransCliParseTest();
     runFlowTransConfigAndOverrideParseTest();
+    runFlowTransRadiusResolutionParseTest();
+    runFlowTransRadiusResolutionCliOverrideParseTest();
+    runInvalidFlowTransRadiusResolutionRejectsTest();
+    runFlowTransRadiusResolutionValidationRejectsTest();
     runDeprecatedTransverseFlowNamesRejectTest();
     runFlowTransRadiusParseVariantsTest();
     runInvalidFlowTransRadiusRejectsTest();

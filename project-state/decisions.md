@@ -337,3 +337,24 @@
   - old configs using `rho0` or `flow-power` need direct migration before running
   - `density-normal` can now scan geometric-vs-density-gradient direction mixing and covariance/percentile/level radius definitions without changing other samplers
   - future cumulative transverse-gradient corrections should extend the `flow-trans-*` layer instead of reusing generic `gradient-*` names
+
+## DEC-017 Add Resolution Presets For Density-Defined Flow-Trans Radius Profiles
+
+- Status: accepted
+- Date: 2026-05-07
+- Context:
+  - `density-percentile` and `density-level` flow-trans radii were already event-level density-defined boundary profiles
+  - the old fixed grid used `360 x 512` density queries per event profile and computed density gradients that the boundary solver did not need
+  - the user wanted the physical definition unchanged while reducing the default numerical cost
+- Decision:
+  - add density-normal-only `flow-trans-radius-resolution = balanced | precise | fast`
+  - make `balanced` the default with `240 x 256` profile sampling
+  - keep `precise = 360 x 512` as the old-grid precision baseline
+  - add `fast = 120 x 128` for large-statistics pre-scans
+  - keep `flow-trans-radius = covariance` independent of this knob
+  - build density-defined profiles with scalar density queries, not full density-gradient samples
+  - include resolution and radial sample count in the cached profile key
+- Consequences:
+  - the density-defined radius formula still uses `R(phi)` and `xi = r / R(phi)`; only the profile grid changes
+  - the new default reduces boundary density-query count from `184320/event` to `61440/event`
+  - explicit `flow-trans-radius-resolution` is rejected outside `flow-velocity-sampler = density-normal`
