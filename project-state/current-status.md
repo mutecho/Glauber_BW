@@ -2,11 +2,11 @@
 
 ## Snapshot
 
-- Date: 2026-04-29
+- Date: 2026-05-06
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
-- Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in affine-effective closure path with `additive-rho` and `full-tensor` submodes, the opt-in V2 gradient-response path, and optional differential `v2{2}(pT)` analysis.
-- Latest durable verification anchor: 2026-04-29 O2Physics build, local `ctest`, outside-sandbox O2Physics ROOT validation, and ROOT file inspection summarized in `project-state/tests.md`.
-- This task extended affine-effective output with first-valid-event before/after x-y density maps rendered by default as ROOT lego plots.
+- Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in affine-effective closure path with `additive-rho` and `full-tensor` submodes, the opt-in V2 gradient-response path, optional differential `v2{2}(pT)` analysis, and the opt-in `response-test-023` initial-geometry response-test path.
+- Latest durable verification anchor: 2026-05-06 local build, full local `ctest`, outside-sandbox ROOT default/response-test smokes, and a four-point response-test `A3` scan.
+- This task added a synthetic `0+2+3` initial geometry template plus mandatory `eps3/psi3/v3` response observables and QA recomputation.
 
 ## Current Runtime Baseline
 
@@ -24,6 +24,10 @@
 - opt-in V2 path:
   - `density-evolution = gradient-response`
   - `flow-velocity-sampler = gradient-response`
+- opt-in response-test geometry path:
+  - `initial-geometry = response-test-023`
+  - recentered synthetic `0+2+3` transverse point cloud
+  - participant records use `nucleus_id = -1`
 - optional differential-flow path:
   - configure `v2pt-bins`
   - choose `v2pt-output-mode = same-file | separate-file`
@@ -38,12 +42,19 @@
 - canonical tracked example config:
   - `config/test_b8.cfg`
   - `config/test_b8_affine_effective.cfg`
+  - `config/test_b8_response_023.cfg`
 - mandatory ROOT payload highlights:
   - `events`
   - `participants`
   - `particles`
   - `events.centrality`
   - `events.v2`
+  - `events.eps3`
+  - `events.psi3`
+  - `events.v3`
+  - `events.v2_wrt_psi2`
+  - `events.v3_wrt_psi3`
+  - `events.initial_geometry_mode`
   - `events.eps2_f`
   - `events.psi2_f`
   - `events.chi2`
@@ -54,6 +65,7 @@
   - `particles.y0`
   - `particles.emission_weight`
 - optional payload groups:
+  - `initial_geometry_density_x-y` when `debug-initial-geometry = true`
   - flow-ellipse debug objects, including affine mode encoding, closure diagnostics, and additive-rho surface decomposition when `affine-effective` is selected
   - affine-effective density maps `affine_effective_density_initial_x-y` and `affine_effective_density_final_x-y`, captured as a first-valid-event pair with `LEGO1` default draw options
   - `density_normal_event_density_x-y`
@@ -71,6 +83,9 @@
   - `test_emission_sampler`
   - `test_physics_utils`
   - `test_v2_pt_cumulant`
+  - `test_output_path_utils`
+  - `test_harmonic_geometry`
+  - `test_blast_wave_generator_response`
 - durable runtime evidence currently covers:
   - default V1a generation + QA
   - legacy `none` comparison
@@ -82,6 +97,10 @@
   - differential `v2{2}(pT)` same-file and separate-file modes
   - standalone differential post-processing
   - `chi2` TH1 contract
+  - ROOT-free third-harmonic helper and response-template generator coverage
+  - default Glauber generation + QA with the expanded third-harmonic schema
+  - `response-test-023` generation + QA with optional `initial_geometry_density_x-y`
+  - four-point `A3 = 0, 0.05, 0.10, 0.15` response-test scan showing increasing `mean(v3_wrt_psi3)`
 
 Use `project-state/tests.md` for the summarized evidence trail.
 
@@ -91,7 +110,9 @@ Use `project-state/tests.md` for the summarized evidence trail.
 - historical files under `qa/` span multiple schema generations and may not match the latest contract
 - `v2pt-output-mode = separate-file` intentionally allows a metadata-only main result file that keeps `v2_2_pt_edges` but omits the full analysis payload
 - `events.eps2` / `events.psi2` remain initial-state observables, while `eps2_f` / `psi2_f` / `chi2` remain freeze-out diagnostics
-- `shell_weight` and any `EmissionSite::emissionWeight` restructuring remain intentionally deferred; the current affine-effective rollout changes flow closure only
+- `events.eps3` / `events.psi3` use the recentered harmonic convention and do not change the covariance `eps2/psi2` contract
+- `response-test-023` is opt-in only; template weights `A2/A3` are not physical eccentricities
+- `shell_weight` and any `EmissionSite::emissionWeight` restructuring remain intentionally deferred; the current response-test rollout only adds geometry templates and observables
 
 ## Documentation Layout After Compaction
 

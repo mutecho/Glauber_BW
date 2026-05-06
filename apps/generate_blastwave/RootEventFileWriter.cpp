@@ -75,6 +75,23 @@ namespace {
     return histogram;
   }
 
+  // Render initial-geometry fields into a first-event-only debug map.
+  std::unique_ptr<TH2F> makeInitialGeometryDensityHistogram(const blastwave::BlastWaveConfig &config) {
+    const double extent = computeParticipantDisplayExtent(config);
+    auto histogram = std::make_unique<TH2F>(blastwave::io::kInitialGeometryDensityHistogramName,
+                                            "Initial geometry density map;x [fm];y [fm];#rho_{0}(x, y) [fm^{-2}]",
+                                            200,
+                                            -extent,
+                                            extent,
+                                            200,
+                                            -extent,
+                                            extent);
+    histogram->SetStats(false);
+    histogram->SetOption("COLZ");
+    histogram->SetDirectory(nullptr);
+    return histogram;
+  }
+
   // Serialize the generator-owned emission-stage density so optional debug
   // output reflects the same medium state used by flow sampling.
   void fillDensityNormalEventDensityHistogram(TH2F &histogram, const blastwave::GeneratedEvent &event) {
@@ -104,6 +121,20 @@ namespace {
     }
   }
 
+  // Fill initial-geometry density with finite and non-negative safeguard for
+  // deterministic debug output when this path is enabled.
+  void fillInitialGeometryDensityHistogram(TH2F &histogram, const blastwave::DensityField &field) {
+    for (int iBinX = 1; iBinX <= histogram.GetNbinsX(); ++iBinX) {
+      const double x = histogram.GetXaxis()->GetBinCenter(iBinX);
+      for (int iBinY = 1; iBinY <= histogram.GetNbinsY(); ++iBinY) {
+        const double y = histogram.GetYaxis()->GetBinCenter(iBinY);
+        const blastwave::DensityFieldSample densitySample = blastwave::evaluateDensityField(field, x, y);
+        const double density = std::isfinite(densitySample.density) ? densitySample.density : 0.0;
+        histogram.SetBinContent(iBinX, iBinY, std::max(0.0, density));
+      }
+    }
+  }
+
   // Fill a discrete freeze-out cloud proxy directly from accepted particle x-y.
   void fillDensityHistogramFromParticleCloud(TH2F &histogram, const blastwave::GeneratedEvent &event) {
     for (const blastwave::ParticleRecord &particle : event.particles) {
@@ -122,6 +153,19 @@ namespace {
     branches.psi2Freezeout = info.psi2Freezeout;
     branches.chi2 = info.chi2;
     branches.r2Initial = info.r2Initial;
+    branches.initialGeometryMode = static_cast<Int_t>(info.initialGeometryMode);
+    branches.eps3 = info.eps3;
+    branches.psi3 = info.psi3;
+    branches.v3 = info.v3;
+    branches.v2WrtPsi2 = info.v2WrtPsi2;
+    branches.v3WrtPsi3 = info.v3WrtPsi3;
+    branches.xCenterInit = info.xCenterInitial;
+    branches.yCenterInit = info.yCenterInitial;
+    branches.rRmsInit = info.rRmsInitial;
+    branches.geoA2 = info.geoA2;
+    branches.geoA3 = info.geoA3;
+    branches.geoR3 = info.geoR3;
+    branches.geoSigma3 = info.geoSigma3;
     branches.r2Final = info.r2Final;
     branches.r2Ratio = info.r2Ratio;
     branches.v2 = info.v2;
@@ -260,13 +304,50 @@ namespace blastwave::app {
           hNpart(blastwave::io::kNpartHistogramName, "Participant multiplicity;Npart;Events", 400, -0.5, 399.5),
           hEps2(blastwave::io::kEps2HistogramName, "Participant eccentricity;#epsilon_{2};Events", 100, 0.0, 1.0),
           hEps2Freezeout(blastwave::io::kEps2FreezeoutHistogramName, "Freeze-out eccentricity;#epsilon_{2}^{f};Events", 100, 0.0, 1.0),
+          hEps3(blastwave::io::kEps3HistogramName, "Participant eccentricity;#epsilon_{3};Events", 100, 0.0, 1.0),
           hPsi2(blastwave::io::kPsi2HistogramName, "Participant-plane angle;#Psi_{2} [rad];Events", 128, -1.7, 1.7),
           hPsi2Freezeout(blastwave::io::kPsi2FreezeoutHistogramName, "Freeze-out participant-plane angle;#Psi_{2}^{f} [rad];Events", 128, -1.7, 1.7),
+          hPsi3(blastwave::io::kPsi3HistogramName, "Participant-plane angle;#Psi_{3} [rad];Events", 128, -1.7, 1.7),
           hChi2(blastwave::io::kChi2HistogramName, "Freeze-out eccentricity response;#chi_{2} = #epsilon_{2}^{f} / #epsilon_{2};Events", 150, 0.0, 3.0),
           hR2Initial(blastwave::io::kR2InitialHistogramName, "Centered initial marker radius moment;#LT (r_{0}-#LT r_{0}#GT)^{2} #GT [fm^{2}];Events", 160, 0.0, 80.0),
           hR2Final(blastwave::io::kR2FinalHistogramName, "Centered final emission radius moment;#LT (r_{f}-#LT r_{f}#GT)^{2} #GT [fm^{2}];Events", 160, 0.0, 80.0),
           hR2Ratio(blastwave::io::kR2RatioHistogramName, "Radius moment response;#LT r_{f}^{2} #GT / #LT r_{0}^{2} #GT;Events", 200, 0.0, 4.0),
           hV2(blastwave::io::kV2HistogramName, "Event-by-event final-state v_{2};v_{2};Events", 120, 0.0, 1.0),
+          hV3(blastwave::io::kV3HistogramName, "Event-by-event final-state v_{3};v_{3};Events", 120, 0.0, 1.0),
+          hV2WrtPsi2(blastwave::io::kV2WrtPsi2HistogramName, "Final-state v_{2} projected onto #Psi_{2};v_{2|#Psi_{2}};Events", 200, -1.0, 1.0),
+          hV3WrtPsi3(blastwave::io::kV3WrtPsi3HistogramName, "Final-state v_{3} projected onto #Psi_{3};v_{3|#Psi_{3}};Events", 200, -1.0, 1.0),
+          hV3WrtPsi3VsEps3(blastwave::io::kV3WrtPsi3VsEps3HistogramName,
+                            "Third-harmonic response;#epsilon_{3};v_{3|#Psi_{3}}",
+                            100,
+                            0.0,
+                            1.0,
+                            200,
+                            -1.0,
+                            1.0),
+          hV2WrtPsi2VsEps2(blastwave::io::kV2WrtPsi2VsEps2HistogramName,
+                            "Second-harmonic response;#epsilon_{2};v_{2|#Psi_{2}}",
+                            100,
+                            0.0,
+                            1.0,
+                            200,
+                            -1.0,
+                            1.0),
+          hV3WrtPsi3VsEps2(blastwave::io::kV3WrtPsi3VsEps2HistogramName,
+                            "Third-harmonic cross-talk;#epsilon_{2};v_{3|#Psi_{3}}",
+                            100,
+                            0.0,
+                            1.0,
+                            200,
+                            -1.0,
+                            1.0),
+          hV2WrtPsi2VsEps3(blastwave::io::kV2WrtPsi2VsEps3HistogramName,
+                            "Second-harmonic cross-talk;#epsilon_{3};v_{2|#Psi_{2}}",
+                            100,
+                            0.0,
+                            1.0,
+                            200,
+                            -1.0,
+                            1.0),
           hCentrality(blastwave::io::kCentralityHistogramName, "Centrality;centrality [%];Events", 11, 0.0, 110.0),
           hParticipantXY(blastwave::io::kParticipantXYHistogramName,
                          "Participant nucleons;x [fm];y [fm]",
@@ -338,6 +419,15 @@ namespace blastwave::app {
       hR2Final.Fill(eventBranches.r2Final);
       hR2Ratio.Fill(eventBranches.r2Ratio);
       hV2.Fill(eventBranches.v2);
+      hEps3.Fill(eventBranches.eps3);
+      hPsi3.Fill(eventBranches.psi3);
+      hV3.Fill(eventBranches.v3);
+      hV2WrtPsi2.Fill(eventBranches.v2WrtPsi2);
+      hV3WrtPsi3.Fill(eventBranches.v3WrtPsi3);
+      hV3WrtPsi3VsEps3.Fill(eventBranches.eps3, eventBranches.v3WrtPsi3);
+      hV2WrtPsi2VsEps2.Fill(eventBranches.eps2, eventBranches.v2WrtPsi2);
+      hV3WrtPsi3VsEps2.Fill(eventBranches.eps2, eventBranches.v3WrtPsi3);
+      hV2WrtPsi2VsEps3.Fill(eventBranches.eps3, eventBranches.v2WrtPsi2);
       hCentrality.Fill(eventBranches.centrality);
 
       if (flowEllipseDebugTree != nullptr) {
@@ -346,6 +436,7 @@ namespace blastwave::app {
       }
 
       maybeCaptureDensityNormalEventDensity(event);
+      maybeCaptureInitialGeometryDensity(event);
       maybeCaptureAffineEffectiveDensityMaps(event);
       maybeCaptureGradientResponseDebug(event);
 
@@ -394,6 +485,18 @@ namespace blastwave::app {
 
       hDensityNormalEventDensity = makeDensityNormalEventDensityHistogram(config);
       fillDensityNormalEventDensityHistogram(*hDensityNormalEventDensity, event);
+    }
+
+    // Capture one initial-geometry map only for the first valid event, if enabled.
+    void maybeCaptureInitialGeometryDensity(const blastwave::GeneratedEvent &event) {
+      if (hInitialGeometryDensity != nullptr || !config.debugInitialGeometry || event.participants.empty()) {
+        return;
+      }
+
+      hInitialGeometryDensity = makeInitialGeometryDensityHistogram(config);
+      const std::string title = "Initial geometry density map (event " + std::to_string(event.info.eventId) + ");x [fm];y [fm];#rho_{0}(x, y) [fm^{-2}]";
+      hInitialGeometryDensity->SetTitle(title.c_str());
+      fillInitialGeometryDensityHistogram(*hInitialGeometryDensity, event.medium.initialDensity);
     }
 
     // Capture one before/after affine density snapshot pair from the same event
@@ -500,6 +603,15 @@ namespace blastwave::app {
       hR2Final.Write();
       hR2Ratio.Write();
       hV2.Write();
+      hEps3.Write();
+      hPsi3.Write();
+      hV3.Write();
+      hV2WrtPsi2.Write();
+      hV3WrtPsi3.Write();
+      hV3WrtPsi3VsEps3.Write();
+      hV2WrtPsi2VsEps2.Write();
+      hV3WrtPsi3VsEps2.Write();
+      hV2WrtPsi2VsEps3.Write();
       hCentrality.Write();
       hParticipantXY.Write();
       if (hFlowEllipseParticipantNormXY != nullptr) {
@@ -509,6 +621,10 @@ namespace blastwave::app {
       if (hDensityNormalEventDensity != nullptr) {
         hDensityNormalEventDensity->Write();
         hDensityNormalEventDensity->SetDirectory(nullptr);
+      }
+      if (hInitialGeometryDensity != nullptr) {
+        hInitialGeometryDensity->Write();
+        hInitialGeometryDensity->SetDirectory(nullptr);
       }
       if (affineEffectiveDensityMapsCaptured && hAffineEffectiveInitialDensity != nullptr) {
         hAffineEffectiveInitialDensity->Write();
@@ -562,6 +678,7 @@ namespace blastwave::app {
       flowEllipseDebugTree.reset();
       hFlowEllipseParticipantNormXY.reset();
       hDensityNormalEventDensity.reset();
+      hInitialGeometryDensity.reset();
       hAffineEffectiveInitialDensity.reset();
       hAffineEffectiveFinalDensity.reset();
       hGradientS0.reset();
@@ -592,17 +709,27 @@ namespace blastwave::app {
     TH1F hNpart;
     TH1F hEps2;
     TH1F hEps2Freezeout;
+    TH1F hEps3;
     TH1F hPsi2;
     TH1F hPsi2Freezeout;
+    TH1F hPsi3;
     TH1F hChi2;
     TH1F hR2Initial;
     TH1F hR2Final;
     TH1F hR2Ratio;
     TH1F hV2;
+    TH1F hV3;
+    TH1F hV2WrtPsi2;
+    TH1F hV3WrtPsi3;
+    TH2F hV3WrtPsi3VsEps3;
+    TH2F hV2WrtPsi2VsEps2;
+    TH2F hV3WrtPsi3VsEps2;
+    TH2F hV2WrtPsi2VsEps3;
     TH1F hCentrality;
     TH2F hParticipantXY;
     std::unique_ptr<TH2F> hFlowEllipseParticipantNormXY;
     std::unique_ptr<TH2F> hDensityNormalEventDensity;
+    std::unique_ptr<TH2F> hInitialGeometryDensity;
     std::unique_ptr<TH2F> hAffineEffectiveInitialDensity;
     std::unique_ptr<TH2F> hAffineEffectiveFinalDensity;
     std::unique_ptr<TH2F> hGradientS0;

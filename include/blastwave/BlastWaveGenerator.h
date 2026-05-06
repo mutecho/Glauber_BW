@@ -12,6 +12,7 @@
 namespace blastwave {
 
   enum class ThermalSamplerMode { MaxwellJuttner, Gamma };
+  enum class InitialGeometryMode { Glauber, ResponseTest023 };
 
   struct BlastWaveConfig {
     int nEvents = 100;
@@ -21,6 +22,18 @@ namespace blastwave {
     std::uint64_t seed = 12345;
 
     double impactParameter = 8.0;      // fm
+    InitialGeometryMode initialGeometryMode = InitialGeometryMode::Glauber;
+    int initialGeometrySourceCount = 600;
+    double initialGeometryR0 = 1.2;
+    double initialGeometryA2 = 0.0;
+    double initialGeometryR2x = 1.8;
+    double initialGeometryR2y = 1.8;
+    double initialGeometryPhi2 = 0.0;
+    double initialGeometryA3 = 0.0;
+    double initialGeometryR3 = 1.8;
+    double initialGeometrySigma3 = 0.6;
+    double initialGeometryPhi3 = 0.0;
+    bool debugInitialGeometry = false;
     double temperature = 0.2;          // GeV
     double tau0 = 10.0;                // fm/c
     double smearSigma = 0.5;           // fm
@@ -79,6 +92,19 @@ namespace blastwave {
     double v2 = 0.0;
     double centrality = 0.0;
     int nCharged = 0;
+    int initialGeometryMode = 0;
+    double eps3 = 0.0;
+    double psi3 = 0.0;
+    double xCenterInitial = 0.0;
+    double yCenterInitial = 0.0;
+    double rRmsInitial = 0.0;
+    double geoA2 = 0.0;
+    double geoA3 = 0.0;
+    double geoR3 = 0.0;
+    double geoSigma3 = 0.0;
+    double v3 = 0.0;
+    double v2WrtPsi2 = 0.0;
+    double v3WrtPsi3 = 0.0;
   };
 
   struct ParticleRecord {
@@ -146,6 +172,8 @@ namespace blastwave {
     };
 
     [[nodiscard]] std::vector<Nucleon> sampleParticipants();
+    [[nodiscard]] std::vector<Nucleon> sampleGlauberParticipants();
+    [[nodiscard]] std::vector<Nucleon> sampleResponseTest023Participants();
     [[nodiscard]] Nucleon sampleSingleNucleon(double xShift, int nucleusId);
     [[nodiscard]] EventMedium buildMedium(const std::vector<Nucleon> &participants) const;
     [[nodiscard]] std::vector<EmissionSite> sampleEventEmissionSites(const EventMedium &medium);

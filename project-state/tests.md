@@ -3,7 +3,7 @@
 ## Durable Verification Baseline
 
 - Status: verified
-- Last comprehensive refresh: 2026-04-29
+- Last comprehensive refresh: 2026-05-06
 - Evidence shape:
   - local rebuild of touched binaries and regression targets passed
   - local `ctest` passed
@@ -22,6 +22,26 @@ Long command transcripts and repeated smoke-command variants were intentionally 
 - authoritative outside-sandbox `qa_blastwave_output ...`
 - authoritative outside-sandbox `analyze_blastwave_v2pt ...`
 - ROOT key inspection through the shared inspector scripts when payload placement needs confirmation
+
+## T-020 Response-Test 0+2+3 Initial Geometry And Third-Harmonic Contract
+
+- Status: passed on 2026-05-06
+- Evidence:
+  - local `cmake --build /Users/allenzhou/Research_software/Blast_wave/build -j4` passed after adding the response-test generator, schema, QA, and tests
+  - local `ctest --output-on-failure` passed with 9/9 tests, including `test_harmonic_geometry` and `test_blast_wave_generator_response`
+  - authoritative outside-sandbox O2Physics generate + QA passed for default `config/test_b8.cfg --nevents 20`, written to `qa/response_test_glauber_smoke.root`
+  - authoritative outside-sandbox O2Physics generate + QA passed for `config/test_b8_response_023.cfg --nevents 100`, written to `qa/response_test_023_smoke.root`
+  - response-test QA validated 100 events with `mean_Npart=600`, `mean_eps3=0.0732512`, and `mean_v3=0.0461744`
+  - four-point outside-sandbox `A3` scan passed generate + QA with 50 events per point, then ROOT extraction from `events` reported:
+    - `A3=0`: `mean_eps3=0.065015732`, `mean_v3_wrt_psi3=0.010711697`
+    - `A3=0.05`: `mean_eps3=0.065350879`, `mean_v3_wrt_psi3=0.015722963`
+    - `A3=0.10`: `mean_eps3=0.071685623`, `mean_v3_wrt_psi3=0.024233045`
+    - `A3=0.15`: `mean_eps3=0.077883277`, `mean_v3_wrt_psi3=0.030142274`
+- Locked conclusions:
+  - default `initial-geometry = glauber` remains compatible with the expanded mandatory third-harmonic ROOT schema
+  - `response-test-023` writes synthetic participants with `nucleus_id = -1`, and QA accepts that sentinel only for response-test events
+  - `eps3/psi3`, `v3`, `v2_wrt_psi2`, and `v3_wrt_psi3` are now part of the current ROOT/QA contract
+  - the small `A3` scan shows the expected monotonic rise in projected `v3_wrt_psi3`; physics conclusions still require larger statistics
 
 ## T-019 Affine-Effective Before/After Density Maps
 

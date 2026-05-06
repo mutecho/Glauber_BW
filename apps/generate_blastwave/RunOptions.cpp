@@ -133,6 +133,18 @@ namespace {
                                 + ". Expected 'covariance-ellipse', 'density-normal', 'gradient-response', or 'affine-effective'.");
   }
 
+  blastwave::InitialGeometryMode parseInitialGeometryMode(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
+    if (rawValue == "glauber") {
+      return blastwave::InitialGeometryMode::Glauber;
+    }
+    if (rawValue == "response-test-023") {
+      return blastwave::InitialGeometryMode::ResponseTest023;
+    }
+
+    throw std::invalid_argument(
+        "Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'glauber' or 'response-test-023'.");
+  }
+
   blastwave::AffineEffectiveMode parseAffineEffectiveMode(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
     if (rawValue == "additive-rho") {
       return blastwave::AffineEffectiveMode::AdditiveRho;
@@ -239,6 +251,28 @@ namespace {
                    const std::filesystem::path &baseDirectory) {
     if (optionName == "nevents") {
       runOptions.config.nEvents = parseInt(rawValue, optionName, sourceDescription);
+    } else if (optionName == "initial-geometry") {
+      runOptions.config.initialGeometryMode = parseInitialGeometryMode(rawValue, optionName, sourceDescription);
+    } else if (optionName == "initial-geometry-source-count") {
+      runOptions.config.initialGeometrySourceCount = parseInt(rawValue, optionName, sourceDescription);
+    } else if (optionName == "initial-geometry-r0") {
+      runOptions.config.initialGeometryR0 = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "initial-geometry-a2") {
+      runOptions.config.initialGeometryA2 = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "initial-geometry-r2x") {
+      runOptions.config.initialGeometryR2x = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "initial-geometry-r2y") {
+      runOptions.config.initialGeometryR2y = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "initial-geometry-phi2") {
+      runOptions.config.initialGeometryPhi2 = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "initial-geometry-a3") {
+      runOptions.config.initialGeometryA3 = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "initial-geometry-r3") {
+      runOptions.config.initialGeometryR3 = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "initial-geometry-sigma3") {
+      runOptions.config.initialGeometrySigma3 = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "initial-geometry-phi3") {
+      runOptions.config.initialGeometryPhi3 = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "b") {
       runOptions.config.impactParameter = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "temperature") {
@@ -297,6 +331,8 @@ namespace {
       runOptions.config.affineEffectiveMode = parseAffineEffectiveMode(rawValue, optionName, sourceDescription);
     } else if (optionName == "density-normal-kappa-compensation") {
       runOptions.config.densityNormalKappaCompensation = parseBool(rawValue, optionName, sourceDescription);
+    } else if (optionName == "debug-initial-geometry") {
+      runOptions.config.debugInitialGeometry = parseBool(rawValue, optionName, sourceDescription);
     } else if (optionName == "debug-flow-ellipse") {
       runOptions.config.debugFlowEllipse = parseBool(rawValue, optionName, sourceDescription);
     } else if (optionName == "debug-gradient-response") {
@@ -395,7 +431,11 @@ namespace blastwave::app {
               << "  progress = true\n"
               << "  output = qa/test_b8_5000.root\n"
               << "Configuration keys:\n"
-              << "  nevents, b, temperature, thermal-sampler, mj-pmax, mj-grid-points,\n"
+              << "  nevents, initial-geometry, initial-geometry-source-count,\n"
+              << "  initial-geometry-r0, initial-geometry-a2, initial-geometry-r2x,\n"
+              << "  initial-geometry-r2y, initial-geometry-phi2, initial-geometry-a3,\n"
+              << "  initial-geometry-r3, initial-geometry-sigma3, initial-geometry-phi3,\n"
+              << "  b, temperature, thermal-sampler, mj-pmax, mj-grid-points,\n"
               << "  tau0, smear, sigma-nn, seed, output,\n"
               << "  v2pt-bins, v2pt-output-mode, v2pt-output,\n"
               << "  progress,\n"
@@ -409,7 +449,7 @@ namespace blastwave::app {
               << "  gradient-displacement-max, gradient-displacement-kappa,\n"
               << "  gradient-diffusion-sigma, gradient-vmax, gradient-velocity-kappa,\n"
               << "  cooper-frye-weight,\n"
-              << "  debug-flow-ellipse, debug-gradient-response,\n"
+              << "  debug-flow-ellipse, debug-gradient-response, debug-initial-geometry,\n"
               << "  sigma-eta, eta-plateau, nbd-mu, nbd-k\n"
               << "Primary options:\n"
               << "  --nevents <int>\n"
@@ -419,6 +459,17 @@ namespace blastwave::app {
               << "  --mj-pmax <GeV>\n"
               << "  --mj-grid-points <int>\n"
               << "  --tau0 <fm/c>\n"
+              << "  --initial-geometry <glauber|response-test-023>\n"
+              << "  --initial-geometry-source-count <int>\n"
+              << "  --initial-geometry-r0 <fm>\n"
+              << "  --initial-geometry-a2 <value>\n"
+              << "  --initial-geometry-r2x <fm>\n"
+              << "  --initial-geometry-r2y <fm>\n"
+              << "  --initial-geometry-phi2 <rad>\n"
+              << "  --initial-geometry-a3 <value>\n"
+              << "  --initial-geometry-r3 <fm>\n"
+              << "  --initial-geometry-sigma3 <fm>\n"
+              << "  --initial-geometry-phi3 <rad>\n"
               << "  --smear <fm>\n"
               << "  --sigma-nn <fm^2>   default 7.0 fm^2 (70 mb)\n"
               << "  --seed <uint64>\n"
@@ -432,6 +483,8 @@ namespace blastwave::app {
               << "  --no-debug-flow-ellipse\n"
               << "  --debug-gradient-response\n"
               << "  --no-debug-gradient-response\n"
+              << "  --debug-initial-geometry\n"
+              << "  --no-debug-initial-geometry\n"
               << "  --density-normal-kappa-compensation\n"
               << "  --no-density-normal-kappa-compensation\n"
               << "QA-facing tuning knobs:\n"
@@ -483,6 +536,8 @@ namespace blastwave::app {
     bool hasCliDebugFlowEllipseOverride = false;
     bool cliDebugGradientResponse = false;
     bool hasCliDebugGradientResponseOverride = false;
+    bool cliDebugInitialGeometry = false;
+    bool hasCliDebugInitialGeometryOverride = false;
     bool cliDensityNormalKappaCompensation = false;
     bool hasCliDensityNormalKappaCompensationOverride = false;
 
@@ -539,6 +594,18 @@ namespace blastwave::app {
         continue;
       }
 
+      if (argument == "--debug-initial-geometry") {
+        cliDebugInitialGeometry = true;
+        hasCliDebugInitialGeometryOverride = true;
+        continue;
+      }
+
+      if (argument == "--no-debug-initial-geometry") {
+        cliDebugInitialGeometry = false;
+        hasCliDebugInitialGeometryOverride = true;
+        continue;
+      }
+
       if (argument == "--density-normal-kappa-compensation") {
         cliDensityNormalKappaCompensation = true;
         hasCliDensityNormalKappaCompensationOverride = true;
@@ -586,6 +653,9 @@ namespace blastwave::app {
     }
     if (hasCliDensityNormalKappaCompensationOverride) {
       runOptions.config.densityNormalKappaCompensation = cliDensityNormalKappaCompensation;
+    }
+    if (hasCliDebugInitialGeometryOverride) {
+      runOptions.config.debugInitialGeometry = cliDebugInitialGeometry;
     }
 
     if (runOptions.v2PtBinEdges.empty()) {

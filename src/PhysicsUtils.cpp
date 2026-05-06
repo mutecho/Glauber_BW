@@ -48,6 +48,71 @@ namespace blastwave {
     return std::hypot(q2x, q2y) / static_cast<double>(multiplicity);
   }
 
+  // Compute the centered nth-harmonic geometry using the weighted root formula
+  // E_n = -sum(w*r^n*exp(i*n*phi))/sum(w*r^n).
+  RecenteredHarmonicGeometry computeRecenteredHarmonicGeometry(const std::vector<WeightedTransversePoint> &points, int harmonic) {
+    RecenteredHarmonicGeometry result;
+    if (harmonic <= 0) {
+      return result;
+    }
+
+    double sumWeight = 0.0;
+    double sumX = 0.0;
+    double sumY = 0.0;
+    for (const WeightedTransversePoint &point : points) {
+      if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.weight) || point.weight <= 0.0) {
+        continue;
+      }
+      sumWeight += point.weight;
+      sumX += point.weight * point.x;
+      sumY += point.weight * point.y;
+    }
+    if (sumWeight <= 0.0) {
+      return result;
+    }
+
+    result.centerX = sumX / sumWeight;
+    result.centerY = sumY / sumWeight;
+    const double inverseHarmonic = 1.0 / static_cast<double>(harmonic);
+
+    double weightedRadiusMoment = 0.0;
+    double weightedComplexX = 0.0;
+    double weightedComplexY = 0.0;
+    double weightedR2 = 0.0;
+    for (const WeightedTransversePoint &point : points) {
+      if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.weight) || point.weight <= 0.0) {
+        continue;
+      }
+
+      const double dx = point.x - result.centerX;
+      const double dy = point.y - result.centerY;
+      const double radius = std::hypot(dx, dy);
+      const double radiusPower = std::pow(radius, harmonic);
+      if (radiusPower == 0.0) {
+        continue;
+      }
+
+      const double angle = harmonic * std::atan2(dy, dx);
+      const double weight = point.weight * radiusPower;
+      weightedRadiusMoment += weight;
+      weightedComplexX += -weight * std::cos(angle);
+      weightedComplexY += -weight * std::sin(angle);
+      weightedR2 += point.weight * radius * radius;
+    }
+
+    if (weightedRadiusMoment <= 0.0) {
+      return result;
+    }
+
+    const double real = weightedComplexX / weightedRadiusMoment;
+    const double imag = weightedComplexY / weightedRadiusMoment;
+    result.valid = true;
+    result.epsilon = std::hypot(real, imag);
+    result.psi = std::atan2(imag, real) * inverseHarmonic;
+    result.rRms = std::sqrt(std::max(0.0, weightedR2 / sumWeight));
+    return result;
+  }
+
   // Compute the centered transverse source-size moment from finite points.
   double computeMeanRadiusSquared(const std::vector<TransversePoint> &points) {
     if (points.empty()) {

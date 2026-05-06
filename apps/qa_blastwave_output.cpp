@@ -39,22 +39,25 @@ namespace {
     return std::abs(lhs - rhs) <= relativeTolerance * scale;
   }
 
-  std::string toUpperCopy(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char character) { return static_cast<char>(std::toupper(character)); });
-    return value;
-  }
-
   double computeExpectedCentrality(double impactParameter) {
     const double woodsSaxonRadius = blastwave::BlastWaveConfig{}.woodsSaxonRadius;
     return blastwave::computeCentralityPercent(impactParameter, woodsSaxonRadius);
   }
 
+  std::string toUpperCopy(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char character) { return static_cast<char>(std::toupper(character)); });
+    return value;
+  }
+
   // Optional density snapshots are diagnostic TH2 objects; when present they
-  // must be finite, non-negative, visible in 3D by default, and non-empty.
-  void validateDensityMapHistogram(const TH2 &histogram, const std::string &objectName) {
-    const std::string drawOption = toUpperCopy(histogram.GetOption());
-    if (drawOption.find("LEGO") == std::string::npos && drawOption.find("SURF") == std::string::npos) {
-      throw std::runtime_error(objectName + " must default to a 3D ROOT draw option.");
+  // must be finite, non-negative, and have positive support; legacy density
+  // maps keep their 3D default draw option while the initial-geometry map is 2D.
+  void validateDensityMapHistogram(const TH2 &histogram, const std::string &objectName, bool requireThreeDimensionalDrawOption) {
+    if (requireThreeDimensionalDrawOption) {
+      const std::string drawOption = toUpperCopy(histogram.GetOption());
+      if (drawOption.find("LEGO") == std::string::npos && drawOption.find("SURF") == std::string::npos) {
+        throw std::runtime_error(objectName + " must default to a 3D ROOT draw option.");
+      }
     }
 
     bool sawPositiveDensityBin = false;
@@ -137,7 +140,16 @@ int main(int argc, char **argv) {
                                      blastwave::io::kPxPyHistogramName,
                                      blastwave::io::kPtHistogramName,
                                      blastwave::io::kEtaHistogramName,
-                                     blastwave::io::kPhiHistogramName};
+                                     blastwave::io::kPhiHistogramName,
+                                     blastwave::io::kEps3HistogramName,
+                                     blastwave::io::kPsi3HistogramName,
+                                     blastwave::io::kV3HistogramName,
+                                     blastwave::io::kV2WrtPsi2HistogramName,
+                                     blastwave::io::kV3WrtPsi3HistogramName,
+                                     blastwave::io::kV3WrtPsi3VsEps3HistogramName,
+                                     blastwave::io::kV2WrtPsi2VsEps2HistogramName,
+                                     blastwave::io::kV3WrtPsi3VsEps2HistogramName,
+                                     blastwave::io::kV2WrtPsi2VsEps3HistogramName};
     for (const char *objectName : requiredObjects) {
       if (inputFile.Get(objectName) == nullptr) {
         throw std::runtime_error(std::string("Missing required QA object: ") + objectName);
@@ -183,6 +195,42 @@ int main(int argc, char **argv) {
     auto *v2Input = dynamic_cast<TH1 *>(inputFile.Get(blastwave::io::kV2HistogramName));
     if (v2Input == nullptr) {
       throw std::runtime_error("Input object 'v2' is not a TH1.");
+    }
+    auto *eps3Input = dynamic_cast<TH1 *>(inputFile.Get(blastwave::io::kEps3HistogramName));
+    if (eps3Input == nullptr) {
+      throw std::runtime_error("Input object 'eps3' is not a TH1.");
+    }
+    auto *psi3Input = dynamic_cast<TH1 *>(inputFile.Get(blastwave::io::kPsi3HistogramName));
+    if (psi3Input == nullptr) {
+      throw std::runtime_error("Input object 'psi3' is not a TH1.");
+    }
+    auto *v3Input = dynamic_cast<TH1 *>(inputFile.Get(blastwave::io::kV3HistogramName));
+    if (v3Input == nullptr) {
+      throw std::runtime_error("Input object 'v3' is not a TH1.");
+    }
+    auto *v2WrtPsi2Input = dynamic_cast<TH1 *>(inputFile.Get(blastwave::io::kV2WrtPsi2HistogramName));
+    if (v2WrtPsi2Input == nullptr) {
+      throw std::runtime_error("Input object 'v2_wrt_psi2' is not a TH1.");
+    }
+    auto *v3WrtPsi3Input = dynamic_cast<TH1 *>(inputFile.Get(blastwave::io::kV3WrtPsi3HistogramName));
+    if (v3WrtPsi3Input == nullptr) {
+      throw std::runtime_error("Input object 'v3_wrt_psi3' is not a TH1.");
+    }
+    auto *v3WrtPsi3VsEps3Input = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kV3WrtPsi3VsEps3HistogramName));
+    if (v3WrtPsi3VsEps3Input == nullptr) {
+      throw std::runtime_error("Input object 'v3_wrt_psi3_vs_eps3' is not a TH2.");
+    }
+    auto *v2WrtPsi2VsEps2Input = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kV2WrtPsi2VsEps2HistogramName));
+    if (v2WrtPsi2VsEps2Input == nullptr) {
+      throw std::runtime_error("Input object 'v2_wrt_psi2_vs_eps2' is not a TH2.");
+    }
+    auto *v3WrtPsi3VsEps2Input = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kV3WrtPsi3VsEps2HistogramName));
+    if (v3WrtPsi3VsEps2Input == nullptr) {
+      throw std::runtime_error("Input object 'v3_wrt_psi3_vs_eps2' is not a TH2.");
+    }
+    auto *v2WrtPsi2VsEps3Input = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kV2WrtPsi2VsEps3HistogramName));
+    if (v2WrtPsi2VsEps3Input == nullptr) {
+      throw std::runtime_error("Input object 'v2_wrt_psi2_vs_eps3' is not a TH2.");
     }
 
     auto *v2PtEdgesObject = inputFile.Get(blastwave::io::kV2PtEdgesObjectName);
@@ -246,6 +294,7 @@ int main(int argc, char **argv) {
     }
     auto *affineEffectiveInitialDensityInput = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kAffineEffectiveInitialDensityHistogramName));
     auto *affineEffectiveFinalDensityInput = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kAffineEffectiveFinalDensityHistogramName));
+    auto *initialGeometryDensityInput = dynamic_cast<TH2 *>(inputFile.Get(blastwave::io::kInitialGeometryDensityHistogramName));
     if (inputFile.Get(blastwave::io::kAffineEffectiveInitialDensityHistogramName) != nullptr && affineEffectiveInitialDensityInput == nullptr) {
       throw std::runtime_error("Input object 'affine_effective_density_initial_x-y' is not a TH2.");
     }
@@ -272,6 +321,9 @@ int main(int argc, char **argv) {
     }
     if (inputFile.Get(blastwave::io::kGradientSFHistogramName) != nullptr && gradientSFInput == nullptr) {
       throw std::runtime_error("Input object 'gradient_s_f_x-y' is not a TH2.");
+    }
+    if (inputFile.Get(blastwave::io::kInitialGeometryDensityHistogramName) != nullptr && initialGeometryDensityInput == nullptr) {
+      throw std::runtime_error("Input object 'initial_geometry_density_x-y' is not a TH2.");
     }
     const bool hasAnyGradientDebugHistogram = gradientS0Input != nullptr || gradientSEmInput != nullptr || gradientSDynInput != nullptr || gradientSFInput != nullptr;
     if (hasAnyGradientDebugHistogram && (gradientS0Input == nullptr || gradientSEmInput == nullptr || gradientSDynInput == nullptr || gradientSFInput == nullptr)) {
@@ -311,6 +363,9 @@ int main(int argc, char **argv) {
     std::unordered_map<int, double> q2xByEvent;
     std::unordered_map<int, double> q2yByEvent;
     std::unordered_map<int, double> q2WeightByEvent;
+    std::unordered_map<int, double> q3xByEvent;
+    std::unordered_map<int, double> q3yByEvent;
+    std::unordered_map<int, double> q3WeightByEvent;
     std::unordered_map<int, double> x0SumByEvent;
     std::unordered_map<int, double> y0SumByEvent;
     std::unordered_map<int, double> r2InitialSumByEvent;
@@ -318,9 +373,12 @@ int main(int argc, char **argv) {
     std::unordered_map<int, double> ySumByEvent;
     std::unordered_map<int, double> r2FinalSumByEvent;
     std::unordered_map<int, std::vector<blastwave::V2PtTrack>> v2TracksByEvent;
+    std::unordered_map<int, int> templateNucleusCountByEvent;
     double maxMassShellDeviation = 0.0;
     double maxAbsEtaS = 0.0;
     double maxEnergy = 0.0;
+    double meanEps3 = 0.0;
+    double meanV3 = 0.0;
 
     for (Long64_t iEntry = 0; iEntry < participantsTree->GetEntries(); ++iEntry) {
       participantsTree->GetEntry(iEntry);
@@ -331,8 +389,11 @@ int main(int argc, char **argv) {
           throw std::runtime_error("Detected NaN/Inf in participants tree.");
         }
       }
-      if (participantBranches.nucleusId != 0 && participantBranches.nucleusId != 1) {
-        throw std::runtime_error("participants.nucleus_id must be 0 or 1.");
+      if (participantBranches.nucleusId < -1 || participantBranches.nucleusId > 1) {
+        throw std::runtime_error("participants.nucleus_id must be -1, 0, or 1.");
+      }
+      if (participantBranches.nucleusId == -1) {
+        ++templateNucleusCountByEvent[participantBranches.eventId];
       }
 
       ++participantCountsByEvent[participantBranches.eventId];
@@ -379,6 +440,9 @@ int main(int argc, char **argv) {
       q2xByEvent[particleBranches.eventId] += particleBranches.emissionWeight * std::cos(2.0 * phi);
       q2yByEvent[particleBranches.eventId] += particleBranches.emissionWeight * std::sin(2.0 * phi);
       q2WeightByEvent[particleBranches.eventId] += particleBranches.emissionWeight;
+      q3xByEvent[particleBranches.eventId] += particleBranches.emissionWeight * std::cos(3.0 * phi);
+      q3yByEvent[particleBranches.eventId] += particleBranches.emissionWeight * std::sin(3.0 * phi);
+      q3WeightByEvent[particleBranches.eventId] += particleBranches.emissionWeight;
       x0SumByEvent[particleBranches.eventId] += particleBranches.x0;
       y0SumByEvent[particleBranches.eventId] += particleBranches.y0;
       r2InitialSumByEvent[particleBranches.eventId] += particleBranches.x0 * particleBranches.x0 + particleBranches.y0 * particleBranches.y0;
@@ -421,15 +485,81 @@ int main(int argc, char **argv) {
       if (observedParticleCount != eventBranches.nCharged) {
         throw std::runtime_error("Nch does not match particle multiplicity for an event.");
       }
+      const int templateParticipantCount = templateNucleusCountByEvent.count(eventBranches.eventId) > 0 ? templateNucleusCountByEvent[eventBranches.eventId] : 0;
+      if (eventBranches.initialGeometryMode != 0 && eventBranches.initialGeometryMode != 1) {
+        throw std::runtime_error("initial_geometry_mode must be 0 (glauber) or 1 (response-test-023).");
+      }
+      if (eventBranches.initialGeometryMode == 1 && templateParticipantCount != observedParticipantCount) {
+        throw std::runtime_error("response-test-023 events require all participant nucleus_id values to be -1.");
+      }
+      if (eventBranches.initialGeometryMode == 0 && templateParticipantCount > 0) {
+        throw std::runtime_error("Glauber events do not allow nucleus_id = -1.");
+      }
       const double expectedV2 =
           q2WeightByEvent[eventBranches.eventId] > 0.0
               ? std::hypot(q2xByEvent[eventBranches.eventId], q2yByEvent[eventBranches.eventId]) / q2WeightByEvent[eventBranches.eventId]
               : 0.0;
+      const double expectedV3 =
+          q3WeightByEvent[eventBranches.eventId] > 0.0
+              ? std::hypot(q3xByEvent[eventBranches.eventId], q3yByEvent[eventBranches.eventId]) / q3WeightByEvent[eventBranches.eventId]
+              : 0.0;
+      const double expectedV2WrtPsi2 =
+          q2WeightByEvent[eventBranches.eventId] > 0.0
+              ? (q2xByEvent[eventBranches.eventId] * std::cos(2.0 * eventBranches.psi2) + q2yByEvent[eventBranches.eventId] * std::sin(2.0 * eventBranches.psi2))
+                    / q2WeightByEvent[eventBranches.eventId]
+              : 0.0;
+      const double expectedV3WrtPsi3 =
+          q3WeightByEvent[eventBranches.eventId] > 0.0
+              ? (q3xByEvent[eventBranches.eventId] * std::cos(3.0 * eventBranches.psi3) + q3yByEvent[eventBranches.eventId] * std::sin(3.0 * eventBranches.psi3))
+                    / q3WeightByEvent[eventBranches.eventId]
+              : 0.0;
       if (!isFinite(eventBranches.v2) || eventBranches.v2 < 0.0 || eventBranches.v2 > 1.0) {
         throw std::runtime_error("v2 must stay within [0, 1].");
       }
+      if (!isFinite(eventBranches.v3) || eventBranches.v3 < 0.0 || eventBranches.v3 > 1.0) {
+        throw std::runtime_error("v3 must stay within [0, 1].");
+      }
+      if (!isFinite(eventBranches.eps3) || eventBranches.eps3 < 0.0 || eventBranches.eps3 > 1.0) {
+        throw std::runtime_error("eps3 must stay within [0, 1].");
+      }
+      if (!isFinite(eventBranches.psi3)) {
+        throw std::runtime_error("psi3 must be finite.");
+      }
+      if (!isFinite(eventBranches.v2WrtPsi2) || eventBranches.v2WrtPsi2 < -1.0 || eventBranches.v2WrtPsi2 > 1.0) {
+        throw std::runtime_error("v2_wrt_psi2 must be finite and within [-1, 1].");
+      }
+      if (!isFinite(eventBranches.v3WrtPsi3) || eventBranches.v3WrtPsi3 < -1.0 || eventBranches.v3WrtPsi3 > 1.0) {
+        throw std::runtime_error("v3_wrt_psi3 must be finite and within [-1, 1].");
+      }
+      if (!isFinite(eventBranches.xCenterInit) || !isFinite(eventBranches.yCenterInit)) {
+        throw std::runtime_error("x_center_init and y_center_init must be finite.");
+      }
+      if (!isFinite(eventBranches.rRmsInit) || eventBranches.rRmsInit < 0.0) {
+        throw std::runtime_error("R_rms_init must be finite and non-negative.");
+      }
+      if (!isFinite(eventBranches.geoA2) || eventBranches.geoA2 < 0.0) {
+        throw std::runtime_error("geo_a2 must be finite and non-negative.");
+      }
+      if (!isFinite(eventBranches.geoA3) || eventBranches.geoA3 < 0.0) {
+        throw std::runtime_error("geo_a3 must be finite and non-negative.");
+      }
+      if (!isFinite(eventBranches.geoR3) || eventBranches.geoR3 < 0.0) {
+        throw std::runtime_error("geo_r3 must be finite and non-negative.");
+      }
+      if (!isFinite(eventBranches.geoSigma3) || eventBranches.geoSigma3 < 0.0) {
+        throw std::runtime_error("geo_sigma3 must be finite and non-negative.");
+      }
       if (!nearlyEqual(eventBranches.v2, expectedV2, 1.0e-9)) {
-        throw std::runtime_error("events.v2 does not match the particle-level second-harmonic Q-vector.");
+        throw std::runtime_error("events.v2 does not match the particle-level second-harmonic Q-vector magnitude.");
+      }
+      if (!nearlyEqual(eventBranches.v2WrtPsi2, expectedV2WrtPsi2, 1.0e-9)) {
+        throw std::runtime_error("events.v2_wrt_psi2 does not match the projected particle-level Q2.");
+      }
+      if (!nearlyEqual(eventBranches.v3, expectedV3, 1.0e-9)) {
+        throw std::runtime_error("events.v3 does not match the particle-level third-harmonic Q-vector magnitude.");
+      }
+      if (!nearlyEqual(eventBranches.v3WrtPsi3, expectedV3WrtPsi3, 1.0e-9)) {
+        throw std::runtime_error("events.v3_wrt_psi3 does not match the projected particle-level Q3.");
       }
       if (!isFinite(eventBranches.centrality) || eventBranches.centrality < 0.0 || eventBranches.centrality > 100.0) {
         throw std::runtime_error("centrality must stay within [0, 100].");
@@ -491,7 +621,9 @@ int main(int argc, char **argv) {
 
       meanNpart += eventBranches.nParticipants;
       meanEps2 += eventBranches.eps2;
+      meanEps3 += eventBranches.eps3;
       meanV2 += eventBranches.v2;
+      meanV3 += eventBranches.v3;
       hPsi2.Fill(eventBranches.psi2);
       hV2.Fill(eventBranches.v2);
       eventIdsSeen[eventBranches.eventId] = true;
@@ -704,19 +836,24 @@ int main(int argc, char **argv) {
     }
 
     if (densityNormalEventDensityInput != nullptr) {
-      validateDensityMapHistogram(*densityNormalEventDensityInput, blastwave::io::kDensityNormalEventDensityHistogramName);
+      validateDensityMapHistogram(*densityNormalEventDensityInput, blastwave::io::kDensityNormalEventDensityHistogramName, true);
     }
 
     if (affineEffectiveInitialDensityInput != nullptr) {
-      validateDensityMapHistogram(*affineEffectiveInitialDensityInput, blastwave::io::kAffineEffectiveInitialDensityHistogramName);
-      validateDensityMapHistogram(*affineEffectiveFinalDensityInput, blastwave::io::kAffineEffectiveFinalDensityHistogramName);
+      validateDensityMapHistogram(*affineEffectiveInitialDensityInput, blastwave::io::kAffineEffectiveInitialDensityHistogramName, true);
+      validateDensityMapHistogram(*affineEffectiveFinalDensityInput, blastwave::io::kAffineEffectiveFinalDensityHistogramName, true);
+    }
+    if (initialGeometryDensityInput != nullptr) {
+      validateDensityMapHistogram(*initialGeometryDensityInput, blastwave::io::kInitialGeometryDensityHistogramName, false);
     }
 
     const double eventCount = static_cast<double>(eventsTree->GetEntries());
     if (eventCount > 0.0) {
       meanNpart /= eventCount;
       meanEps2 /= eventCount;
+      meanEps3 /= eventCount;
       meanV2 /= eventCount;
+      meanV3 /= eventCount;
     }
     if (std::abs(centralityInput->GetEntries() - eventCount) > 1.0e-9) {
       throw std::runtime_error("cent histogram entry count does not match events tree.");
@@ -732,6 +869,33 @@ int main(int argc, char **argv) {
     }
     if (std::abs(chi2Input->GetEntries() - eventCount) > 1.0e-9) {
       throw std::runtime_error("chi2 histogram entry count does not match events tree.");
+    }
+    if (std::abs(eps3Input->GetEntries() - eventCount) > 1.0e-9) {
+      throw std::runtime_error("eps3 histogram entry count does not match events tree.");
+    }
+    if (std::abs(psi3Input->GetEntries() - eventCount) > 1.0e-9) {
+      throw std::runtime_error("psi3 histogram entry count does not match events tree.");
+    }
+    if (std::abs(v3Input->GetEntries() - eventCount) > 1.0e-9) {
+      throw std::runtime_error("v3 histogram entry count does not match events tree.");
+    }
+    if (std::abs(v2WrtPsi2Input->GetEntries() - eventCount) > 1.0e-9) {
+      throw std::runtime_error("v2_wrt_psi2 histogram entry count does not match events tree.");
+    }
+    if (std::abs(v3WrtPsi3Input->GetEntries() - eventCount) > 1.0e-9) {
+      throw std::runtime_error("v3_wrt_psi3 histogram entry count does not match events tree.");
+    }
+    if (std::abs(v3WrtPsi3VsEps3Input->GetEntries() - eventCount) > 1.0e-9) {
+      throw std::runtime_error("v3_wrt_psi3_vs_eps3 histogram entry count does not match events tree.");
+    }
+    if (std::abs(v2WrtPsi2VsEps2Input->GetEntries() - eventCount) > 1.0e-9) {
+      throw std::runtime_error("v2_wrt_psi2_vs_eps2 histogram entry count does not match events tree.");
+    }
+    if (std::abs(v3WrtPsi3VsEps2Input->GetEntries() - eventCount) > 1.0e-9) {
+      throw std::runtime_error("v3_wrt_psi3_vs_eps2 histogram entry count does not match events tree.");
+    }
+    if (std::abs(v2WrtPsi2VsEps3Input->GetEntries() - eventCount) > 1.0e-9) {
+      throw std::runtime_error("v2_wrt_psi2_vs_eps3 histogram entry count does not match events tree.");
     }
     if (std::abs(r2InitialInput->GetEntries() - eventCount) > 1.0e-9) {
       throw std::runtime_error("r2_0 histogram entry count does not match events tree.");
@@ -839,8 +1003,9 @@ int main(int argc, char **argv) {
     qaFile.Close();
 
     std::cout << "validation_passed"
-              << " events=" << eventsTree->GetEntries() << " particles=" << particlesTree->GetEntries() << " mean_Npart=" << meanNpart << " mean_eps2=" << meanEps2
-              << " mean_v2=" << meanV2 << " max_abs_eta_s=" << maxAbsEtaS << " max_E=" << maxEnergy << " max_mass_shell_deviation=" << maxMassShellDeviation << '\n';
+              << " events=" << eventsTree->GetEntries() << " particles=" << particlesTree->GetEntries() << " mean_Npart=" << meanNpart
+              << " mean_eps2=" << meanEps2 << " mean_eps3=" << meanEps3 << " mean_v2=" << meanV2 << " mean_v3=" << meanV3
+              << " max_abs_eta_s=" << maxAbsEtaS << " max_E=" << maxEnergy << " max_mass_shell_deviation=" << maxMassShellDeviation << '\n';
     return 0;
   } catch (const std::exception &error) {
     std::cerr << "qa_blastwave_output failed: " << error.what() << '\n';

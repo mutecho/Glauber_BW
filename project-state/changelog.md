@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-05-06 Response-Test 0+2+3 Initial Geometry
+
+- Added public `initial-geometry = glauber | response-test-023`, defaulting to `glauber`.
+- Implemented `response-test-023` as a recentered synthetic `0+2+3` transverse point cloud with configurable source count, circular background, elliptical Gaussian component, and triangular hotspot component.
+- Added `eps3/psi3`, `v3`, `v2_wrt_psi2`, `v3_wrt_psi3`, response/cross-talk TH2 objects, and optional `initial_geometry_density_x-y` debug output.
+- Extended independent QA to accept `nucleus_id=-1` only for response-test events and to recompute weighted Q2/Q3 observables from the particle tree.
+- Added ROOT-free harmonic geometry and response-template generator tests plus a complete Chinese response-test config `config/test_b8_response_023.cfg`.
+- Updated user docs and `project-state/` for the config, algorithm, output schema, QA, and operator-flow changes.
+
 ## 2026-05-02 Formula-Oriented Workflow Documentation
 
 - Added `docs/数学物理公式流程说明.md` as a math-heavy walkthrough of the current generator chain from Woods-Saxon participants through medium evolution, emission sampling, thermal momentum, flow boost, event observables, and optional `v2{2}(pT)` analysis.

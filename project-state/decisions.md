@@ -290,3 +290,25 @@
 - Consequences:
   - affine-effective output now exposes the density-shape evolution directly without changing the mandatory `events` or `particles` trees
   - the maps are diagnostic first-event snapshots, not event-averaged density observables
+
+## DEC-015 Add Opt-In `response-test-023` Initial Geometry And Third-Harmonic Contract
+
+- Status: accepted
+- Date: 2026-05-06
+- Context:
+  - `docs/三阶响应测试V1.md` defines a closure/response test based on controlled `0+2+3` initial geometry
+  - the default Glauber path must remain unchanged while allowing synthetic geometry to enter the same medium, emission, flow, and ROOT output chain
+  - downstream QA needs third-harmonic observables that are recomputable from the written particle tree
+- Decision:
+  - add public `initial-geometry = glauber | response-test-023`, defaulting to `glauber`
+  - implement `response-test-023` as a recentered synthetic point cloud with `n=0` Gaussian background, `n=2` elliptical Gaussian, and `n=3` triangular Gaussian hotspots
+  - tag synthetic participant records with `nucleus_id = -1`
+  - treat `initial-geometry-a2/a3` as template mixture weights only; analysis should use measured `eps2/eps3`
+  - preserve existing covariance `events.eps2/psi2` semantics and add `events.eps3/psi3` using a recentered harmonic convention
+  - extend the mandatory ROOT event/histogram contract with `v3`, `v2_wrt_psi2`, `v3_wrt_psi3`, and response/cross-talk TH2 objects
+  - add optional `debug-initial-geometry` output `initial_geometry_density_x-y`
+  - make QA accept `nucleus_id=-1` only for response-test events and recompute weighted Q2/Q3 observables from `particles`
+- Consequences:
+  - older ROOT files without the new mandatory branches/histograms are no longer current-schema QA inputs
+  - physics conclusions from the response test require controlled scans over measured `eps3`, not direct interpretation of template `A3`
+  - future higher-harmonic work should either extend this response-test surface or introduce a separately documented flow-response coefficient, not silently overload `kappa2`

@@ -2,15 +2,18 @@
 
 ## Latest Durable Handoff
 
-- Stage completed: affine-effective before/after density-map output and QA resync
+- Stage completed: response-test `0+2+3` initial geometry and third-harmonic output contract
 - What changed:
-  - affine-effective generation now writes `affine_effective_density_initial_x-y` and `affine_effective_density_final_x-y`
-  - both density maps come from the same first valid event and compare the `affine-gaussian` pre-evolution `s0` field against the freeze-out `sf` field
-  - both maps default to ROOT `LEGO1` drawing
-  - QA now treats the two maps as an all-or-none optional payload and validates TH2 type, finite non-negative bins, positive support, and 3D draw style
-  - docs plus `project-state/` were refreshed to describe the output-schema change
+  - added `initial-geometry = glauber | response-test-023`, defaulting to `glauber`
+  - `response-test-023` creates a recentered synthetic `0+2+3` transverse point cloud and writes participant records with `nucleus_id = -1`
+  - added template knobs `initial-geometry-source-count`, `r0`, `a2`, `r2x/r2y/phi2`, `a3`, `r3/sigma3/phi3`, plus `debug-initial-geometry`
+  - added mandatory event branches and histograms for `eps3/psi3`, `v3`, `v2_wrt_psi2`, and `v3_wrt_psi3`
+  - added response/cross-talk TH2 objects and optional `initial_geometry_density_x-y`
+  - QA now accepts `nucleus_id=-1` only for response-test events and recomputes weighted Q2/Q3 observables from `particles`
+  - docs, complete Chinese response-test config, and `project-state/` were refreshed
 - Current documentation ownership:
   - detailed runtime and physics explanation: `docs/项目说明.md`
+  - formula walkthrough: `docs/数学物理公式流程说明.md`
   - concise semantic reminders: `docs/手记文档.md`
   - current coordination view: `project-state/guide.md`
   - current snapshot and caveats: `project-state/current-status.md`
@@ -19,10 +22,12 @@
 ## Current Contract Reminders
 
 - default runtime path remains V1a `affine-gaussian + covariance-ellipse`
+- default initial geometry remains `glauber`; `response-test-023` is opt-in only
+- `initial-geometry-a2/a3` are template mixture weights, not `eps2/eps3`
+- `events.eps2/psi2` keep covariance semantics; `events.eps3/psi3` use recentered harmonic geometry
+- `events.v3`, `v2_wrt_psi2`, and `v3_wrt_psi3` are mandatory ROOT/QA contract fields
 - affine-effective remains opt-in and only valid for `affine-gaussian`
 - affine-effective defaults to `additive-rho`; use `--affine-effective-mode full-tensor` for the tensor closure path
-- `rho0` affects `additive-rho` but not `full-tensor`; `kappa2` and `density-normal-kappa-compensation` do not affect affine-effective
-- affine-effective output includes first-valid-event before/after density maps; they are diagnostic snapshots, not event-averaged density observables
 - V2 `gradient-response` remains opt-in and coupled across medium and flow selection
 - differential `v2{2}(pT)` remains a separate analysis payload and does not replace `events.v2`
 - `v2pt-output-mode = separate-file` may leave the main result file metadata-only
@@ -31,11 +36,14 @@
 
 ## Remaining Follow-Up
 
+- for physics conclusions from the response test, run a larger controlled `A3` scan and analyze mean `eps3` versus `v3_wrt_psi3`; this rollout provides the closure-test surface
 - if the active code worktree changes physics, config parsing, schema, QA behavior, or operator flow again, refresh `docs/项目说明.md`, `docs/agent_guide.md`, and the relevant `project-state/` files in the same patch
-- if the next affine step removes `affine-kappa-aniso` compatibility parsing or changes weighting/surface sampling, keep it separate from the current closure-only implementation and record the contract shift explicitly
 - if a future task needs to prove the current dirty tree end to end, rerun the authoritative build, `ctest`, and outside-sandbox ROOT smoke commands, then update `project-state/tests.md` only if the durable conclusion changes
 
 ## Verification Status
 
-- durable baseline after this task: `verified`
-- this task added fresh O2Physics build, local `ctest`, authoritative affine-effective generate+QA, and ROOT file inspection evidence for the two new density maps
+- durable baseline after this task: `verified` on 2026-05-06
+- local build and full local `ctest` passed after integrating the response-test implementation
+- authoritative outside-sandbox O2Physics default Glauber generate + QA passed with the expanded third-harmonic schema
+- authoritative outside-sandbox O2Physics `response-test-023` generate + QA passed, including optional initial-geometry density output
+- four-point `A3 = 0, 0.05, 0.10, 0.15` scan passed generate + QA and showed increasing `mean(v3_wrt_psi3)`

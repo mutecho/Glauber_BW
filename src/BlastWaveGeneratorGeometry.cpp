@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 #include "blastwave/BlastWaveGenerator.h"
@@ -8,6 +9,7 @@ namespace {
 
   constexpr double kPi = 3.14159265358979323846;
   constexpr double kTwoPi = 2.0 * kPi;
+  constexpr double kTiny = 1.0e-12;
 
 }  // namespace
 
@@ -16,6 +18,14 @@ namespace blastwave {
   // Build the participant list by sampling both nuclei and applying the
   // transverse collision criterion implied by the configured NN cross section.
   std::vector<BlastWaveGenerator::Nucleon> BlastWaveGenerator::sampleParticipants() {
+    if (config_.initialGeometryMode == InitialGeometryMode::ResponseTest023) {
+      return sampleResponseTest023Participants();
+    }
+    return sampleGlauberParticipants();
+  }
+
+  // Default Glauber geometry keeps the existing sampled nuclei logic unchanged.
+  std::vector<BlastWaveGenerator::Nucleon> BlastWaveGenerator::sampleGlauberParticipants() {
     std::vector<Nucleon> nucleusA;
     std::vector<Nucleon> nucleusB;
     nucleusA.reserve(static_cast<std::size_t>(config_.nucleonsPerNucleus));
@@ -51,6 +61,141 @@ namespace blastwave {
       if (nucleon.participant) {
         participants.push_back(nucleon);
       }
+    }
+    return participants;
+  }
+
+  // Build the response-test source cloud from three components with explicit 1:A2:A3
+  // allocation and then recenter to remove artificial dipoles in the synthetic template.
+  std::vector<BlastWaveGenerator::Nucleon> BlastWaveGenerator::sampleResponseTest023Participants() {
+    const int targetCount = std::max(1, config_.initialGeometrySourceCount);
+    const double rawA2 = std::max(0.0, config_.initialGeometryA2);
+    const double rawA3 = std::max(0.0, config_.initialGeometryA3);
+    const double rawA0 = 1.0;
+
+    auto allocateCounts = [](int total, const std::array<double, 3> &weights) {
+      std::array<int, 3> counts = {0, 0, 0};
+      if (total <= 0) {
+        return counts;
+      }
+      const double totalWeight = weights[0] + weights[1] + weights[2];
+      const double invTotalWeight = 1.0 / totalWeight;
+      std::array<double, 3> fractions = {weights[0] * total * invTotalWeight, weights[1] * total * invTotalWeight, weights[2] * total * invTotalWeight};
+      int allocated = 0;
+      for (std::size_t iComp = 0; iComp < fractions.size(); ++iComp) {
+        counts[iComp] = static_cast<int>(std::floor(fractions[iComp]));
+        allocated += counts[iComp];
+      }
+
+      int remaining = total - allocated;
+      while (remaining > 0) {
+        std::size_t bestIndex = 0;
+        for (std::size_t iIndex = 1; iIndex < fractions.size(); ++iIndex) {
+          if ((fractions[iIndex] - counts[iIndex]) > (fractions[bestIndex] - counts[bestIndex])) {
+            bestIndex = iIndex;
+          }
+        }
+        ++counts[bestIndex];
+        --remaining;
+      }
+      return counts;
+    };
+
+    const std::array<double, 3> weights = {rawA0, rawA2, rawA3};
+    std::array<int, 3> componentCounts = allocateCounts(targetCount, weights);
+
+    const auto ensureComponentCount = [&](std::size_t indexNeed, int minimumCount) {
+      if (componentCounts[indexNeed] >= minimumCount || targetCount < minimumCount) {
+        return;
+      }
+
+      while (componentCounts[indexNeed] < minimumCount) {
+        int donor = -1;
+        for (std::size_t iComponent = 0; iComponent < componentCounts.size(); ++iComponent) {
+          if (iComponent == indexNeed || componentCounts[iComponent] <= 0) {
+            continue;
+          }
+          if (donor < 0 || componentCounts[iComponent] > componentCounts[static_cast<std::size_t>(donor)]) {
+            donor = static_cast<int>(iComponent);
+          }
+        }
+
+        if (donor < 0) {
+          break;
+        }
+        --componentCounts[static_cast<std::size_t>(donor)];
+        ++componentCounts[indexNeed];
+      }
+    };
+
+    if (rawA2 > kTiny) {
+      ensureComponentCount(1, 1);
+    }
+    if (rawA3 > kTiny) {
+      ensureComponentCount(2, 3);
+    }
+
+    const int totalAssigned = componentCounts[0] + componentCounts[1] + componentCounts[2];
+    if (totalAssigned > targetCount && componentCounts[0] > 0) {
+      componentCounts[0] -= std::min(componentCounts[0], totalAssigned - targetCount);
+    }
+    if (componentCounts[0] + componentCounts[1] + componentCounts[2] < targetCount && componentCounts[0] >= 0) {
+      componentCounts[0] += targetCount - (componentCounts[0] + componentCounts[1] + componentCounts[2]);
+    }
+
+    const double cosPhi2 = std::cos(config_.initialGeometryPhi2);
+    const double sinPhi2 = std::sin(config_.initialGeometryPhi2);
+    std::normal_distribution<double> backgroundDistX(0.0, config_.initialGeometryR0);
+    std::normal_distribution<double> ellipseDistX(0.0, config_.initialGeometryR2x);
+    std::normal_distribution<double> ellipseDistY(0.0, config_.initialGeometryR2y);
+    std::normal_distribution<double> triangleDist(0.0, config_.initialGeometrySigma3);
+    std::vector<WeightedTransversePoint> sourcePoints;
+    sourcePoints.reserve(static_cast<std::size_t>(targetCount));
+
+    for (int i = 0; i < componentCounts[0]; ++i) {
+      sourcePoints.push_back({backgroundDistX(rng_), backgroundDistX(rng_), 1.0});
+    }
+    for (int i = 0; i < componentCounts[1]; ++i) {
+      const double dx = ellipseDistX(rng_);
+      const double dy = ellipseDistY(rng_);
+      sourcePoints.push_back({dx * cosPhi2 - dy * sinPhi2, dx * sinPhi2 + dy * cosPhi2, 1.0});
+    }
+
+    const int nForEachPeak = componentCounts[2] / 3;
+    const int tailPeaks = componentCounts[2] % 3;
+    const double r3 = std::max(0.0, config_.initialGeometryR3);
+    for (int peak = 0; peak < 3; ++peak) {
+      const int nForPeak = nForEachPeak + (peak < tailPeaks ? 1 : 0);
+      const double peakPhi = config_.initialGeometryPhi3 + kTwoPi * static_cast<double>(peak) / 3.0;
+      const double peakX = r3 * std::cos(peakPhi);
+      const double peakY = r3 * std::sin(peakPhi);
+      for (int i = 0; i < nForPeak; ++i) {
+        sourcePoints.push_back({peakX + triangleDist(rng_), peakY + triangleDist(rng_), 1.0});
+      }
+    }
+
+    if (static_cast<int>(sourcePoints.size()) != targetCount) {
+      sourcePoints.resize(static_cast<std::size_t>(targetCount), sourcePoints.empty() ? WeightedTransversePoint{0.0, 0.0, 1.0} : sourcePoints.back());
+    }
+
+    double centroidX = 0.0;
+    double centroidY = 0.0;
+    for (const WeightedTransversePoint &point : sourcePoints) {
+      centroidX += point.x;
+      centroidY += point.y;
+    }
+    centroidX /= static_cast<double>(sourcePoints.size());
+    centroidY /= static_cast<double>(sourcePoints.size());
+
+    for (WeightedTransversePoint &point : sourcePoints) {
+      point.x -= centroidX;
+      point.y -= centroidY;
+    }
+
+    std::vector<Nucleon> participants;
+    participants.reserve(sourcePoints.size());
+    for (const WeightedTransversePoint &point : sourcePoints) {
+      participants.push_back({point.x, point.y, 0.0, -1});
     }
     return participants;
   }

@@ -359,6 +359,97 @@ namespace {
     require(threw, "Invalid cooper-frye-weight should be rejected.");
   }
 
+  void runInitialGeometryDefaultParseTest() {
+    const ParsedRunOptions parsed = parseArguments({});
+    require(parsed.runOptions.config.initialGeometryMode == blastwave::InitialGeometryMode::Glauber,
+            "Default initial-geometry should remain Glauber.");
+    require(parsed.runOptions.config.initialGeometrySourceCount == 600, "Default initial-geometry-source-count should be 600.");
+    requireNear(parsed.runOptions.config.initialGeometryR0, 1.2, 1.0e-12, "Default initial-geometry-r0 mismatch.");
+    requireNear(parsed.runOptions.config.initialGeometryA2, 0.0, 1.0e-12, "Default initial-geometry-a2 should be zero.");
+    requireNear(parsed.runOptions.config.initialGeometryR2x, 1.8, 1.0e-12, "Default initial-geometry-r2x mismatch.");
+    requireNear(parsed.runOptions.config.initialGeometryR2y, 1.8, 1.0e-12, "Default initial-geometry-r2y mismatch.");
+    requireNear(parsed.runOptions.config.initialGeometryR3, 1.8, 1.0e-12, "Default initial-geometry-r3 mismatch.");
+    requireNear(parsed.runOptions.config.initialGeometrySigma3, 0.6, 1.0e-12, "Default initial-geometry-sigma3 mismatch.");
+    require(!parsed.runOptions.config.debugInitialGeometry, "Default debug-initial-geometry should be disabled.");
+  }
+
+  void runInitialGeometryParseAndOverrideTest() {
+    const ParsedRunOptions parsed = parseArguments({"--initial-geometry",
+                                                   "response-test-023",
+                                                   "--initial-geometry-source-count",
+                                                   "420",
+                                                   "--initial-geometry-r0",
+                                                   "1.5",
+                                                   "--initial-geometry-a2",
+                                                   "0.2",
+                                                   "--initial-geometry-r2x",
+                                                   "2.0",
+                                                   "--initial-geometry-r2y",
+                                                   "1.6",
+                                                   "--initial-geometry-phi2",
+                                                   "0.42",
+                                                   "--initial-geometry-a3",
+                                                   "0.15",
+                                                   "--initial-geometry-r3",
+                                                   "2.2",
+                                                   "--initial-geometry-sigma3",
+                                                   "0.35",
+                                                   "--initial-geometry-phi3",
+                                                   "1.1",
+                                                   "--debug-initial-geometry"});
+    require(parsed.runOptions.config.initialGeometryMode == blastwave::InitialGeometryMode::ResponseTest023,
+            "CLI initial-geometry should parse as response-test-023.");
+    require(parsed.runOptions.config.initialGeometrySourceCount == 420, "CLI source-count parse mismatch.");
+    requireNear(parsed.runOptions.config.initialGeometryR0, 1.5, 1.0e-12, "CLI initial-geometry-r0 parse mismatch.");
+    requireNear(parsed.runOptions.config.initialGeometryA2, 0.2, 1.0e-12, "CLI initial-geometry-a2 parse mismatch.");
+    requireNear(parsed.runOptions.config.initialGeometryR2x, 2.0, 1.0e-12, "CLI initial-geometry-r2x parse mismatch.");
+    requireNear(parsed.runOptions.config.initialGeometryR2y, 1.6, 1.0e-12, "CLI initial-geometry-r2y parse mismatch.");
+    requireNear(parsed.runOptions.config.initialGeometryPhi2, 0.42, 1.0e-12, "CLI initial-geometry-phi2 parse mismatch.");
+    requireNear(parsed.runOptions.config.initialGeometryA3, 0.15, 1.0e-12, "CLI initial-geometry-a3 parse mismatch.");
+    requireNear(parsed.runOptions.config.initialGeometryR3, 2.2, 1.0e-12, "CLI initial-geometry-r3 parse mismatch.");
+    requireNear(parsed.runOptions.config.initialGeometrySigma3, 0.35, 1.0e-12, "CLI initial-geometry-sigma3 parse mismatch.");
+    requireNear(parsed.runOptions.config.initialGeometryPhi3, 1.1, 1.0e-12, "CLI initial-geometry-phi3 parse mismatch.");
+    require(parsed.runOptions.config.debugInitialGeometry, "CLI debug-initial-geometry should be enabled.");
+  }
+
+  void runInitialGeometryConfigAndOverrideTest() {
+    const TemporaryConfigFile configFile(
+        "initial-geometry = response-test-023\n"
+        "initial-geometry-source-count = 900\n"
+        "initial-geometry-a2 = 0.4\n"
+        "initial-geometry-r0 = 1.9\n"
+        "initial-geometry-r2x = 2.3\n"
+        "initial-geometry-r2y = 1.7\n"
+        "initial-geometry-phi2 = 0.5\n"
+        "initial-geometry-a3 = 0.21\n"
+        "initial-geometry-r3 = 2.4\n"
+        "initial-geometry-sigma3 = 0.7\n"
+        "initial-geometry-phi3 = 0.9\n"
+        "debug-initial-geometry = true\n");
+    const ParsedRunOptions parsed = parseArguments(
+        {configFile.path().string(), "--initial-geometry", "glauber", "--no-debug-initial-geometry", "--initial-geometry-source-count", "333"});
+    require(parsed.runOptions.config.initialGeometryMode == blastwave::InitialGeometryMode::Glauber, "CLI initial-geometry should override config.");
+    require(!parsed.runOptions.config.debugInitialGeometry, "CLI --no-debug-initial-geometry should disable config value.");
+    require(parsed.runOptions.config.initialGeometrySourceCount == 333, "CLI source-count should override config.");
+    requireNear(parsed.runOptions.config.initialGeometryR0, 1.9, 1.0e-12, "Config-file initial-geometry-r0 should remain when CLI does not override.");
+  }
+
+  void runInvalidInitialGeometryRejectsTest() {
+    bool threw = false;
+    try {
+      static_cast<void>(parseArguments({"--initial-geometry", "invalid-mode"}));
+    } catch (const std::invalid_argument &) {
+      threw = true;
+    }
+    require(threw, "Invalid initial-geometry mode should be rejected.");
+
+    const ParsedRunOptions negativeSourceCount = parseArguments({"--initial-geometry", "response-test-023", "--initial-geometry-source-count", "-1"});
+    requireGeneratorValidationFailure(negativeSourceCount.runOptions.config, "Negative initial-geometry-source-count should fail generator validation.");
+
+    const ParsedRunOptions zeroR0 = parseArguments({"--initial-geometry", "response-test-023", "--initial-geometry-source-count", "10", "--initial-geometry-r0", "0.0"});
+    requireGeneratorValidationFailure(zeroR0.runOptions.config, "Initial-geometry-r0 must be positive.");
+  }
+
   void runDensityNormalKappaCompensationConfigParseTest() {
     const TemporaryConfigFile configFile(
         "flow-velocity-sampler = density-normal\n"
@@ -530,8 +621,12 @@ namespace {
 int main() {
   try {
     runDefaultSamplerTest();
+    runInitialGeometryDefaultParseTest();
     runCliSamplerAndDensityEvolutionParseTest();
+    runInitialGeometryParseAndOverrideTest();
+    runInitialGeometryConfigAndOverrideTest();
     runConfigAndOverrideParseTest();
+    runInvalidInitialGeometryRejectsTest();
     runGradientConfigParseTest();
     runAffineEffectiveParseTest();
     runAffineEffectiveModeConfigAndOverrideParseTest();

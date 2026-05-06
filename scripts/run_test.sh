@@ -3,14 +3,15 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-script_path="${repo_root}/scripts/run_example_config.sh"
+script_path="${repo_root}/scripts/run_test.sh"
 build_dir="${repo_root}/build"
 cache_path="${build_dir}/CMakeCache.txt"
 generator_path="${repo_root}/bin/generate_blastwave_events"
 # config_path="${repo_root}/config/test_b8_affine_tensor.cfg"
 # config_path="${repo_root}/config/test_b8_affine_effective.cfg"
 # config_path="${repo_root}/config/test_b8.cfg"
-config_path="${repo_root}/config/test_b8_pdf.cfg"
+# config_path="${repo_root}/config/test_b8_pdf.cfg"
+config_path="${repo_root}/config/test_b8_response_023.cfg"
 # config_path="${repo_root}/config/test_b8_pdf_evo.cfg"
 # output_path="${repo_root}/qa/test_b8_5000.root"
 

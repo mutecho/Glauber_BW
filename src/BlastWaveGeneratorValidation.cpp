@@ -44,6 +44,36 @@ namespace blastwave {
     if (config_.nEvents < 0) {
       throw std::invalid_argument("nEvents must be non-negative.");
     }
+    if (config_.initialGeometryMode != InitialGeometryMode::Glauber && config_.initialGeometryMode != InitialGeometryMode::ResponseTest023) {
+      throw std::invalid_argument("initial-geometry must be 'glauber' or 'response-test-023'.");
+    }
+    if (config_.initialGeometrySourceCount <= 0) {
+      throw std::invalid_argument("initial-geometry-source-count must be positive.");
+    }
+    if (!isFinite(config_.initialGeometryR0) || config_.initialGeometryR0 <= 0.0) {
+      throw std::invalid_argument("initial-geometry-r0 must be finite and positive.");
+    }
+    if (!isFinite(config_.initialGeometryR2x) || config_.initialGeometryR2x <= 0.0) {
+      throw std::invalid_argument("initial-geometry-r2x must be finite and positive.");
+    }
+    if (!isFinite(config_.initialGeometryR2y) || config_.initialGeometryR2y <= 0.0) {
+      throw std::invalid_argument("initial-geometry-r2y must be finite and positive.");
+    }
+    if (!isFinite(config_.initialGeometryR3) || config_.initialGeometryR3 <= 0.0) {
+      throw std::invalid_argument("initial-geometry-r3 must be finite and positive.");
+    }
+    if (!isFinite(config_.initialGeometrySigma3) || config_.initialGeometrySigma3 <= 0.0) {
+      throw std::invalid_argument("initial-geometry-sigma3 must be finite and positive.");
+    }
+    if (!isFinite(config_.initialGeometryA2) || config_.initialGeometryA2 < 0.0) {
+      throw std::invalid_argument("initial-geometry-a2 must be finite and non-negative.");
+    }
+    if (!isFinite(config_.initialGeometryA3) || config_.initialGeometryA3 < 0.0) {
+      throw std::invalid_argument("initial-geometry-a3 must be finite and non-negative.");
+    }
+    if (!isFinite(config_.initialGeometryPhi2) || !isFinite(config_.initialGeometryPhi3)) {
+      throw std::invalid_argument("initial-geometry phase angles must be finite.");
+    }
     if (config_.nucleonsPerNucleus <= 0) {
       throw std::invalid_argument("nucleonsPerNucleus must be positive.");
     }

@@ -20,6 +20,9 @@
 - 可选 V2 扩展：
   - `density-evolution = gradient-response`
   - `flow-velocity-sampler = gradient-response`
+- 可选三阶响应测试初态：
+  - `initial-geometry = response-test-023`
+  - 人工 `0+2+3` 点云，`participants.nucleus_id = -1`
 - 可选差分分析：
   - 配置 `v2pt-bins`
   - 在主文件或独立文件中写 `v2{2}(pT)` 结果
@@ -56,13 +59,16 @@
 - 当前规范示例配置：
   - `config/test_b8.cfg`
   - `config/test_b8_affine_effective.cfg`
+  - `config/test_b8_response_023.cfg`
 - 当前强制 ROOT 主载荷：
   - `events`
   - `participants`
   - `particles`
   - 事件级 `centrality`、`v2`、`eps2_f/psi2_f/chi2`、`r2_0/r2_f/r2_ratio`
+  - 三阶响应摘要 `eps3/psi3`、`v3`、`v2_wrt_psi2`、`v3_wrt_psi3`
   - 粒子级 `x0/y0/emission_weight`
 - 当前可选载荷：
+  - `debug-initial-geometry` 首个有效事件 density map：`initial_geometry_density_x-y`
   - flow ellipse debug 对象，以及 affine-effective 模式下附带的 mode 编码、闭合诊断和 additive-rho surface rho 分解
   - affine-effective 首个有效事件的演化前/后 density map：`affine_effective_density_initial_x-y`、`affine_effective_density_final_x-y`
   - `density-normal` 事件密度快照
@@ -101,5 +107,7 @@
 ## 当前操作提醒
 
 - `v2pt-output-mode = separate-file` 时，主结果文件只有 `v2_2_pt_edges` 也是合法状态。
+- `response-test-023` 是 opt-in response/closure test；默认 `initial-geometry = glauber` 不变。
+- `initial-geometry-a2/a3` 是模板权重，不是实际 `eps2/eps3`。
 - `qa/` 目录中存在旧 schema ROOT 文件；复用前先确认是否匹配当前契约。
 - 在这台机器上，沙箱内 `alienv` ROOT smoke 若出现 PCM / module 噪声，不应当作权威结果；权威验证依旧来自沙箱外 O2Physics 路径。

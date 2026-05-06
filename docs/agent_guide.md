@@ -48,6 +48,10 @@ Do not turn this file back into a second copy of `docs/项目说明.md`.
 - optional coupled V2 path:
   - `density-evolution = gradient-response`
   - `flow-velocity-sampler = gradient-response`
+- optional response-test initial geometry:
+  - `initial-geometry = response-test-023`
+  - synthetic `0+2+3` point cloud tagged with `participants.nucleus_id = -1`
+  - intended for closure/response tests, not for replacing Glauber physics
 - optional differential analysis:
   - configured `v2{2}(pT)` through `v2pt-bins`
   - joint writing during generation or standalone post-processing through `analyze_blastwave_v2pt`
@@ -96,6 +100,9 @@ For exact example commands, use `docs/项目说明.md`.
   - marker initial position
   - final emission position
 - `events.v2` is the event-level final-state summary observable.
+- `events.eps3` / `events.psi3` are recentered initial-state third-harmonic geometry observables; `events.eps2` / `events.psi2` keep their covariance semantics.
+- `events.v3`, `events.v2_wrt_psi2`, and `events.v3_wrt_psi3` are weighted final-state Q-vector summaries and are recomputed by QA from `particles`.
+- `initial-geometry-a2/a3` are template mixture weights only; measured `eps2/eps3` should be used for response plots.
 - differential `v2{2}(pT)` is a separate analysis payload and currently uses unit track weights only.
 - `density-normal-kappa-compensation` is opt-in and only meaningful for `affine-gaussian + density-normal`.
 - `affine-effective` is opt-in and only valid for `affine-gaussian`.
@@ -115,6 +122,11 @@ For exact example commands, use `docs/项目说明.md`.
 - mandatory event summary highlights:
   - `centrality`
   - `v2`
+  - `v3`
+  - `eps3`
+  - `psi3`
+  - `v2_wrt_psi2`
+  - `v3_wrt_psi3`
   - `eps2_f`
   - `psi2_f`
   - `chi2`
@@ -129,6 +141,7 @@ For exact example commands, use `docs/项目说明.md`.
   - flow-ellipse debug objects, optionally extended with affine closure diagnostics
   - affine-effective before/after density maps for the first valid event
   - density-normal event-density snapshot
+  - initial-geometry density snapshot behind `debug-initial-geometry`
   - gradient-response debug histograms
   - differential `v2{2}(pT)` metadata and analysis objects
 

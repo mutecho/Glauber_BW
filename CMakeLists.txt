@@ -324,7 +324,55 @@ add_test(
   COMMAND $<TARGET_FILE:test_physics_utils>
 )
 
-set_target_properties(generate_blastwave_events qa_blastwave_output analyze_blastwave_v2pt test_maxwell_juttner_sampler test_output_path_utils test_flow_field_model test_emission_sampler test_run_options test_v2_pt_cumulant test_physics_utils
+add_executable(test_harmonic_geometry
+  tests/HarmonicGeometryTest.cpp
+)
+
+target_compile_options(test_harmonic_geometry
+  PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wshadow
+    -Wconversion
+    -Wsign-conversion
+)
+
+target_link_libraries(test_harmonic_geometry
+  PRIVATE
+    blastwave_core
+)
+
+add_test(
+  NAME test_harmonic_geometry
+  COMMAND $<TARGET_FILE:test_harmonic_geometry>
+)
+
+add_executable(test_blast_wave_generator_response
+  tests/BlastWaveGeneratorResponseTest.cpp
+)
+
+target_compile_options(test_blast_wave_generator_response
+  PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wshadow
+    -Wconversion
+    -Wsign-conversion
+)
+
+target_link_libraries(test_blast_wave_generator_response
+  PRIVATE
+    blastwave_core
+)
+
+add_test(
+  NAME test_blast_wave_generator_response
+  COMMAND $<TARGET_FILE:test_blast_wave_generator_response>
+)
+
+set_target_properties(generate_blastwave_events qa_blastwave_output analyze_blastwave_v2pt test_maxwell_juttner_sampler test_output_path_utils test_flow_field_model test_emission_sampler test_run_options test_v2_pt_cumulant test_physics_utils test_harmonic_geometry test_blast_wave_generator_response
   PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin
 )
