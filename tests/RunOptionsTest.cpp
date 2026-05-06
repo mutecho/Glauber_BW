@@ -552,19 +552,21 @@ namespace {
     require(threw, "Deprecated rho2 should be rejected with kappa2 migration guidance.");
   }
 
-  void runV2PtBinParsingAndDefaultModeTest() {
-    const ParsedRunOptions parsed = parseArguments({"--v2pt-bins", "0.0, 0.2,0.4, 0.8"});
+  void runDifferentialFlowPtBinParsingAndDefaultModeTest() {
+    const ParsedRunOptions parsed = parseArguments({"--v2pt-bins", "0.0, 0.2,0.4, 0.8", "--v3pt-bins", "0.0,0.3,0.9"});
     require(parsed.runOptions.v2PtBinEdges.size() == 4U, "v2pt-bins should parse four edges.");
     requireNear(parsed.runOptions.v2PtBinEdges[0], 0.0, 1.0e-12, "v2pt first edge mismatch.");
     requireNear(parsed.runOptions.v2PtBinEdges[1], 0.2, 1.0e-12, "v2pt second edge mismatch.");
     requireNear(parsed.runOptions.v2PtBinEdges[2], 0.4, 1.0e-12, "v2pt third edge mismatch.");
     requireNear(parsed.runOptions.v2PtBinEdges[3], 0.8, 1.0e-12, "v2pt fourth edge mismatch.");
-    require(parsed.runOptions.v2PtOutputMode == blastwave::app::V2PtOutputMode::SameFile,
-            "v2pt-output-mode should default to same-file.");
-    require(parsed.runOptions.v2PtOutputPath.empty(), "v2pt-output should stay empty by default for same-file mode.");
+    require(parsed.runOptions.v3PtBinEdges.size() == 3U, "v3pt-bins should parse three edges.");
+    requireNear(parsed.runOptions.v3PtBinEdges[1], 0.3, 1.0e-12, "v3pt second edge mismatch.");
+    require(parsed.runOptions.flowPtOutputMode == blastwave::app::FlowPtOutputMode::SameFile,
+            "flowpt-output-mode should default to same-file.");
+    require(parsed.runOptions.flowPtOutputPath.empty(), "flowpt-output should stay empty by default for same-file mode.");
   }
 
-  void runInvalidV2PtEdgesRejectTest() {
+  void runInvalidDifferentialFlowPtEdgesRejectTest() {
     bool threw = false;
     try {
       static_cast<void>(parseArguments({"--v2pt-bins", "0.2"}));
@@ -580,40 +582,67 @@ namespace {
       threw = true;
     }
     require(threw, "v2pt-bins must reject non-increasing edge lists.");
-  }
-
-  void runV2PtOutputModeValidationTest() {
-    bool threw = false;
-    try {
-      static_cast<void>(parseArguments({"--v2pt-bins", "0.0,0.2", "--v2pt-output", "qa/only_allowed_in_separate.root"}));
-    } catch (const std::invalid_argument &) {
-      threw = true;
-    }
-    require(threw, "v2pt-output must be rejected in same-file mode.");
 
     threw = false;
     try {
-      static_cast<void>(parseArguments({"--v2pt-output-mode", "separate-file", "--v2pt-output", "qa/no_bins.root"}));
+      static_cast<void>(parseArguments({"--v3pt-bins", "0.0,0.3,0.3"}));
     } catch (const std::invalid_argument &) {
       threw = true;
     }
-    require(threw, "v2pt-output-mode separate-file must require v2pt-bins.");
+    require(threw, "v3pt-bins must reject non-increasing edge lists.");
   }
 
-  void runV2PtOutputPathResolutionTest() {
+  void runFlowPtOutputModeValidationTest() {
+    bool threw = false;
+    try {
+      static_cast<void>(parseArguments({"--v2pt-bins", "0.0,0.2", "--flowpt-output", "qa/only_allowed_in_separate.root"}));
+    } catch (const std::invalid_argument &) {
+      threw = true;
+    }
+    require(threw, "flowpt-output must be rejected in same-file mode.");
+
+    threw = false;
+    try {
+      static_cast<void>(parseArguments({"--flowpt-output-mode", "separate-file", "--flowpt-output", "qa/no_bins.root"}));
+    } catch (const std::invalid_argument &) {
+      threw = true;
+    }
+    require(threw, "flowpt-output-mode separate-file must require v2pt-bins or v3pt-bins.");
+  }
+
+  void runFlowPtOutputPathResolutionTest() {
     const TemporaryConfigFile configFile(
         "output = qa/main.root\n"
         "v2pt-bins = 0.0,0.2,0.4\n"
-        "v2pt-output-mode = separate-file\n"
-        "v2pt-output = qa/v2pt_only.root\n");
+        "v3pt-bins = 0.0,0.3,0.6\n"
+        "flowpt-output-mode = separate-file\n"
+        "flowpt-output = qa/flowpt_only.root\n");
     const ParsedRunOptions parsed = parseArguments({configFile.path().string()});
-    require(parsed.runOptions.v2PtOutputMode == blastwave::app::V2PtOutputMode::SeparateFile, "v2pt-output-mode parse mismatch.");
-    require(parsed.runOptions.v2PtOutputPath == (configFile.path().parent_path() / "qa/v2pt_only.root").lexically_normal().string(),
-            "Relative v2pt-output path should resolve against the config directory.");
+    require(parsed.runOptions.flowPtOutputMode == blastwave::app::FlowPtOutputMode::SeparateFile, "flowpt-output-mode parse mismatch.");
+    require(parsed.runOptions.flowPtOutputPath == (configFile.path().parent_path() / "qa/flowpt_only.root").lexically_normal().string(),
+            "Relative flowpt-output path should resolve against the config directory.");
 
-    const ParsedRunOptions derived = parseArguments({"--output", "qa/main.root", "--v2pt-bins", "0.0,0.2", "--v2pt-output-mode", "separate-file"});
-    require(derived.runOptions.v2PtOutputPath == std::filesystem::path("qa/main_v2pt.root").lexically_normal().string(),
-            "Separate-file mode should derive default v2pt output path when missing.");
+    const ParsedRunOptions derived = parseArguments({"--output", "qa/main.root", "--v3pt-bins", "0.0,0.2", "--flowpt-output-mode", "separate-file"});
+    require(derived.runOptions.flowPtOutputPath == std::filesystem::path("qa/main_flowpt.root").lexically_normal().string(),
+            "Separate-file mode should derive default flowpt output path when missing.");
+  }
+
+  void runDeprecatedV2PtOutputNamesRejectTest() {
+    bool threw = false;
+    try {
+      static_cast<void>(parseArguments({"--v2pt-bins", "0.0,0.2", "--v2pt-output-mode", "separate-file"}));
+    } catch (const std::invalid_argument &error) {
+      threw = std::string(error.what()).find("v2pt-output-mode -> flowpt-output-mode") != std::string::npos;
+    }
+    require(threw, "Deprecated v2pt-output-mode should be rejected with flowpt migration guidance.");
+
+    threw = false;
+    try {
+      static_cast<void>(parseArguments({"--v2pt-bins", "0.0,0.2", "--flowpt-output-mode", "separate-file", "--v2pt-output", "qa/old.root"}));
+    } catch (const std::invalid_argument &error) {
+      threw = std::string(error.what()).find("v2pt-output -> flowpt-output") != std::string::npos;
+    }
+    require(threw, "Deprecated v2pt-output should be rejected with flowpt migration guidance.");
   }
 
 }  // namespace
@@ -643,10 +672,11 @@ int main() {
     runInvalidAffineEvolutionParametersRejectsTest();
     runAffineEffectiveValidationRejectsTest();
     runDeprecatedRho2RejectsTest();
-    runV2PtBinParsingAndDefaultModeTest();
-    runInvalidV2PtEdgesRejectTest();
-    runV2PtOutputModeValidationTest();
-    runV2PtOutputPathResolutionTest();
+    runDifferentialFlowPtBinParsingAndDefaultModeTest();
+    runInvalidDifferentialFlowPtEdgesRejectTest();
+    runFlowPtOutputModeValidationTest();
+    runFlowPtOutputPathResolutionTest();
+    runDeprecatedV2PtOutputNamesRejectTest();
     return 0;
   } catch (const std::exception &error) {
     std::cerr << "Run options test failed: " << error.what() << '\n';

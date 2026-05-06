@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-05-06 Differential `v2/v3{2}(pT)` Flowpt Output
+
+- Generalized the previous v2-only differential cumulant path into a harmonic-aware `v2/v3{2}(pT)` analysis core.
+- Added `v3pt-bins`, `v3_2_pt_edges`, `v3_2_pt`, and `v3_2_pt_canvas`.
+- Replaced `v2pt-output-mode` / `v2pt-output` with shared `flowpt-output-mode` / `flowpt-output`; old output option names now fail with migration guidance.
+- Replaced standalone `analyze_blastwave_v2pt` with `analyze_blastwave_vnpt`, which computes all enabled harmonics found in ROOT metadata.
+- Added `config/test_b8_flowpt.cfg` as a complete Chinese explained flowpt example config.
+
+## 2026-05-06 Response/Cross-Talk TH2 Display Window
+
+- Kept the four response/cross-talk TH2 objects filled over their full storage ranges `epsilon = 0..1` and projected `v = -1..1`.
+- Set their persisted default display window to `epsilon = 0..0.35` and projected `v = -0.15..0.15` so response-test output opens on the populated region.
+- Updated docs and `project-state/` to distinguish display range from stored histogram bins.
+
 ## 2026-05-06 Response-Test 0+2+3 Initial Geometry
 
 - Added public `initial-geometry = glauber | response-test-023`, defaulting to `glauber`.

@@ -54,7 +54,8 @@ Do not turn this file back into a second copy of `docs/项目说明.md`.
   - intended for closure/response tests, not for replacing Glauber physics
 - optional differential analysis:
   - configured `v2{2}(pT)` through `v2pt-bins`
-  - joint writing during generation or standalone post-processing through `analyze_blastwave_v2pt`
+  - configured `v3{2}(pT)` through `v3pt-bins`
+  - joint writing during generation or standalone post-processing through `analyze_blastwave_vnpt`
 
 ## Repository Map
 
@@ -64,8 +65,8 @@ Do not turn this file back into a second copy of `docs/项目说明.md`.
   - generator entrypoint, CLI/config parsing, and ROOT writing
 - `apps/qa_blastwave_output.cpp`
   - independent ROOT-reading validation app
-- `apps/analyze_blastwave_v2pt.cpp`
-  - standalone differential-flow post-processing
+- `apps/analyze_blastwave_vnpt.cpp`
+  - standalone differential-flow post-processing for enabled v2/v3 metadata
 - `tests/`
   - ROOT-free regression coverage
 - `config/`
@@ -82,12 +83,12 @@ Do not turn this file back into a second copy of `docs/项目说明.md`.
   - `generate_blastwave_events <config-path> [options]`
 - QA supports:
   - `qa_blastwave_output --input <result.root> --output <validation.root> --expect-nevents <N>`
-- differential `v2{2}(pT)` post-processing supports:
-  - `analyze_blastwave_v2pt --input <result.root> [--output <analysis.root> | --inplace]`
+- differential `v_n{2}(pT)` post-processing supports:
+  - `analyze_blastwave_vnpt --input <result.root> [--output <analysis.root> | --inplace]`
 - precedence rules:
   - explicit CLI values override config-file values
   - config-file values override built-in defaults
-  - relative `output` and `v2pt-output` paths resolve relative to the config file directory
+  - relative `output` and `flowpt-output` paths resolve relative to the config file directory
 
 For exact example commands, use `docs/项目说明.md`.
 
@@ -103,14 +104,14 @@ For exact example commands, use `docs/项目说明.md`.
 - `events.eps3` / `events.psi3` are recentered initial-state third-harmonic geometry observables; `events.eps2` / `events.psi2` keep their covariance semantics.
 - `events.v3`, `events.v2_wrt_psi2`, and `events.v3_wrt_psi3` are weighted final-state Q-vector summaries and are recomputed by QA from `particles`.
 - `initial-geometry-a2/a3` are template mixture weights only; measured `eps2/eps3` should be used for response plots.
-- differential `v2{2}(pT)` is a separate analysis payload and currently uses unit track weights only.
+- differential `v2{2}(pT)` / `v3{2}(pT)` are separate analysis payloads and currently use unit track weights only.
 - `density-normal-kappa-compensation` is opt-in and only meaningful for `affine-gaussian + density-normal`.
 - `affine-effective` is opt-in and only valid for `affine-gaussian`.
 - `affine-effective-mode = additive-rho` keeps density-normal direction and keeps `rho0` as baseline average flow.
 - `affine-effective-mode = full-tensor` is opt-in and directly uses principal-axis tensor velocity closure.
 - `affine-kappa-aniso` remains parse/finite-compatible but is legacy/no-op in both affine-effective modes.
 - `gradient-response` medium and flow are intentionally coupled; enabling only one side is invalid.
-- `v2pt-output-mode = separate-file` may leave the main result file in a metadata-only state with `v2_2_pt_edges` but without `v2_2_pt` or `v2_2_pt_canvas`.
+- `flowpt-output-mode = separate-file` may leave the main result file in a metadata-only state with enabled `v2_2_pt_edges` / `v3_2_pt_edges` but without full flowpt histograms/canvases.
 - sandboxed `alienv` ROOT smoke output on this machine is not authoritative when PCM/module noise appears; rerun outside the sandbox.
 
 ## Output Contract Highlights
@@ -143,7 +144,7 @@ For exact example commands, use `docs/项目说明.md`.
   - density-normal event-density snapshot
   - initial-geometry density snapshot behind `debug-initial-geometry`
   - gradient-response debug histograms
-  - differential `v2{2}(pT)` metadata and analysis objects
+  - differential `v2{2}(pT)` / `v3{2}(pT)` metadata and analysis objects
 
 For the exhaustive object list, use `docs/项目说明.md` or `include/blastwave/io/RootOutputSchema.h`.
 Do not duplicate the full object table here unless this file's role changes.

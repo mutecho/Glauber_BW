@@ -31,6 +31,13 @@ namespace {
     throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription + ". Migration: r-ref -> absorbed by event-ellipse semi-axes.");
   }
 
+  [[noreturn]] void throwDeprecatedFlowPtOptionError(const std::string &optionName, const std::string &sourceDescription) {
+    if (optionName == "v2pt-output-mode") {
+      throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription + ". Migration: v2pt-output-mode -> flowpt-output-mode.");
+    }
+    throw std::invalid_argument("Invalid option/key '" + optionName + "' from " + sourceDescription + ". Migration: v2pt-output -> flowpt-output.");
+  }
+
   std::string takeValue(int &index, int argc, char **argv, const std::string &optionName) {
     if (index + 1 >= argc) {
       throw std::invalid_argument("Missing value for " + optionName);
@@ -182,17 +189,17 @@ namespace {
     throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'none' or 'mt-cosh'.");
   }
 
-  blastwave::app::V2PtOutputMode parseV2PtOutputMode(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
+  blastwave::app::FlowPtOutputMode parseFlowPtOutputMode(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
     if (rawValue == "same-file") {
-      return blastwave::app::V2PtOutputMode::SameFile;
+      return blastwave::app::FlowPtOutputMode::SameFile;
     }
     if (rawValue == "separate-file") {
-      return blastwave::app::V2PtOutputMode::SeparateFile;
+      return blastwave::app::FlowPtOutputMode::SeparateFile;
     }
     throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'same-file' or 'separate-file'.");
   }
 
-  std::vector<double> parseV2PtBinEdges(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
+  std::vector<double> parseDifferentialFlowPtBinEdges(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
     std::vector<double> edges;
     std::size_t start = 0;
     while (start <= rawValue.size()) {
@@ -235,10 +242,10 @@ namespace {
     return (baseDirectory / outputPath).lexically_normal().string();
   }
 
-  std::string deriveDefaultV2PtOutputPath(const std::string &mainOutputPath) {
+  std::string deriveDefaultFlowPtOutputPath(const std::string &mainOutputPath) {
     const std::filesystem::path mainPath(mainOutputPath);
     const std::filesystem::path stemPath = mainPath.stem();
-    const std::string derivedFileName = stemPath.string() + "_v2pt.root";
+    const std::string derivedFileName = stemPath.string() + "_flowpt.root";
     return (mainPath.parent_path() / derivedFileName).lexically_normal().string();
   }
 
@@ -294,11 +301,19 @@ namespace {
     } else if (optionName == "output") {
       runOptions.outputPath = resolveOutputPath(rawValue, baseDirectory);
     } else if (optionName == "v2pt-bins") {
-      runOptions.v2PtBinEdges = parseV2PtBinEdges(rawValue, optionName, sourceDescription);
+      runOptions.v2PtBinEdges = parseDifferentialFlowPtBinEdges(rawValue, optionName, sourceDescription);
+    } else if (optionName == "v3pt-bins") {
+      runOptions.v3PtBinEdges = parseDifferentialFlowPtBinEdges(rawValue, optionName, sourceDescription);
     } else if (optionName == "v2pt-output-mode") {
-      runOptions.v2PtOutputMode = parseV2PtOutputMode(rawValue, optionName, sourceDescription);
+      throwDeprecatedFlowPtOptionError(optionName, sourceDescription);
     } else if (optionName == "v2pt-output") {
-      runOptions.v2PtOutputPath = resolveOutputPath(rawValue, baseDirectory);
+      throwDeprecatedFlowPtOptionError(optionName, sourceDescription);
+    } else if (optionName == "flowpt-output-mode") {
+      runOptions.flowPtOutputMode = parseFlowPtOutputMode(rawValue, optionName, sourceDescription);
+      runOptions.hasFlowPtOutputModeOption = true;
+    } else if (optionName == "flowpt-output") {
+      runOptions.flowPtOutputPath = resolveOutputPath(rawValue, baseDirectory);
+      runOptions.hasFlowPtOutputPathOption = true;
     } else if (optionName == "progress") {
       runOptions.progressMode = parseBool(rawValue, optionName, sourceDescription) ? blastwave::app::ProgressMode::Enabled : blastwave::app::ProgressMode::Disabled;
     } else if (optionName == "rho0") {
@@ -437,7 +452,7 @@ namespace blastwave::app {
               << "  initial-geometry-r3, initial-geometry-sigma3, initial-geometry-phi3,\n"
               << "  b, temperature, thermal-sampler, mj-pmax, mj-grid-points,\n"
               << "  tau0, smear, sigma-nn, seed, output,\n"
-              << "  v2pt-bins, v2pt-output-mode, v2pt-output,\n"
+              << "  v2pt-bins, v3pt-bins, flowpt-output-mode, flowpt-output,\n"
               << "  progress,\n"
               << "  rho0, kappa2, flow-power, flow-velocity-sampler, density-evolution,\n"
               << "  flow-density-sigma, affine-lambda-in, affine-lambda-out,\n"
@@ -475,8 +490,9 @@ namespace blastwave::app {
               << "  --seed <uint64>\n"
               << "  --output <path>\n"
               << "  --v2pt-bins <comma-separated edges>\n"
-              << "  --v2pt-output-mode <same-file|separate-file>\n"
-              << "  --v2pt-output <path>  (only with separate-file mode)\n"
+              << "  --v3pt-bins <comma-separated edges>\n"
+              << "  --flowpt-output-mode <same-file|separate-file>\n"
+              << "  --flowpt-output <path>  (only with separate-file mode)\n"
               << "  --progress\n"
               << "  --no-progress\n"
               << "  --debug-flow-ellipse\n"
@@ -658,19 +674,20 @@ namespace blastwave::app {
       runOptions.config.debugInitialGeometry = cliDebugInitialGeometry;
     }
 
-    if (runOptions.v2PtBinEdges.empty()) {
-      if (runOptions.v2PtOutputMode == V2PtOutputMode::SeparateFile || !runOptions.v2PtOutputPath.empty()) {
-        throw std::invalid_argument("v2pt-output-mode and v2pt-output require v2pt-bins to be configured.");
+    const bool hasDifferentialFlowBins = !runOptions.v2PtBinEdges.empty() || !runOptions.v3PtBinEdges.empty();
+    if (!hasDifferentialFlowBins) {
+      if (runOptions.hasFlowPtOutputModeOption || runOptions.hasFlowPtOutputPathOption) {
+        throw std::invalid_argument("flowpt-output-mode and flowpt-output require v2pt-bins or v3pt-bins to be configured.");
       }
       return runOptions;
     }
 
-    if (runOptions.v2PtOutputMode == V2PtOutputMode::SameFile) {
-      if (!runOptions.v2PtOutputPath.empty()) {
-        throw std::invalid_argument("v2pt-output is only valid when v2pt-output-mode is separate-file.");
+    if (runOptions.flowPtOutputMode == FlowPtOutputMode::SameFile) {
+      if (!runOptions.flowPtOutputPath.empty()) {
+        throw std::invalid_argument("flowpt-output is only valid when flowpt-output-mode is separate-file.");
       }
-    } else if (runOptions.v2PtOutputPath.empty()) {
-      runOptions.v2PtOutputPath = deriveDefaultV2PtOutputPath(runOptions.outputPath);
+    } else if (runOptions.flowPtOutputPath.empty()) {
+      runOptions.flowPtOutputPath = deriveDefaultFlowPtOutputPath(runOptions.outputPath);
     }
 
     return runOptions;

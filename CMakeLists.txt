@@ -9,9 +9,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 enable_testing()
 
-# The generator writes saved canvases, and the v2pt payload uses TVectorD
-# metadata plus histogram painters, so those ROOT components must be linked
-# eagerly instead of relying on delayed autoload.
+# The generator writes saved canvases, and the differential-flow payload uses
+# TVectorD metadata plus histogram painters, so those ROOT components must be
+# linked eagerly instead of relying on delayed autoload.
 find_package(ROOT CONFIG REQUIRED COMPONENTS Core Graf Gpad Hist HistPainter Matrix RIO Tree)
 
 add_library(blastwave_core
@@ -26,7 +26,7 @@ add_library(blastwave_core
   src/FlowFieldModel.cpp
   src/MaxwellJuttnerMomentumSampler.cpp
   src/PhysicsUtils.cpp
-  src/V2PtCumulant.cpp
+  src/DifferentialFlowCumulant.cpp
 )
 
 target_include_directories(blastwave_core
@@ -47,7 +47,7 @@ target_compile_options(blastwave_core
 add_library(blastwave_rootio
   src/OutputPathUtils.cpp
   src/RootOutputSchema.cpp
-  src/V2PtRootPayload.cpp
+  src/DifferentialFlowRootPayload.cpp
 )
 
 target_include_directories(blastwave_rootio
@@ -129,11 +129,11 @@ target_link_libraries(qa_blastwave_output
     blastwave_rootio
 )
 
-add_executable(analyze_blastwave_v2pt
-  apps/analyze_blastwave_v2pt.cpp
+add_executable(analyze_blastwave_vnpt
+  apps/analyze_blastwave_vnpt.cpp
 )
 
-target_compile_options(analyze_blastwave_v2pt
+target_compile_options(analyze_blastwave_vnpt
   PRIVATE
     -Wall
     -Wextra
@@ -143,7 +143,7 @@ target_compile_options(analyze_blastwave_v2pt
     -Wsign-conversion
 )
 
-target_link_libraries(analyze_blastwave_v2pt
+target_link_libraries(analyze_blastwave_vnpt
   PRIVATE
     blastwave_core
     blastwave_rootio
@@ -276,11 +276,11 @@ add_test(
   COMMAND $<TARGET_FILE:test_run_options>
 )
 
-add_executable(test_v2_pt_cumulant
-  tests/V2PtCumulantTest.cpp
+add_executable(test_differential_flow_cumulant
+  tests/DifferentialFlowCumulantTest.cpp
 )
 
-target_compile_options(test_v2_pt_cumulant
+target_compile_options(test_differential_flow_cumulant
   PRIVATE
     -Wall
     -Wextra
@@ -290,14 +290,14 @@ target_compile_options(test_v2_pt_cumulant
     -Wsign-conversion
 )
 
-target_link_libraries(test_v2_pt_cumulant
+target_link_libraries(test_differential_flow_cumulant
   PRIVATE
     blastwave_core
 )
 
 add_test(
-  NAME test_v2_pt_cumulant
-  COMMAND $<TARGET_FILE:test_v2_pt_cumulant>
+  NAME test_differential_flow_cumulant
+  COMMAND $<TARGET_FILE:test_differential_flow_cumulant>
 )
 
 add_executable(test_physics_utils
@@ -372,7 +372,7 @@ add_test(
   COMMAND $<TARGET_FILE:test_blast_wave_generator_response>
 )
 
-set_target_properties(generate_blastwave_events qa_blastwave_output analyze_blastwave_v2pt test_maxwell_juttner_sampler test_output_path_utils test_flow_field_model test_emission_sampler test_run_options test_v2_pt_cumulant test_physics_utils test_harmonic_geometry test_blast_wave_generator_response
+set_target_properties(generate_blastwave_events qa_blastwave_output analyze_blastwave_vnpt test_maxwell_juttner_sampler test_output_path_utils test_flow_field_model test_emission_sampler test_run_options test_differential_flow_cumulant test_physics_utils test_harmonic_geometry test_blast_wave_generator_response
   PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin
 )

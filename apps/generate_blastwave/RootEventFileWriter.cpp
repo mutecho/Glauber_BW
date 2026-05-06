@@ -19,12 +19,12 @@
 #include <utility>
 #include <vector>
 
-#include "blastwave/V2PtCumulant.h"
+#include "blastwave/DifferentialFlowCumulant.h"
 #include "blastwave/FlowFieldModel.h"
 #include "blastwave/PhysicsUtils.h"
 #include "blastwave/io/OutputPathUtils.h"
 #include "blastwave/io/RootOutputSchema.h"
-#include "blastwave/io/V2PtRootPayload.h"
+#include "blastwave/io/DifferentialFlowRootPayload.h"
 
 namespace {
 
@@ -279,13 +279,20 @@ namespace {
     return outputPath.c_str();
   }
 
-  std::vector<blastwave::V2PtTrack> toV2PtTracks(const std::vector<blastwave::ParticleRecord> &particles) {
-    std::vector<blastwave::V2PtTrack> tracks;
+  std::vector<blastwave::DifferentialFlowTrack> toDifferentialFlowTracks(const std::vector<blastwave::ParticleRecord> &particles) {
+    std::vector<blastwave::DifferentialFlowTrack> tracks;
     tracks.reserve(particles.size());
     for (const blastwave::ParticleRecord &particle : particles) {
       tracks.push_back({particle.px, particle.py});
     }
     return tracks;
+  }
+
+  // Keep the response/cross-talk TH2s fully filled over their physical storage
+  // ranges while opening them in the compact window used by response-test scans.
+  void applyResponseCorrelationDisplayRange(TH2F &histogram) {
+    histogram.GetXaxis()->SetRangeUser(0.0, 0.35);
+    histogram.GetYaxis()->SetRangeUser(-0.15, 0.15);
   }
 
 }  // namespace
@@ -370,8 +377,16 @@ namespace blastwave::app {
       }
 
       if (!runOptions.v2PtBinEdges.empty()) {
-        v2PtCumulant = std::make_unique<blastwave::V2PtCumulant>(runOptions.v2PtBinEdges);
+        v2PtCumulant = std::make_unique<blastwave::DifferentialFlowCumulant>(2, runOptions.v2PtBinEdges);
       }
+      if (!runOptions.v3PtBinEdges.empty()) {
+        v3PtCumulant = std::make_unique<blastwave::DifferentialFlowCumulant>(3, runOptions.v3PtBinEdges);
+      }
+
+      applyResponseCorrelationDisplayRange(hV3WrtPsi3VsEps3);
+      applyResponseCorrelationDisplayRange(hV2WrtPsi2VsEps2);
+      applyResponseCorrelationDisplayRange(hV3WrtPsi3VsEps2);
+      applyResponseCorrelationDisplayRange(hV2WrtPsi2VsEps3);
 
       blastwave::io::declareEventBranches(eventsTree, eventBranches);
       blastwave::io::declareParticipantBranches(participantsTree, participantBranches);
@@ -471,8 +486,14 @@ namespace blastwave::app {
         hPhi.Fill(blastwave::computeAzimuth(particle.px, particle.py));
       }
 
-      if (v2PtCumulant != nullptr) {
-        v2PtCumulant->addEvent(toV2PtTracks(event.particles));
+      if (v2PtCumulant != nullptr || v3PtCumulant != nullptr) {
+        const std::vector<blastwave::DifferentialFlowTrack> flowTracks = toDifferentialFlowTracks(event.particles);
+        if (v2PtCumulant != nullptr) {
+          v2PtCumulant->addEvent(flowTracks);
+        }
+        if (v3PtCumulant != nullptr) {
+          v3PtCumulant->addEvent(flowTracks);
+        }
       }
     }
 
@@ -550,11 +571,15 @@ namespace blastwave::app {
         return;
       }
 
-      std::optional<blastwave::V2PtCumulantResult> v2PtResult;
+      std::optional<blastwave::DifferentialFlowCumulantResult> v2PtResult;
+      std::optional<blastwave::DifferentialFlowCumulantResult> v3PtResult;
       if (v2PtCumulant != nullptr) {
         // Finalize the optional analysis before persisting ROOT objects so a
         // failed cumulant does not leave an ambiguous partially written file.
         v2PtResult = v2PtCumulant->finalize();
+      }
+      if (v3PtCumulant != nullptr) {
+        v3PtResult = v3PtCumulant->finalize();
       }
 
       TCanvas participantCanvas(blastwave::io::kParticipantXYCanvasName, "Participant nucleons with nucleus outlines", 720, 680);
@@ -657,20 +682,35 @@ namespace blastwave::app {
       hPhi.Write();
       participantCanvas.Write();
 
-      if (v2PtResult.has_value()) {
+      if (v2PtResult.has_value() || v3PtResult.has_value()) {
         // Keep pT-bin metadata in the main result file regardless of where the
         // analysis payload is written.
-        blastwave::io::writeV2PtEdges(outputFile, v2PtResult->ptBinEdges);
-        if (runOptions.v2PtOutputMode == blastwave::app::V2PtOutputMode::SameFile) {
-          blastwave::io::writeV2PtPayload(outputFile, *v2PtResult);
-        } else {
-          blastwave::io::ensureOutputDirectoryExists(runOptions.v2PtOutputPath, std::cout);
-          TFile v2PtOutputFile(runOptions.v2PtOutputPath.c_str(), "RECREATE");
-          if (v2PtOutputFile.IsZombie()) {
-            throw std::runtime_error("Failed to create v2pt output ROOT file: " + runOptions.v2PtOutputPath);
+        if (v2PtResult.has_value()) {
+          blastwave::io::writeDifferentialFlowEdges(outputFile, 2, v2PtResult->ptBinEdges);
+        }
+        if (v3PtResult.has_value()) {
+          blastwave::io::writeDifferentialFlowEdges(outputFile, 3, v3PtResult->ptBinEdges);
+        }
+        if (runOptions.flowPtOutputMode == blastwave::app::FlowPtOutputMode::SameFile) {
+          if (v2PtResult.has_value()) {
+            blastwave::io::writeDifferentialFlowPayload(outputFile, *v2PtResult);
           }
-          blastwave::io::writeV2PtPayload(v2PtOutputFile, *v2PtResult);
-          v2PtOutputFile.Close();
+          if (v3PtResult.has_value()) {
+            blastwave::io::writeDifferentialFlowPayload(outputFile, *v3PtResult);
+          }
+        } else {
+          blastwave::io::ensureOutputDirectoryExists(runOptions.flowPtOutputPath, std::cout);
+          TFile flowPtOutputFile(runOptions.flowPtOutputPath.c_str(), "RECREATE");
+          if (flowPtOutputFile.IsZombie()) {
+            throw std::runtime_error("Failed to create flowpt output ROOT file: " + runOptions.flowPtOutputPath);
+          }
+          if (v2PtResult.has_value()) {
+            blastwave::io::writeDifferentialFlowPayload(flowPtOutputFile, *v2PtResult);
+          }
+          if (v3PtResult.has_value()) {
+            blastwave::io::writeDifferentialFlowPayload(flowPtOutputFile, *v3PtResult);
+          }
+          flowPtOutputFile.Close();
         }
       }
 
@@ -741,7 +781,8 @@ namespace blastwave::app {
     TH1F hPt;
     TH1F hEta;
     TH1F hPhi;
-    std::unique_ptr<blastwave::V2PtCumulant> v2PtCumulant;
+    std::unique_ptr<blastwave::DifferentialFlowCumulant> v2PtCumulant;
+    std::unique_ptr<blastwave::DifferentialFlowCumulant> v3PtCumulant;
   };
 
   RootEventFileWriter::RootEventFileWriter(const blastwave::app::RunOptions &runOptions) : impl_(std::make_unique<Impl>(runOptions)) {

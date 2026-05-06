@@ -25,7 +25,8 @@
   - 人工 `0+2+3` 点云，`participants.nucleus_id = -1`
 - 可选差分分析：
   - 配置 `v2pt-bins`
-  - 在主文件或独立文件中写 `v2{2}(pT)` 结果
+  - 配置 `v3pt-bins`
+  - 在主文件或独立文件中写 `v2{2}(pT)` / `v3{2}(pT)` 结果
 
 ## 代码职责分层
 
@@ -35,8 +36,8 @@
   - 生成入口、CLI/config 解析、ROOT 写出
 - `apps/qa_blastwave_output.cpp`
   - 独立 ROOT 读取和输出校验
-- `apps/analyze_blastwave_v2pt.cpp`
-  - 独立差分 `v2{2}(pT)` 后处理
+- `apps/analyze_blastwave_vnpt.cpp`
+  - 独立差分 `v2/v3{2}(pT)` 后处理
 - `tests/`
   - ROOT-free 回归测试
 - `config/`
@@ -55,7 +56,7 @@
 - 解析优先级：
   - CLI 显式值 > 配置文件值 > 内建默认值
 - 相对路径规则：
-  - `output` 和 `v2pt-output` 都相对配置文件目录解析
+  - `output` 和 `flowpt-output` 都相对配置文件目录解析
 - 当前规范示例配置：
   - `config/test_b8.cfg`
   - `config/test_b8_affine_effective.cfg`
@@ -66,6 +67,7 @@
   - `particles`
   - 事件级 `centrality`、`v2`、`eps2_f/psi2_f/chi2`、`r2_0/r2_f/r2_ratio`
   - 三阶响应摘要 `eps3/psi3`、`v3`、`v2_wrt_psi2`、`v3_wrt_psi3`
+  - response/cross-talk TH2 默认以紧凑显示窗口打开，但保留完整物理存储范围
   - 粒子级 `x0/y0/emission_weight`
 - 当前可选载荷：
   - `debug-initial-geometry` 首个有效事件 density map：`initial_geometry_density_x-y`
@@ -73,7 +75,7 @@
   - affine-effective 首个有效事件的演化前/后 density map：`affine_effective_density_initial_x-y`、`affine_effective_density_final_x-y`
   - `density-normal` 事件密度快照
   - V2 `gradient-response` debug 直方图
-  - 差分 `v2{2}(pT)` 元数据和结果对象
+  - 差分 `v2{2}(pT)` / `v3{2}(pT)` 元数据和结果对象
 
 完整参数说明与对象清单以 `docs/项目说明.md` 和代码 schema 为准，不在本文件重复展开。
 
@@ -106,7 +108,7 @@
 
 ## 当前操作提醒
 
-- `v2pt-output-mode = separate-file` 时，主结果文件只有 `v2_2_pt_edges` 也是合法状态。
+- `flowpt-output-mode = separate-file` 时，主结果文件只有启用 harmonic 的 `*_2_pt_edges` 也是合法状态。
 - `response-test-023` 是 opt-in response/closure test；默认 `initial-geometry = glauber` 不变。
 - `initial-geometry-a2/a3` 是模板权重，不是实际 `eps2/eps3`。
 - `qa/` 目录中存在旧 schema ROOT 文件；复用前先确认是否匹配当前契约。

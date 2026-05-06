@@ -19,7 +19,8 @@
 
 #include "blastwave/BlastWaveGenerator.h"
 #include "blastwave/PhysicsUtils.h"
-#include "blastwave/V2PtCumulant.h"
+#include "blastwave/DifferentialFlowCumulant.h"
+#include "blastwave/io/DifferentialFlowRootPayload.h"
 #include "blastwave/io/OutputPathUtils.h"
 #include "blastwave/io/RootOutputSchema.h"
 
@@ -75,6 +76,125 @@ namespace {
     }
     if (!sawPositiveDensityBin) {
       throw std::runtime_error(objectName + " must contain at least one positive density bin.");
+    }
+  }
+
+  struct DifferentialFlowInputPayload {
+    int harmonic = 0;
+    const char *edgesName = "";
+    const char *histogramName = "";
+    const char *canvasName = "";
+    bool hasEdges = false;
+    bool hasHistogram = false;
+    bool hasCanvas = false;
+    std::vector<double> ptBinEdges;
+    TH1 *histogram = nullptr;
+  };
+
+  DifferentialFlowInputPayload loadDifferentialFlowPayload(TFile &inputFile, int harmonic) {
+    DifferentialFlowInputPayload payload;
+    payload.harmonic = harmonic;
+    payload.edgesName = blastwave::io::differentialFlowEdgesObjectName(harmonic);
+    payload.histogramName = blastwave::io::differentialFlowHistogramName(harmonic);
+    payload.canvasName = blastwave::io::differentialFlowCanvasName(harmonic);
+
+    auto *edgesObject = inputFile.Get(payload.edgesName);
+    auto *histogramObject = inputFile.Get(payload.histogramName);
+    auto *canvasObject = inputFile.Get(payload.canvasName);
+    payload.hasEdges = edgesObject != nullptr;
+    payload.hasHistogram = histogramObject != nullptr;
+    payload.hasCanvas = canvasObject != nullptr;
+    const bool hasAnyPayload = payload.hasHistogram || payload.hasCanvas;
+    if (hasAnyPayload && (!payload.hasHistogram || !payload.hasCanvas || !payload.hasEdges)) {
+      throw std::runtime_error("differential-flow payload must contain all objects: " + std::string(payload.edgesName) + ", " + payload.histogramName + ", "
+                               + payload.canvasName + ".");
+    }
+
+    if (payload.hasEdges) {
+      auto *edgesVector = dynamic_cast<TVectorD *>(edgesObject);
+      if (edgesVector == nullptr) {
+        throw std::runtime_error("Input object '" + std::string(payload.edgesName) + "' is not a TVectorD.");
+      }
+      payload.ptBinEdges.reserve(static_cast<std::size_t>(edgesVector->GetNoElements()));
+      for (int iEdge = 0; iEdge < edgesVector->GetNoElements(); ++iEdge) {
+        const double edge = (*edgesVector)[iEdge];
+        if (!isFinite(edge) || edge < 0.0) {
+          throw std::runtime_error(std::string(payload.edgesName) + " must be finite and non-negative.");
+        }
+        if (!payload.ptBinEdges.empty() && !(edge > payload.ptBinEdges.back())) {
+          throw std::runtime_error(std::string(payload.edgesName) + " must be strictly increasing.");
+        }
+        payload.ptBinEdges.push_back(edge);
+      }
+      if (payload.ptBinEdges.size() < 2U) {
+        throw std::runtime_error(std::string(payload.edgesName) + " must contain at least two entries.");
+      }
+    }
+
+    payload.histogram = payload.hasHistogram ? dynamic_cast<TH1 *>(histogramObject) : nullptr;
+    if (payload.hasHistogram && payload.histogram == nullptr) {
+      throw std::runtime_error("Input object '" + std::string(payload.histogramName) + "' is not a TH1.");
+    }
+    auto *canvasInput = payload.hasCanvas ? dynamic_cast<TCanvas *>(canvasObject) : nullptr;
+    if (payload.hasCanvas && canvasInput == nullptr) {
+      throw std::runtime_error("Input object '" + std::string(payload.canvasName) + "' is not a TCanvas.");
+    }
+    (void)canvasInput;
+    return payload;
+  }
+
+  void validateDifferentialFlowPayloadAgainstParticles(
+      const DifferentialFlowInputPayload &payload,
+      const std::unordered_map<int, std::vector<blastwave::DifferentialFlowTrack>> &flowTracksByEvent) {
+    if (!payload.hasHistogram) {
+      return;
+    }
+
+    const int expectedBins = static_cast<int>(payload.ptBinEdges.size()) - 1;
+    if (payload.histogram->GetNbinsX() != expectedBins) {
+      throw std::runtime_error(std::string(payload.histogramName) + " bin count does not match " + payload.edgesName + ".");
+    }
+    for (int iBin = 1; iBin <= expectedBins; ++iBin) {
+      const double expectedLowEdge = payload.ptBinEdges[static_cast<std::size_t>(iBin - 1)];
+      const double expectedUpperEdge = payload.ptBinEdges[static_cast<std::size_t>(iBin)];
+      const double actualLowEdge = payload.histogram->GetXaxis()->GetBinLowEdge(iBin);
+      const double actualUpperEdge = payload.histogram->GetXaxis()->GetBinUpEdge(iBin);
+      if (!nearlyEqual(actualLowEdge, expectedLowEdge, 1.0e-12) || !nearlyEqual(actualUpperEdge, expectedUpperEdge, 1.0e-12)) {
+        throw std::runtime_error(std::string(payload.histogramName) + " histogram edges do not match " + payload.edgesName + " metadata.");
+      }
+
+      const double binContent = payload.histogram->GetBinContent(iBin);
+      const double binError = payload.histogram->GetBinError(iBin);
+      if (!isFinite(binContent) || !isFinite(binError) || binError < 0.0) {
+        throw std::runtime_error(std::string(payload.histogramName) + " bins must have finite contents and finite non-negative errors.");
+      }
+    }
+
+    std::vector<int> eventIds;
+    eventIds.reserve(flowTracksByEvent.size());
+    for (const auto &entry : flowTracksByEvent) {
+      eventIds.push_back(entry.first);
+    }
+    std::sort(eventIds.begin(), eventIds.end());
+    blastwave::DifferentialFlowCumulant cumulant(payload.harmonic, payload.ptBinEdges);
+    for (int eventId : eventIds) {
+      cumulant.addEvent(flowTracksByEvent.at(eventId));
+    }
+    const blastwave::DifferentialFlowCumulantResult recomputed = cumulant.finalize();
+    if (recomputed.values.size() != static_cast<std::size_t>(expectedBins) || recomputed.errors.size() != static_cast<std::size_t>(expectedBins)) {
+      throw std::runtime_error("Recomputed differential-flow payload shape mismatch.");
+    }
+    for (int iBin = 1; iBin <= expectedBins; ++iBin) {
+      const double expectedValue = recomputed.values[static_cast<std::size_t>(iBin - 1)];
+      const double expectedError = recomputed.errors[static_cast<std::size_t>(iBin - 1)];
+      const double fileValue = payload.histogram->GetBinContent(iBin);
+      const double fileError = payload.histogram->GetBinError(iBin);
+      if (!nearlyEqual(fileValue, expectedValue, 1.0e-6)) {
+        throw std::runtime_error(std::string(payload.histogramName) + " content mismatch against recomputed shared-core result.");
+      }
+      if (!nearlyEqual(fileError, expectedError, 1.0e-6)) {
+        throw std::runtime_error(std::string(payload.histogramName) + " error mismatch against recomputed shared-core result.");
+      }
     }
   }
 
@@ -233,51 +353,8 @@ int main(int argc, char **argv) {
       throw std::runtime_error("Input object 'v2_wrt_psi2_vs_eps3' is not a TH2.");
     }
 
-    auto *v2PtEdgesObject = inputFile.Get(blastwave::io::kV2PtEdgesObjectName);
-    auto *v2PtHistogramObject = inputFile.Get(blastwave::io::kV2PtHistogramName);
-    auto *v2PtCanvasObject = inputFile.Get(blastwave::io::kV2PtCanvasName);
-    const bool hasV2PtEdges = v2PtEdgesObject != nullptr;
-    const bool hasV2PtHistogram = v2PtHistogramObject != nullptr;
-    const bool hasV2PtCanvas = v2PtCanvasObject != nullptr;
-    const bool hasAnyV2PtPayload = hasV2PtHistogram || hasV2PtCanvas;
-    if (hasAnyV2PtPayload && (!hasV2PtHistogram || !hasV2PtCanvas || !hasV2PtEdges)) {
-      throw std::runtime_error("v2pt analysis payload must contain all objects: v2_2_pt_edges, v2_2_pt, v2_2_pt_canvas.");
-    }
-    if (!hasAnyV2PtPayload && (hasV2PtHistogram || hasV2PtCanvas)) {
-      throw std::runtime_error("Invalid v2pt object state: analysis payload cannot be partially present.");
-    }
-
-    std::vector<double> v2PtEdges;
-    if (hasV2PtEdges) {
-      auto *v2PtEdgesVector = dynamic_cast<TVectorD *>(v2PtEdgesObject);
-      if (v2PtEdgesVector == nullptr) {
-        throw std::runtime_error("Input object 'v2_2_pt_edges' is not a TVectorD.");
-      }
-      v2PtEdges.reserve(static_cast<std::size_t>(v2PtEdgesVector->GetNoElements()));
-      for (int iEdge = 0; iEdge < v2PtEdgesVector->GetNoElements(); ++iEdge) {
-        const double edge = (*v2PtEdgesVector)[iEdge];
-        if (!isFinite(edge) || edge < 0.0) {
-          throw std::runtime_error("v2_2_pt_edges must be finite and non-negative.");
-        }
-        if (!v2PtEdges.empty() && !(edge > v2PtEdges.back())) {
-          throw std::runtime_error("v2_2_pt_edges must be strictly increasing.");
-        }
-        v2PtEdges.push_back(edge);
-      }
-      if (v2PtEdges.size() < 2U) {
-        throw std::runtime_error("v2_2_pt_edges must contain at least two entries.");
-      }
-    }
-
-    auto *v2PtHistogramInput = hasV2PtHistogram ? dynamic_cast<TH1 *>(v2PtHistogramObject) : nullptr;
-    if (hasV2PtHistogram && v2PtHistogramInput == nullptr) {
-      throw std::runtime_error("Input object 'v2_2_pt' is not a TH1.");
-    }
-    auto *v2PtCanvasInput = hasV2PtCanvas ? dynamic_cast<TCanvas *>(v2PtCanvasObject) : nullptr;
-    if (hasV2PtCanvas && v2PtCanvasInput == nullptr) {
-      throw std::runtime_error("Input object 'v2_2_pt_canvas' is not a TCanvas.");
-    }
-    (void)v2PtCanvasInput;
+    const DifferentialFlowInputPayload v2PtPayload = loadDifferentialFlowPayload(inputFile, 2);
+    const DifferentialFlowInputPayload v3PtPayload = loadDifferentialFlowPayload(inputFile, 3);
 
     // Optional flow-ellipse debug payload uses "exists then validate" behavior.
     auto *flowEllipseDebugTree = dynamic_cast<TTree *>(inputFile.Get(blastwave::io::kFlowEllipseDebugTreeName));
@@ -372,7 +449,7 @@ int main(int argc, char **argv) {
     std::unordered_map<int, double> xSumByEvent;
     std::unordered_map<int, double> ySumByEvent;
     std::unordered_map<int, double> r2FinalSumByEvent;
-    std::unordered_map<int, std::vector<blastwave::V2PtTrack>> v2TracksByEvent;
+    std::unordered_map<int, std::vector<blastwave::DifferentialFlowTrack>> flowTracksByEvent;
     std::unordered_map<int, int> templateNucleusCountByEvent;
     double maxMassShellDeviation = 0.0;
     double maxAbsEtaS = 0.0;
@@ -454,7 +531,7 @@ int main(int argc, char **argv) {
       hPt.Fill(std::hypot(particleBranches.px, particleBranches.py));
       hEta.Fill(blastwave::computePseudorapidity(particleBranches.px, particleBranches.py, particleBranches.pz));
       hPhi.Fill(phi);
-      v2TracksByEvent[particleBranches.eventId].push_back({particleBranches.px, particleBranches.py});
+      flowTracksByEvent[particleBranches.eventId].push_back({particleBranches.px, particleBranches.py});
     }
 
     if (maxMassShellDeviation > 1.0e-4) {
@@ -910,54 +987,8 @@ int main(int argc, char **argv) {
       throw std::runtime_error("v2 histogram mean does not match the events.v2 mean.");
     }
 
-    if (hasV2PtHistogram) {
-      const int expectedBins = static_cast<int>(v2PtEdges.size()) - 1;
-      if (v2PtHistogramInput->GetNbinsX() != expectedBins) {
-        throw std::runtime_error("v2_2_pt bin count does not match v2_2_pt_edges.");
-      }
-      for (int iBin = 1; iBin <= expectedBins; ++iBin) {
-        const double expectedLowEdge = v2PtEdges[static_cast<std::size_t>(iBin - 1)];
-        const double expectedUpperEdge = v2PtEdges[static_cast<std::size_t>(iBin)];
-        const double actualLowEdge = v2PtHistogramInput->GetXaxis()->GetBinLowEdge(iBin);
-        const double actualUpperEdge = v2PtHistogramInput->GetXaxis()->GetBinUpEdge(iBin);
-        if (!nearlyEqual(actualLowEdge, expectedLowEdge, 1.0e-12) || !nearlyEqual(actualUpperEdge, expectedUpperEdge, 1.0e-12)) {
-          throw std::runtime_error("v2_2_pt histogram edges do not match v2_2_pt_edges metadata.");
-        }
-
-        const double binContent = v2PtHistogramInput->GetBinContent(iBin);
-        const double binError = v2PtHistogramInput->GetBinError(iBin);
-        if (!isFinite(binContent) || !isFinite(binError) || binError < 0.0) {
-          throw std::runtime_error("v2_2_pt bins must have finite contents and finite non-negative errors.");
-        }
-      }
-
-      std::vector<int> v2EventIds;
-      v2EventIds.reserve(v2TracksByEvent.size());
-      for (const auto &entry : v2TracksByEvent) {
-        v2EventIds.push_back(entry.first);
-      }
-      std::sort(v2EventIds.begin(), v2EventIds.end());
-      blastwave::V2PtCumulant cumulant(v2PtEdges);
-      for (int eventId : v2EventIds) {
-        cumulant.addEvent(v2TracksByEvent[eventId]);
-      }
-      const blastwave::V2PtCumulantResult recomputed = cumulant.finalize();
-      if (recomputed.v2Values.size() != static_cast<std::size_t>(expectedBins) || recomputed.v2Errors.size() != static_cast<std::size_t>(expectedBins)) {
-        throw std::runtime_error("Recomputed v2pt payload shape mismatch.");
-      }
-      for (int iBin = 1; iBin <= expectedBins; ++iBin) {
-        const double expectedValue = recomputed.v2Values[static_cast<std::size_t>(iBin - 1)];
-        const double expectedError = recomputed.v2Errors[static_cast<std::size_t>(iBin - 1)];
-        const double fileValue = v2PtHistogramInput->GetBinContent(iBin);
-        const double fileError = v2PtHistogramInput->GetBinError(iBin);
-        if (!nearlyEqual(fileValue, expectedValue, 1.0e-6)) {
-          throw std::runtime_error("v2_2_pt content mismatch against recomputed shared-core result.");
-        }
-        if (!nearlyEqual(fileError, expectedError, 1.0e-6)) {
-          throw std::runtime_error("v2_2_pt error mismatch against recomputed shared-core result.");
-        }
-      }
-    }
+    validateDifferentialFlowPayloadAgainstParticles(v2PtPayload, flowTracksByEvent);
+    validateDifferentialFlowPayloadAgainstParticles(v3PtPayload, flowTracksByEvent);
 
     // Validate optional gradient debug histograms when present.
     if (hasAnyGradientDebugHistogram) {

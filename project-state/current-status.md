@@ -4,9 +4,9 @@
 
 - Date: 2026-05-06
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
-- Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in affine-effective closure path with `additive-rho` and `full-tensor` submodes, the opt-in V2 gradient-response path, optional differential `v2{2}(pT)` analysis, and the opt-in `response-test-023` initial-geometry response-test path.
-- Latest durable verification anchor: 2026-05-06 local build, full local `ctest`, outside-sandbox ROOT default/response-test smokes, and a four-point response-test `A3` scan.
-- This task added a synthetic `0+2+3` initial geometry template plus mandatory `eps3/psi3/v3` response observables and QA recomputation.
+- Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in affine-effective closure path with `additive-rho` and `full-tensor` submodes, the opt-in V2 gradient-response path, optional differential `v2/v3{2}(pT)` analysis, and the opt-in `response-test-023` initial-geometry response-test path.
+- Latest durable verification anchor: 2026-05-06 local build, full local `ctest`, outside-sandbox ROOT flowpt same-file/separate-file smokes, standalone `analyze_blastwave_vnpt` `--output` and `--inplace` smokes, and ROOT key inspection of v2/v3 differential payload placement.
+- Latest task generalized the optional differential `v2{2}(pT)` path into a harmonic-aware `v2/v3{2}(pT)` flowpt contract.
 
 ## Current Runtime Baseline
 
@@ -30,19 +30,21 @@
   - participant records use `nucleus_id = -1`
 - optional differential-flow path:
   - configure `v2pt-bins`
-  - choose `v2pt-output-mode = same-file | separate-file`
-  - optionally post-process with `analyze_blastwave_v2pt`
+  - configure `v3pt-bins`
+  - choose `flowpt-output-mode = same-file | separate-file`
+  - optionally post-process with `analyze_blastwave_vnpt`
 
 ## Current Contract Highlights
 
 - public entrypoints:
   - `generate_blastwave_events`
   - `qa_blastwave_output`
-  - `analyze_blastwave_v2pt`
+  - `analyze_blastwave_vnpt`
 - canonical tracked example config:
   - `config/test_b8.cfg`
   - `config/test_b8_affine_effective.cfg`
   - `config/test_b8_response_023.cfg`
+  - `config/test_b8_flowpt.cfg`
 - mandatory ROOT payload highlights:
   - `events`
   - `participants`
@@ -73,6 +75,9 @@
   - `v2_2_pt_edges`
   - `v2_2_pt`
   - `v2_2_pt_canvas`
+  - `v3_2_pt_edges`
+  - `v3_2_pt`
+  - `v3_2_pt_canvas`
 
 ## Current Verification Picture
 
@@ -82,7 +87,7 @@
   - `test_flow_field_model`
   - `test_emission_sampler`
   - `test_physics_utils`
-  - `test_v2_pt_cumulant`
+  - `test_differential_flow_cumulant`
   - `test_output_path_utils`
   - `test_harmonic_geometry`
   - `test_blast_wave_generator_response`
@@ -94,7 +99,7 @@
   - affine-effective `full-tensor` generation + QA with debug-flow-ellipse enabled
   - affine-effective before/after density map presence and QA validation
   - V2 gradient-response path
-  - differential `v2{2}(pT)` same-file and separate-file modes
+  - differential `v2/v3{2}(pT)` same-file and separate-file modes
   - standalone differential post-processing
   - `chi2` TH1 contract
   - ROOT-free third-harmonic helper and response-template generator coverage
@@ -108,10 +113,11 @@ Use `project-state/tests.md` for the summarized evidence trail.
 
 - sandboxed `alienv` ROOT smoke output on this machine is not authoritative when PCM / module noise appears
 - historical files under `qa/` span multiple schema generations and may not match the latest contract
-- `v2pt-output-mode = separate-file` intentionally allows a metadata-only main result file that keeps `v2_2_pt_edges` but omits the full analysis payload
+- `flowpt-output-mode = separate-file` intentionally allows a metadata-only main result file that keeps enabled `v2_2_pt_edges` / `v3_2_pt_edges` but omits the full analysis payload
 - `events.eps2` / `events.psi2` remain initial-state observables, while `eps2_f` / `psi2_f` / `chi2` remain freeze-out diagnostics
 - `events.eps3` / `events.psi3` use the recentered harmonic convention and do not change the covariance `eps2/psi2` contract
 - `response-test-023` is opt-in only; template weights `A2/A3` are not physical eccentricities
+- response/cross-talk TH2 objects keep full storage ranges `epsilon = 0..1` and projected `v = -1..1`, but open with compact default display ranges `epsilon = 0..0.35` and projected `v = -0.15..0.15`
 - `shell_weight` and any `EmissionSite::emissionWeight` restructuring remain intentionally deferred; the current response-test rollout only adds geometry templates and observables
 
 ## Documentation Layout After Compaction

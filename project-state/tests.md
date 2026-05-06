@@ -20,8 +20,41 @@ Long command transcripts and repeated smoke-command variants were intentionally 
 - `cd build && ctest --output-on-failure`
 - authoritative outside-sandbox `generate_blastwave_events ...`
 - authoritative outside-sandbox `qa_blastwave_output ...`
-- authoritative outside-sandbox `analyze_blastwave_v2pt ...`
+- authoritative outside-sandbox `analyze_blastwave_vnpt ...`
 - ROOT key inspection through the shared inspector scripts when payload placement needs confirmation
+
+## T-021 Response/Cross-Talk TH2 Display Window
+
+- Status: passed on 2026-05-06
+- Evidence:
+  - local `cmake --build /Users/allenzhou/Research_software/Blast_wave/build -j4` passed after the ROOT writer display-window change
+  - local `ctest --output-on-failure` passed with 9/9 tests
+  - O2Physics ROOT executor generated `/tmp/response_axis_range_smoke.root` from `config/test_b8_response_023.cfg --nevents 20`
+  - O2Physics ROOT executor QA passed for the smoke file with `--expect-nevents 20`
+  - direct ROOT read of all four response/cross-talk TH2s reported `xstorage=0..1`, `xview=0..0.35`, `ystorage=-1..1`, `yview=-0.15..0.15`
+- Locked conclusions:
+  - the four response/cross-talk TH2s keep full storage ranges and only change their persisted default display window
+  - current QA remains compatible with the display-window change
+
+## T-022 Differential `v2/v3{2}(pT)` Flowpt Contract
+
+- Status: passed on 2026-05-06
+- Evidence:
+  - local touched-target build passed for `generate_blastwave_events`, `analyze_blastwave_vnpt`, `qa_blastwave_output`, `test_run_options`, and `test_differential_flow_cumulant`
+  - focused ROOT-free `test_differential_flow_cumulant` passed for harmonic `n=2` and `n=3`
+  - focused `test_run_options` passed with `v3pt-bins`, `flowpt-output-mode`, `flowpt-output`, default `_flowpt.root`, and old-name rejection coverage
+  - local full `cmake --build /Users/allenzhou/Research_software/Blast_wave/build -j4` passed
+  - local full `ctest --test-dir /Users/allenzhou/Research_software/Blast_wave/build --output-on-failure` passed with 9/9 tests
+  - O2Physics ROOT executor generated and QA-validated a same-file smoke with both `v2` and `v3` differential payloads
+  - O2Physics ROOT executor generated and QA-validated a separate-file smoke where the main result kept only `v2_2_pt_edges` and `v3_2_pt_edges`
+  - ROOT key inspection confirmed the shared separate flowpt file contains `v2_2_pt_edges`, `v2_2_pt`, `v2_2_pt_canvas`, `v3_2_pt_edges`, `v3_2_pt`, and `v3_2_pt_canvas`
+  - standalone `analyze_blastwave_vnpt --output` wrote both enabled harmonics to a shared flowpt ROOT file
+  - standalone `analyze_blastwave_vnpt --inplace` added both full payloads back to the main ROOT file, and QA passed afterward
+- Locked conclusions:
+  - public output controls are now shared `flowpt-output-mode` / `flowpt-output`
+  - `v2pt-output-mode` and `v2pt-output` are rejected with migration guidance
+  - `analyze_blastwave_vnpt` is the canonical standalone post-processing entrypoint
+  - `flowpt-output-mode = separate-file` intentionally leaves full differential payloads in one shared flowpt file while keeping enabled edge metadata in the main result
 
 ## T-020 Response-Test 0+2+3 Initial Geometry And Third-Harmonic Contract
 
@@ -100,7 +133,7 @@ Long command transcripts and repeated smoke-command variants were intentionally 
   - ROOT key inspection confirmed the dedicated analysis file contains only `v2_2_pt_edges`, `v2_2_pt`, and `v2_2_pt_canvas`
 - Locked conclusions:
   - configuring `v2pt-bins` always writes `v2_2_pt_edges`
-  - `v2pt-output-mode = separate-file` may leave the main result file metadata-only
+  - `flowpt-output-mode = separate-file` may leave the main result file metadata-only
   - differential `v2{2}(pT)` is separate from `events.v2` and currently uses unit track weights only
 
 ## T-015 Freeze-Out Eccentricity Response TH1 Contract

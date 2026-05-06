@@ -6,15 +6,17 @@
 #include <exception>
 #include <filesystem>
 #include <iostream>
+#include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include "blastwave/V2PtCumulant.h"
+#include "blastwave/DifferentialFlowCumulant.h"
+#include "blastwave/io/DifferentialFlowRootPayload.h"
 #include "blastwave/io/OutputPathUtils.h"
 #include "blastwave/io/RootOutputSchema.h"
-#include "blastwave/io/V2PtRootPayload.h"
 
 namespace {
 
@@ -38,7 +40,7 @@ namespace {
 
   std::string deriveDefaultOutputPath(const std::string &inputPath) {
     const std::filesystem::path input(inputPath);
-    return (input.parent_path() / (input.stem().string() + "_v2pt.root")).lexically_normal().string();
+    return (input.parent_path() / (input.stem().string() + "_flowpt.root")).lexically_normal().string();
   }
 
   Options parseOptions(int argc, char **argv) {
@@ -76,6 +78,17 @@ namespace {
     return options;
   }
 
+  std::string summarizeHarmonics(const std::vector<blastwave::DifferentialFlowCumulantResult> &results) {
+    std::ostringstream stream;
+    for (std::size_t iResult = 0; iResult < results.size(); ++iResult) {
+      if (iResult > 0U) {
+        stream << ",";
+      }
+      stream << results[iResult].harmonic << ":" << results[iResult].values.size();
+    }
+    return stream.str();
+  }
+
 }  // namespace
 
 int main(int argc, char **argv) {
@@ -90,12 +103,22 @@ int main(int argc, char **argv) {
     if (particlesTree == nullptr) {
       throw std::runtime_error("Missing particles tree 'particles' in input ROOT file.");
     }
-    const std::vector<double> ptBinEdges = blastwave::io::readV2PtEdgesOrThrow(inputFile);
+
+    std::vector<std::pair<int, std::vector<double>>> configuredHarmonics;
+    for (int harmonic : {2, 3}) {
+      const std::optional<std::vector<double>> ptBinEdges = blastwave::io::readDifferentialFlowEdges(inputFile, harmonic);
+      if (ptBinEdges.has_value()) {
+        configuredHarmonics.push_back({harmonic, *ptBinEdges});
+      }
+    }
+    if (configuredHarmonics.empty()) {
+      throw std::runtime_error("No differential-flow pT edge metadata found. Expected 'v2_2_pt_edges' or 'v3_2_pt_edges'.");
+    }
 
     blastwave::io::ParticleBranches particleBranches;
     blastwave::io::bindParticleBranches(*particlesTree, particleBranches);
 
-    std::unordered_map<int, std::vector<blastwave::V2PtTrack>> tracksByEvent;
+    std::unordered_map<int, std::vector<blastwave::DifferentialFlowTrack>> tracksByEvent;
     for (Long64_t iEntry = 0; iEntry < particlesTree->GetEntries(); ++iEntry) {
       particlesTree->GetEntry(iEntry);
       tracksByEvent[particleBranches.eventId].push_back({particleBranches.px, particleBranches.py});
@@ -108,11 +131,15 @@ int main(int argc, char **argv) {
     }
     std::sort(eventIds.begin(), eventIds.end());
 
-    blastwave::V2PtCumulant cumulant(ptBinEdges);
-    for (int eventId : eventIds) {
-      cumulant.addEvent(tracksByEvent[eventId]);
+    std::vector<blastwave::DifferentialFlowCumulantResult> results;
+    results.reserve(configuredHarmonics.size());
+    for (const auto &configuredHarmonic : configuredHarmonics) {
+      blastwave::DifferentialFlowCumulant cumulant(configuredHarmonic.first, configuredHarmonic.second);
+      for (int eventId : eventIds) {
+        cumulant.addEvent(tracksByEvent[eventId]);
+      }
+      results.push_back(cumulant.finalize());
     }
-    const blastwave::V2PtCumulantResult result = cumulant.finalize();
     inputFile.Close();
 
     if (options.inplace) {
@@ -120,10 +147,11 @@ int main(int argc, char **argv) {
       if (outputFile.IsZombie()) {
         throw std::runtime_error("Failed to open input ROOT file for in-place update: " + options.inputPath);
       }
-      blastwave::io::writeV2PtPayload(outputFile, result);
+      for (const blastwave::DifferentialFlowCumulantResult &result : results) {
+        blastwave::io::writeDifferentialFlowPayload(outputFile, result);
+      }
       outputFile.Close();
-      std::cout << "wrote_v2pt_payload input=" << options.inputPath << " mode=inplace bins=" << result.v2Values.size()
-                << " contributing_events=" << result.contributingEvents << " c2=" << result.c2 << '\n';
+      std::cout << "wrote_flowpt_payload input=" << options.inputPath << " mode=inplace harmonics=" << summarizeHarmonics(results) << '\n';
       return 0;
     }
 
@@ -132,13 +160,15 @@ int main(int argc, char **argv) {
     if (outputFile.IsZombie()) {
       throw std::runtime_error("Failed to create output ROOT file: " + options.outputPath);
     }
-    blastwave::io::writeV2PtPayload(outputFile, result);
+    for (const blastwave::DifferentialFlowCumulantResult &result : results) {
+      blastwave::io::writeDifferentialFlowPayload(outputFile, result);
+    }
     outputFile.Close();
-    std::cout << "wrote_v2pt_payload input=" << options.inputPath << " output=" << options.outputPath << " mode=separate-file bins=" << result.v2Values.size()
-              << " contributing_events=" << result.contributingEvents << " c2=" << result.c2 << '\n';
+    std::cout << "wrote_flowpt_payload input=" << options.inputPath << " output=" << options.outputPath << " mode=separate-file harmonics=" << summarizeHarmonics(results)
+              << '\n';
     return 0;
   } catch (const std::exception &error) {
-    std::cerr << "analyze_blastwave_v2pt failed: " << error.what() << '\n';
+    std::cerr << "analyze_blastwave_vnpt failed: " << error.what() << '\n';
     return 1;
   }
 }

@@ -2,15 +2,17 @@
 
 ## Latest Durable Handoff
 
-- Stage completed: response-test `0+2+3` initial geometry and third-harmonic output contract
+- Stage completed: differential `v2/v3{2}(pT)` flowpt output contract
 - What changed:
-  - added `initial-geometry = glauber | response-test-023`, defaulting to `glauber`
-  - `response-test-023` creates a recentered synthetic `0+2+3` transverse point cloud and writes participant records with `nucleus_id = -1`
-  - added template knobs `initial-geometry-source-count`, `r0`, `a2`, `r2x/r2y/phi2`, `a3`, `r3/sigma3/phi3`, plus `debug-initial-geometry`
-  - added mandatory event branches and histograms for `eps3/psi3`, `v3`, `v2_wrt_psi2`, and `v3_wrt_psi3`
-  - added response/cross-talk TH2 objects and optional `initial_geometry_density_x-y`
-  - QA now accepts `nucleus_id=-1` only for response-test events and recomputes weighted Q2/Q3 observables from `particles`
-  - docs, complete Chinese response-test config, and `project-state/` were refreshed
+  - generalized the old v2-only differential cumulant implementation into a harmonic-aware core for `n=2` and `n=3`
+  - kept existing v2 object names and added `v3_2_pt_edges`, `v3_2_pt`, and `v3_2_pt_canvas`
+  - added public `v3pt-bins`
+  - replaced `v2pt-output-mode` / `v2pt-output` with shared `flowpt-output-mode` / `flowpt-output`
+  - old v2-specific output option names now fail in config and CLI with explicit migration guidance
+  - generator writes enabled edge metadata into the main file and writes full enabled payloads according to the shared output mode
+  - standalone post-processing entrypoint is now `analyze_blastwave_vnpt`, computing all harmonics whose edge metadata exists
+  - QA recomputes and validates optional v2 and v3 differential payload groups through the shared cumulant core
+  - docs, complete Chinese flowpt config, and `project-state/` were refreshed
 - Current documentation ownership:
   - detailed runtime and physics explanation: `docs/项目说明.md`
   - formula walkthrough: `docs/数学物理公式流程说明.md`
@@ -26,11 +28,12 @@
 - `initial-geometry-a2/a3` are template mixture weights, not `eps2/eps3`
 - `events.eps2/psi2` keep covariance semantics; `events.eps3/psi3` use recentered harmonic geometry
 - `events.v3`, `v2_wrt_psi2`, and `v3_wrt_psi3` are mandatory ROOT/QA contract fields
+- response/cross-talk TH2 storage is still `epsilon = 0..1` and projected `v = -1..1`; the default displayed window is `epsilon = 0..0.35` and projected `v = -0.15..0.15`
 - affine-effective remains opt-in and only valid for `affine-gaussian`
 - affine-effective defaults to `additive-rho`; use `--affine-effective-mode full-tensor` for the tensor closure path
 - V2 `gradient-response` remains opt-in and coupled across medium and flow selection
-- differential `v2{2}(pT)` remains a separate analysis payload and does not replace `events.v2`
-- `v2pt-output-mode = separate-file` may leave the main result file metadata-only
+- differential `v2{2}(pT)` / `v3{2}(pT)` remain separate analysis payloads and do not replace `events.v2/events.v3`
+- `flowpt-output-mode = separate-file` may leave the main result file metadata-only
 - authoritative ROOT validation on this machine still comes from the outside-sandbox O2Physics path
 - `shell_weight` and `EmissionSite::emissionWeight` restructuring were intentionally not part of this rollout
 
@@ -43,7 +46,9 @@
 ## Verification Status
 
 - durable baseline after this task: `verified` on 2026-05-06
-- local build and full local `ctest` passed after integrating the response-test implementation
-- authoritative outside-sandbox O2Physics default Glauber generate + QA passed with the expanded third-harmonic schema
-- authoritative outside-sandbox O2Physics `response-test-023` generate + QA passed, including optional initial-geometry density output
-- four-point `A3 = 0, 0.05, 0.10, 0.15` scan passed generate + QA and showed increasing `mean(v3_wrt_psi3)`
+- local full build and full local `ctest` passed after integrating the differential flowpt implementation
+- focused ROOT-free `test_differential_flow_cumulant` and `test_run_options` passed
+- authoritative outside-sandbox O2Physics same-file generate + QA passed with both v2 and v3 differential payloads in the main result
+- authoritative outside-sandbox O2Physics separate-file generate + QA passed with edge metadata in the main result and both full payloads in one flowpt file
+- standalone `analyze_blastwave_vnpt --output` and `--inplace` passed under O2Physics ROOT; the in-place result QA passed afterward
+- ROOT key inspection confirmed the expected v2/v3 edges, histograms, and canvases in same-file, separate-file, standalone-output, and in-place states

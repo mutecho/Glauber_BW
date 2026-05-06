@@ -3,7 +3,7 @@
 一个基于 C++17 和 ROOT 的小型 Blast-Wave 事例生成器仓库。当前主线保持三层职责分离：
 
 - `include/` + `src/`：ROOT-free 核心物理与输出契约实现
-- `apps/`：ROOT 相关的命令行入口，包括生成器、QA 和独立 `v2{2}(pT)` 分析器
+- `apps/`：ROOT 相关的命令行入口，包括生成器、QA 和独立 `v_n{2}(pT)` 分析器
 - `tests/`：不依赖 ROOT 文件 I/O 的核心回归测试
 
 ## 当前仓库结构
@@ -13,9 +13,9 @@
 - `src/`
   生成器核心、热动量采样器和 ROOT 输出实现。
 - `apps/`
-  生成、QA 和独立 `v2{2}(pT)` 分析入口。
+  生成、QA 和独立 `v_n{2}(pT)` 分析入口。
 - `tests/`
-  当前的 ROOT-free 单元/回归测试，包括 `v2{2}(pT)` cumulant 回归。
+  当前的 ROOT-free 单元/回归测试，包括差分 `v2/v3{2}(pT)` cumulant 回归。
 - `config/`
   受版本控制的示例配置文件。
 - `scripts/`
