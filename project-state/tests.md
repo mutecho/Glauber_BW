@@ -23,6 +23,36 @@ Long command transcripts and repeated smoke-command variants were intentionally 
 - authoritative outside-sandbox `analyze_blastwave_vnpt ...`
 - ROOT key inspection through the shared inspector scripts when payload placement needs confirmation
 
+## T-027 Density-Defined Flow-Trans Sigma-Equivalent Radius
+
+- Status: passed on 2026-05-07
+- Evidence:
+  - local `cmake --build /Users/allenzhou/Research_software/Blast_wave/build -j4` passed after the flow-field, parser, test, docs, config-comment, and project-state updates
+  - focused `/Users/allenzhou/Research_software/Blast_wave/bin/test_flow_field_model` passed with hard-coded q oracle coverage, percentile and level formula coverage, beta cap coverage, and shell-gradient `xi_shell` / `xi_flow` split coverage for both density selectors
+  - focused `/Users/allenzhou/Research_software/Blast_wave/bin/test_run_options` passed with `density-level:1.0` / `1.2` rejection text coverage
+  - local `ctest --test-dir /Users/allenzhou/Research_software/Blast_wave/build --output-on-failure` passed with 9/9 tests
+  - O2Physics ROOT executor generated and QA-validated `config/test_b8_density_normal_flow_trans.cfg --flow-trans-radius density-percentile:0.95 --nevents 20`, writing `/private/tmp/blastwave_radius_sigma_percentile.root`
+  - O2Physics ROOT executor generated and QA-validated `config/test_b8_density_normal_flow_trans.cfg --flow-trans-radius density-level:1.0e-3 --nevents 20`, writing `/private/tmp/blastwave_radius_sigma_level.root`
+  - O2Physics ROOT executor generated and QA-validated `config/test_b8_response_023_dense_mix.cfg --nevents 1000`, writing `/private/tmp/blastwave_response_023_dense_mix_sigma.root`
+  - O2Physics ROOT executor generated and QA-validated `config/test_b8_023_dense_newrap.cfg --nevents 1000`, writing `/private/tmp/blastwave_response_023_dense_newrap_sigma.root`
+  - ROOT metric extraction reported `dense_mix meanPt=1.041669379 psi2_proj=0.022560737` and `newrap meanPt=1.067941944 psi2_proj=0.022885878`
+- Locked conclusions:
+  - density-defined `R_density(phi)` now defines angular shell geometry only
+  - main flow strength uses `xi_flow = q * xi_shell`, with `xi_shell = r / R_density(phi)`
+  - `density-percentile:p` uses `q = sqrt(-2 * log1p(-p))`
+  - `density-level:fraction` uses `q = sqrt(-2 * log(fraction))` and rejects `fraction >= 1`
+  - `flowTransRho0` is the covariance-equivalent `xi_flow = 1` rapidity scale for density-defined radii
+  - `shell-gradient-corrected` correction lookup uses clamped `xi_shell`; the main radial profile uses `xi_flow`
+  - the `newrap` 1000-event response acceptance is back at O(1.0) mean pT and O(0.02) `psi2_proj`, not the old suppressed `meanPt≈0.58` / `psi2_proj≈0.0057` regime
+  - no public config key, ROOT schema, or QA schema change was introduced; existing example configs only had explanatory comments refreshed
+
+## T-026 Density-Defined Flow-Trans Radius Unclamped Xi
+
+- Status: superseded by T-027 on 2026-05-07
+- Historical note:
+  - this was the short-lived no-upper-clamp contract from `docs/半径算法修复.md`
+  - current density-defined radius semantics and validation evidence live in T-027
+
 ## T-025 Shell-Gradient-Corrected Density-Normal Flow Magnitude
 
 - Status: passed on 2026-05-07
@@ -57,7 +87,7 @@ Long command transcripts and repeated smoke-command variants were intentionally 
   - `balanced` is the default density-defined flow-trans boundary profile resolution
   - `precise` preserves the old `360 x 512` grid for precision baselines and rollback comparisons
   - `fast` is available as a low-cost pre-scan preset
-  - resolution changes do not alter the `R(phi)` / `xi = r / R(phi)` definition and do not affect `flow-trans-radius = covariance`
+  - resolution changes do not alter `R_density(phi)`, `xi_shell`, `q`, or `xi_flow`, and do not affect `flow-trans-radius = covariance`
   - boundary profile construction now uses scalar density queries instead of full density-gradient samples
 
 ## T-023 Flow-Trans Naming And Density-Normal Radius Modes
@@ -67,7 +97,7 @@ Long command transcripts and repeated smoke-command variants were intentionally 
   - local `cmake --build /Users/allenzhou/Research_software/Blast_wave/build -j4` passed after the parser/config/flow-field/cache changes
   - local `ctest --test-dir /Users/allenzhou/Research_software/Blast_wave/build --output-on-failure` passed with 9/9 tests
   - `test_run_options` covers new `flow-trans-*` parsing, CLI-over-config precedence, old `rho0` / `flow-power` rejection, radius value validation, and invalid non-density-normal direction/radius combinations
-  - `test_flow_field_model` covers density-normal direction interpolation, covariance radius baseline, circular density-defined radii, triangular/hotspot radius variation, and outside-boundary clipping
+  - `test_flow_field_model` covered density-normal direction interpolation, covariance radius baseline, circular density-defined radii, triangular/hotspot radius variation, and the then-current outside-boundary behavior; T-026 supersedes the old clipped-radius expectation with unclamped `xi`
   - authoritative outside-sandbox O2Physics generate + QA passed for default `config/test_b8.cfg --nevents 20`, written to `qa/test_flow_trans_default.root`
   - authoritative outside-sandbox O2Physics generate + QA passed for `config/test_b8_density_normal_flow_trans.cfg --flow-trans-radius covariance --nevents 20`, written to `qa/test_flow_trans_covariance.root`
   - authoritative outside-sandbox O2Physics generate + QA passed for `config/test_b8_density_normal_flow_trans.cfg --flow-trans-radius density-percentile:0.95 --nevents 20`, written to `qa/test_flow_trans_density_percentile.root`

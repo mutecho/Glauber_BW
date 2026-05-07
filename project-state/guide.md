@@ -106,6 +106,7 @@
 - 当前横向流强公开名以 DEC-016 为准：`flow-trans-rho0` / `flow-trans-profile-power` 替代旧 `rho0` / `flow-power`，旧名直接报错。
 - 当前 density-defined flow-trans 半径 profile 分辨率以 DEC-017 为准：`balanced` 是默认，`precise` 是旧 `360 x 512` 网格，`fast` 是低成本预扫。
 - 当前 density-normal 壳层梯度流强修正以 DEC-018 为准：`flow-trans-magnitude-mode = radius-profile` 是默认；`shell-gradient-corrected` 只允许配 `density-normal + density-percentile/level`，显式 `flow-trans-gradient-*` 参数不能在默认模式下静默生效。
+- 当前 density-defined flow-trans 半径语义以 DEC-020 为准：`density-percentile` / `density-level` 只定义角向几何边界 `R_density(phi)`；主流强使用 `xi_flow = q * xi_shell`，其中 `xi_shell = r / R_density(phi)`，`flow-trans-rho0` 是 covariance-equivalent `xi_flow = 1` 处的参考快度尺度。
 - `project-state/` 的规范路径是 `project-state/`，不是旧写法 `.project-state/`。
 - `project-state/tests.md` 只保留验证结论和最小必要证据，不再堆完整命令转录。
 - `project-state/current-status.md` 只保留当前视图，不承担完整历史说明。
@@ -116,7 +117,7 @@
 
 - `flowpt-output-mode = separate-file` 时，主结果文件只有启用 harmonic 的 `*_2_pt_edges` 也是合法状态。
 - `flow-trans-direction-gradient-fraction`、`flow-trans-radius` 与显式 `flow-trans-radius-resolution` 只允许 `flow-velocity-sampler = density-normal`，不能在其他 sampler 下静默配置。
-- `flow-trans-magnitude-mode = shell-gradient-corrected` 必须使用 density-defined radius；`flow-trans-gradient-max-factor-delta` 限制乘法因子偏离量，不是快度加法上限。
+- `flow-trans-magnitude-mode = shell-gradient-corrected` 必须使用 density-defined radius；`flow-trans-gradient-max-factor-delta` 限制乘法因子偏离量，不是快度加法上限；`xi_shell > 1` 时只复用 correction table 的最外层壳，基础 `rhoRaw` 使用 sigma-equivalent `xi_flow`。
 - `response-test-023` 是 opt-in response/closure test；默认 `initial-geometry = glauber` 不变。
 - `initial-geometry-a2/a3` 是模板权重，不是实际 `eps2/eps3`。
 - `qa/` 目录中存在旧 schema ROOT 文件；复用前先确认是否匹配当前契约。

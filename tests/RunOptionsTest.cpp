@@ -121,6 +121,19 @@ namespace {
     require(threw, message);
   }
 
+  void requireGeneratorValidationFailureContains(const blastwave::BlastWaveConfig &config,
+                                                const std::string &expectedText,
+                                                const std::string &message) {
+    bool threw = false;
+    try {
+      blastwave::BlastWaveGenerator generator(config);
+      static_cast<void>(generator);
+    } catch (const std::invalid_argument &error) {
+      threw = std::string(error.what()).find(expectedText) != std::string::npos;
+    }
+    require(threw, message);
+  }
+
   void requireParseFailureContains(const std::vector<std::string> &arguments, const std::string &expectedText, const std::string &message) {
     bool threw = false;
     try {
@@ -476,6 +489,8 @@ namespace {
         "density-percentile:-0.1",
         "density-percentile:abc",
         "density-level:0",
+        "density-level:1",
+        "density-level:1.2",
         "density-level:-1.0e-3",
         "density-level:abc",
         "not-a-mode",
@@ -483,6 +498,19 @@ namespace {
     for (const std::string &invalidValue : invalidValues) {
       requireParseFailureContains({"--flow-trans-radius", invalidValue}, "flow-trans-radius", "Invalid flow-trans-radius should be rejected: " + invalidValue);
     }
+    requireParseFailureContains({"--flow-trans-radius", "density-level:1.0"},
+                                "0 < fraction < 1",
+                                "density-level=1.0 should be rejected with bounded-fraction text.");
+  }
+
+  void runDensityLevelFlowTransValidationRejectsTest() {
+    const blastwave::BlastWaveConfig densityLevelOne = makeShellGradientConfig(blastwave::FlowTransRadiusMode::DensityLevel, 1.0, 0.25, 1.0e-4, 0.2);
+    const blastwave::BlastWaveConfig densityLevelTooLarge =
+        makeShellGradientConfig(blastwave::FlowTransRadiusMode::DensityLevel, 1.2, 0.25, 1.0e-4, 0.2);
+    requireGeneratorValidationFailureContains(
+        densityLevelOne, "0 < fraction < 1", "Generator validation should reject density-level:1.0 with bounded-fraction text.");
+    requireGeneratorValidationFailureContains(
+        densityLevelTooLarge, "0 < fraction < 1", "Generator validation should reject density-level:1.2 with bounded-fraction text.");
   }
 
   void runFlowTransValidationRejectsTest() {
@@ -1060,6 +1088,7 @@ int main() {
     runDeprecatedTransverseFlowNamesRejectTest();
     runFlowTransRadiusParseVariantsTest();
     runInvalidFlowTransRadiusRejectsTest();
+    runDensityLevelFlowTransValidationRejectsTest();
     runFlowTransValidationRejectsTest();
     runDensityNormalFlowTransValidationSuccessTest();
     runInitialGeometryDefaultParseTest();

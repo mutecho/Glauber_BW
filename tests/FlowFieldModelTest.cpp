@@ -128,6 +128,27 @@ namespace {
     return parameters;
   }
 
+  double computeDensityRadiusEquivalentScale(blastwave::FlowTransRadiusMode mode, double fraction) {
+    if (mode == blastwave::FlowTransRadiusMode::DensityPercentile) {
+      return std::sqrt(-2.0 * std::log1p(-fraction));
+    }
+    if (mode == blastwave::FlowTransRadiusMode::DensityLevel) {
+      return std::sqrt(-2.0 * std::log(fraction));
+    }
+    return 1.0;
+  }
+
+  void runDensityRadiusEquivalentScaleOracleTest() {
+    requireNear(computeDensityRadiusEquivalentScale(blastwave::FlowTransRadiusMode::DensityPercentile, 0.95),
+                2.447746830680816,
+                1.0e-15,
+                "density-percentile:0.95 sigma-equivalent scale mismatch.");
+    requireNear(computeDensityRadiusEquivalentScale(blastwave::FlowTransRadiusMode::DensityLevel, 1.0e-3),
+                3.7169221888498383,
+                1.0e-15,
+                "density-level:1.0e-3 sigma-equivalent scale mismatch.");
+  }
+
   void requireDirectionNear(const blastwave::FlowFieldSample &sample, double expectedX, double expectedY, double tolerance, const std::string &message) {
     require(sample.betaT > 0.0, message + " requires non-zero betaT.");
     requireNear(sample.betaX / sample.betaT, expectedX, tolerance, message + " x mismatch.");
@@ -448,31 +469,164 @@ namespace {
             "Density-level radius should give a larger boundary, hence smaller xi, along a triangular hotspot direction.");
   }
 
-  void runFlowTransOutsideDensityRadiusClampsXiUsedTest() {
-    const blastwave::EventMedium medium = buildCircularMedium(0.35);
+  void runFlowTransOutsideDensityRadiusUsesSigmaEquivalentXiTest() {
+    const double flowTransRho0 = 0.7;
+    const double flowTransProfilePower = 1.3;
+    const double beyondBoundaryFactor = 1.25;
+
+    {
+      blastwave::EventMedium medium = buildCircularMedium(0.35);
+      constexpr double radiusFraction = 0.95;
+      const double sigmaEquivalentScale = computeDensityRadiusEquivalentScale(blastwave::FlowTransRadiusMode::DensityPercentile, radiusFraction);
+      const blastwave::FlowFieldParameters parameters = makeDensityNormalFlowTransParameters(
+          flowTransRho0, 0.0, flowTransProfilePower, 1.0, blastwave::FlowTransRadiusMode::DensityPercentile, radiusFraction);
+
+      // Build the density-defined profile with a non-central probe so the radial ray is well defined.
+      static_cast<void>(blastwave::evaluateFlowField(medium, medium.emissionGeometry.centerX + 0.8, medium.emissionGeometry.centerY, parameters));
+      require(medium.flowTransRadiusProfile.valid && !medium.flowTransRadiusProfile.boundaryRadii.empty(),
+              "Density-percentile profile should be built before outside-boundary sampling.");
+      const double boundaryRadius = medium.flowTransRadiusProfile.boundaryRadii[0U];
+      require(std::isfinite(boundaryRadius) && boundaryRadius > 0.0, "Density-percentile boundary radius at angle 0 should be finite.");
+
+      const double probeRadius = boundaryRadius * beyondBoundaryFactor;
+      const double expectedRhoRaw = flowTransRho0 * std::pow(sigmaEquivalentScale * beyondBoundaryFactor, flowTransProfilePower);
+      const double probeX = medium.emissionGeometry.centerX + probeRadius;
+      const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(medium, probeX, medium.emissionGeometry.centerY, parameters);
+      requireNear(sample.rhoRaw, expectedRhoRaw, 1.0e-12, "Density-percentile xi should use sigma-equivalent scaling outside boundary.");
+      require(sample.rhoRaw > flowTransRho0, "Density-percentile outside-boundary flow should be stronger than rho0.");
+    }
+
+    {
+      blastwave::EventMedium medium = buildCircularMedium(0.35);
+      constexpr double radiusFraction = 1.0e-3;
+      const double sigmaEquivalentScale = computeDensityRadiusEquivalentScale(blastwave::FlowTransRadiusMode::DensityLevel, radiusFraction);
+      const blastwave::FlowFieldParameters parameters = makeDensityNormalFlowTransParameters(
+          flowTransRho0, 0.0, flowTransProfilePower, 1.0, blastwave::FlowTransRadiusMode::DensityLevel, radiusFraction);
+
+      // Build the density-defined profile with a non-central probe so the radial ray is well defined.
+      static_cast<void>(blastwave::evaluateFlowField(medium, medium.emissionGeometry.centerX + 0.8, medium.emissionGeometry.centerY, parameters));
+      require(medium.flowTransRadiusProfile.valid && !medium.flowTransRadiusProfile.boundaryRadii.empty(),
+              "Density-level profile should be built before outside-boundary sampling.");
+      const double boundaryRadius = medium.flowTransRadiusProfile.boundaryRadii[0U];
+      require(std::isfinite(boundaryRadius) && boundaryRadius > 0.0, "Density-level boundary radius at angle 0 should be finite.");
+
+      const double probeRadius = boundaryRadius * beyondBoundaryFactor;
+      const double expectedRhoRaw = flowTransRho0 * std::pow(sigmaEquivalentScale * beyondBoundaryFactor, flowTransProfilePower);
+      const double probeX = medium.emissionGeometry.centerX + probeRadius;
+      const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(medium, probeX, medium.emissionGeometry.centerY, parameters);
+      requireNear(sample.rhoRaw, expectedRhoRaw, 1.0e-12, "Density-level xi should use sigma-equivalent scaling outside boundary.");
+      require(sample.rhoRaw > flowTransRho0, "Density-level outside-boundary flow should be stronger than rho0.");
+    }
+  }
+
+  void runFlowTransOutsideDensityRadiusAppliesBetaCapTest() {
+    blastwave::EventMedium medium = buildCircularMedium(0.35);
     const blastwave::FlowFieldParameters parameters = makeDensityNormalFlowTransParameters(
-        0.7, 0.0, 1.3, 0.0, blastwave::FlowTransRadiusMode::DensityLevel, 1.0e-3);
-    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(medium, 50.0, 0.0, parameters);
-    requireNear(sample.rhoRaw, parameters.flowTransRho0, 1.0e-12, "Boundary-exterior density-defined xi should clamp to one.");
+        1.0, 0.0, 1.0, 1.0, blastwave::FlowTransRadiusMode::DensityPercentile, 0.95);
+
+    // Build the density-defined profile, then probe far enough outside R(phi) to hit the velocity cap.
+    static_cast<void>(blastwave::evaluateFlowField(medium, medium.emissionGeometry.centerX + 0.8, medium.emissionGeometry.centerY, parameters));
+    require(medium.flowTransRadiusProfile.valid && !medium.flowTransRadiusProfile.boundaryRadii.empty(),
+            "Density-percentile profile should be built before beta-cap sampling.");
+    const double boundaryRadius = medium.flowTransRadiusProfile.boundaryRadii[0U];
+    require(std::isfinite(boundaryRadius) && boundaryRadius > 0.0, "Density-percentile boundary radius at angle 0 should be finite for beta-cap test.");
+
+    const double sigmaEquivalentScale = computeDensityRadiusEquivalentScale(blastwave::FlowTransRadiusMode::DensityPercentile, 0.95);
+    const double beyondBoundaryFactor = 3.0;
+    const double probeX = medium.emissionGeometry.centerX + beyondBoundaryFactor * boundaryRadius;
+    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(medium, probeX, medium.emissionGeometry.centerY, parameters);
+    requireFiniteFlowFieldSample(sample, "Outside-boundary beta-cap sample should stay finite.");
+    requireNear(sample.rhoRaw, parameters.flowTransRho0 * std::pow(sigmaEquivalentScale * beyondBoundaryFactor, parameters.flowTransProfilePower), 1.0e-12,
+               "Outside-boundary rhoRaw should use sigma-equivalent xi before beta cap.");
+    requireNear(sample.betaT, 0.95, 1.0e-12, "Outside-boundary density-defined flow should still respect the betaT cap.");
   }
 
   void runShellGradientCorrectedZeroStrengthMatchesRadiusProfileTest() {
-    const blastwave::EventMedium radiusMedium = buildTriangularHotspotMedium(0.25);
-    const blastwave::EventMedium correctedMedium = buildTriangularHotspotMedium(0.25);
+    // Keep a circular medium and probe at xi_shell>1 using the cached boundary radius.
+    const blastwave::EventMedium radiusMedium = buildCircularMedium(0.35);
+    const blastwave::EventMedium correctedMedium = buildCircularMedium(0.35);
     const blastwave::FlowFieldParameters radiusParameters = makeDensityNormalFlowTransParameters(
         0.7, 0.0, 1.2, 1.0, blastwave::FlowTransRadiusMode::DensityPercentile, 0.95);
     const blastwave::FlowFieldParameters correctedParameters = makeShellGradientFlowTransParameters(0.7, 1.2, 0.0, 0.2);
 
-    const double probePhi = 0.7;
-    const double probeRadius = 1.1;
-    const blastwave::FlowFieldSample radiusSample =
-        blastwave::evaluateFlowField(radiusMedium, probeRadius * std::cos(probePhi), probeRadius * std::sin(probePhi), radiusParameters);
+    // Build the reference profile before moving the probe outside the density-defined radius.
+    static_cast<void>(
+        blastwave::evaluateFlowField(radiusMedium, radiusMedium.emissionGeometry.centerX + 0.8, radiusMedium.emissionGeometry.centerY, radiusParameters));
+    require(radiusMedium.flowTransRadiusProfile.valid && !radiusMedium.flowTransRadiusProfile.boundaryRadii.empty(),
+            "Zero-strength shell-gradient test needs a valid reference radius profile.");
+    const double boundaryRadius = radiusMedium.flowTransRadiusProfile.boundaryRadii[0U];
+    require(std::isfinite(boundaryRadius) && boundaryRadius > 0.0, "Zero-strength shell-gradient test needs a finite radius profile boundary.");
+
+    const double probeFactor = 1.25;
+    const double probeRadius = boundaryRadius * probeFactor;
+    const double probeX = radiusMedium.emissionGeometry.centerX + probeRadius;
+    const blastwave::FlowFieldSample radiusSample = blastwave::evaluateFlowField(radiusMedium, probeX, radiusMedium.emissionGeometry.centerY, radiusParameters);
     const blastwave::FlowFieldSample correctedSample =
-        blastwave::evaluateFlowField(correctedMedium, probeRadius * std::cos(probePhi), probeRadius * std::sin(probePhi), correctedParameters);
+        blastwave::evaluateFlowField(correctedMedium, probeX, radiusMedium.emissionGeometry.centerY, correctedParameters);
     requireFiniteFlowFieldSample(radiusSample, "Radius-profile shell-gradient baseline should stay finite.");
     requireFiniteFlowFieldSample(correctedSample, "Zero-strength shell-gradient sample should stay finite.");
     requireNear(correctedSample.rhoRaw, radiusSample.rhoRaw, 1.0e-12, "Zero shell-gradient strength should preserve radius-profile rhoRaw.");
     requireNear(correctedSample.betaT, radiusSample.betaT, 1.0e-12, "Zero shell-gradient strength should preserve radius-profile betaT.");
+    require(probeRadius / boundaryRadius > 1.0, "Shell-gradient zero-strength check should be executed at xi_shell>1.");
+  }
+
+  void requireShellGradientOutsideDensityRadiusUsesOuterShell(blastwave::FlowTransRadiusMode radiusMode,
+                                                              double radiusFraction,
+                                                              const std::string &label) {
+    blastwave::EventMedium profileMedium = buildTriangularHotspotMedium(0.25);
+    blastwave::EventMedium radiusMedium = buildTriangularHotspotMedium(0.25);
+    blastwave::EventMedium correctedMedium = buildTriangularHotspotMedium(0.25);
+    const blastwave::FlowFieldParameters radiusParameters =
+        makeDensityNormalFlowTransParameters(0.7, 0.0, 1.0, 1.0, radiusMode, radiusFraction);
+    const blastwave::FlowFieldParameters correctedParameters = makeShellGradientFlowTransParameters(0.7, 1.0, 0.6, 0.2, radiusMode, radiusFraction);
+
+    // Compare xi_shell=1 and xi_shell>1 at the same angle.
+    // Main radial strength uses sigma-equivalent xi_flow, while correction lookup
+    // must stay clamped to xi_shell at the boundary.
+    static_cast<void>(blastwave::evaluateFlowField(profileMedium, 1.0, 0.0, radiusParameters));
+    const blastwave::FlowTransRadiusProfile profile = profileMedium.flowTransRadiusProfile;
+    require(profile.valid && profile.angularSamples > 40, label + " outer-shell clamp test needs a valid density-defined radius profile.");
+
+    bool foundNonTrivialCorrection = false;
+    for (int iAngle = 0; iAngle < profile.angularSamples; iAngle += 10) {
+      const double boundaryRadius = profile.boundaryRadii[static_cast<std::size_t>(iAngle)];
+      if (!std::isfinite(boundaryRadius) || boundaryRadius <= 0.0) {
+        continue;
+      }
+
+      const double angle = 2.0 * std::acos(-1.0) * static_cast<double>(iAngle) / static_cast<double>(profile.angularSamples);
+      const double directionX = std::cos(angle);
+      const double directionY = std::sin(angle);
+      const double boundaryX = profile.centerX + boundaryRadius * directionX;
+      const double boundaryY = profile.centerY + boundaryRadius * directionY;
+      const double outsideX = profile.centerX + 1.25 * boundaryRadius * directionX;
+      const double outsideY = profile.centerY + 1.25 * boundaryRadius * directionY;
+
+      const blastwave::FlowFieldSample boundaryBase = blastwave::evaluateFlowField(radiusMedium, boundaryX, boundaryY, radiusParameters);
+      const blastwave::FlowFieldSample boundaryCorrected = blastwave::evaluateFlowField(correctedMedium, boundaryX, boundaryY, correctedParameters);
+      const blastwave::FlowFieldSample outsideBase = blastwave::evaluateFlowField(radiusMedium, outsideX, outsideY, radiusParameters);
+      const blastwave::FlowFieldSample outsideCorrected = blastwave::evaluateFlowField(correctedMedium, outsideX, outsideY, correctedParameters);
+      requireFiniteFlowFieldSample(boundaryBase, label + " boundary radius-profile sample should stay finite in outer-shell clamp test.");
+      requireFiniteFlowFieldSample(boundaryCorrected, label + " boundary corrected sample should stay finite in outer-shell clamp test.");
+      requireFiniteFlowFieldSample(outsideBase, label + " outside radius-profile sample should stay finite in outer-shell clamp test.");
+      requireFiniteFlowFieldSample(outsideCorrected, label + " outside corrected sample should stay finite in outer-shell clamp test.");
+      if (boundaryBase.rhoRaw <= 0.0 || outsideBase.rhoRaw <= 0.0) {
+        continue;
+      }
+
+      const double boundaryFactor = boundaryCorrected.rhoRaw / boundaryBase.rhoRaw;
+      const double outsideFactor = outsideCorrected.rhoRaw / outsideBase.rhoRaw;
+      requireNear(outsideFactor, boundaryFactor, 1.0e-9, label + " outside shell-gradient correction should reuse the xi=1 table value.");
+      require(outsideCorrected.rhoRaw > boundaryCorrected.rhoRaw,
+              label + " outside shell-gradient sample should stay stronger than the boundary sample from unclamped xi_flow.");
+      foundNonTrivialCorrection = foundNonTrivialCorrection || std::abs(boundaryFactor - 1.0) > 1.0e-4;
+    }
+    require(foundNonTrivialCorrection, label + " outer-shell clamp test should see at least one non-trivial shell-gradient correction.");
+  }
+
+  void runShellGradientCorrectedOutsideDensityRadiusUsesOuterShellTest() {
+    requireShellGradientOutsideDensityRadiusUsesOuterShell(blastwave::FlowTransRadiusMode::DensityPercentile, 0.95, "density-percentile");
+    requireShellGradientOutsideDensityRadiusUsesOuterShell(blastwave::FlowTransRadiusMode::DensityLevel, 1.0e-3, "density-level");
   }
 
   void runShellGradientCorrectedCircularMediumTest() {
@@ -1009,8 +1163,11 @@ int main() {
     runFlowTransRadiusProfileResolutionCacheKeyTest();
     runFlowTransResolutionStabilityTest();
     runFlowTransDensityRadiusTracksTriangularStructureTest();
-    runFlowTransOutsideDensityRadiusClampsXiUsedTest();
+    runDensityRadiusEquivalentScaleOracleTest();
+    runFlowTransOutsideDensityRadiusUsesSigmaEquivalentXiTest();
+    runFlowTransOutsideDensityRadiusAppliesBetaCapTest();
     runShellGradientCorrectedZeroStrengthMatchesRadiusProfileTest();
+    runShellGradientCorrectedOutsideDensityRadiusUsesOuterShellTest();
     runShellGradientCorrectedCircularMediumTest();
     runShellGradientCorrectedAsymmetricMediumTest();
     runShellGradientCorrectedMaxFactorCapTest();

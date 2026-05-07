@@ -202,7 +202,7 @@ namespace {
   bool sampleFlowTransGradientCorrectionValue(const blastwave::FlowTransGradientCorrectionProfile &profile,
                                             double directionX,
                                             double directionY,
-                                            double xiUsed,
+                                            double xiShell,
                                             double &tildeA,
                                             double &shellMean) {
     if (!profile.valid || profile.angularSamples <= 0 || profile.radialSamples <= 0 || profile.tildeA.empty() || profile.shellMean.empty()) {
@@ -218,10 +218,12 @@ namespace {
     if (!std::isfinite(directionNorm) || directionNorm <= kDirectionTolerance) {
       return false;
     }
-    if (!std::isfinite(xiUsed)) {
+    if (!std::isfinite(xiShell)) {
       return false;
     }
-    const double xi = std::clamp(xiUsed, 0.0, 1.0);
+    // Clamp the correction-table lookup to its interpolation domain.
+    // The profile table is defined only for 0<=xi_shell<=1, even when the shell coordinate can exceed 1.
+    const double xi = std::clamp(xiShell, 0.0, 1.0);
 
     double angle = std::atan2(directionY / directionNorm, directionX / directionNorm);
     if (angle < 0.0) {
@@ -724,8 +726,8 @@ namespace {
     return std::numeric_limits<double>::quiet_NaN();
   }
 
-  // Convert one point into xi_used for density-defined transverse radii.
-  double computeDensityDefinedXiUsed(
+  // Convert one point into the density-shell coordinate r/R_density(phi).
+  double computeDensityDefinedXiShell(
       const blastwave::EventMedium &medium, double x, double y, const blastwave::FlowFieldParameters &parameters) {
     double rayX = 0.0;
     double rayY = 0.0;
@@ -748,8 +750,28 @@ namespace {
       return 0.0;
     }
 
+    // Keep xi_shell as radialDistance / R_density(phi) for split radial/correction lookup.
     const double xi = radialDistance / boundaryRadius;
-    return std::min(1.0, std::max(0.0, xi));
+    if (!std::isfinite(xi)) {
+      return std::numeric_limits<double>::quiet_NaN();
+    }
+    if (xi < 0.0) {
+      return std::numeric_limits<double>::quiet_NaN();
+    }
+    return xi;
+  }
+
+  // Map a density-defined boundary to the covariance-equivalent Gaussian
+  // radius used by the main transverse-rapidity profile.
+  double computeDensityDefinedScale(const blastwave::FlowFieldParameters &parameters) {
+    if (parameters.flowTransRadiusMode == blastwave::FlowTransRadiusMode::DensityPercentile) {
+      const double argument = -parameters.flowTransRadiusFraction;
+      return std::sqrt(-2.0 * std::log1p(argument));
+    }
+    if (parameters.flowTransRadiusMode == blastwave::FlowTransRadiusMode::DensityLevel) {
+      return std::sqrt(-2.0 * std::log(parameters.flowTransRadiusFraction));
+    }
+    return std::numeric_limits<double>::quiet_NaN();
   }
 
   // Build shared affine-effective closure values used by both runtime modes.
@@ -907,21 +929,28 @@ namespace {
       hasSampleDirection = true;
     }
 
-    double xiUsed = metric.rTilde;
+    double xiShell = metric.rTilde;
+    double xiFlow = metric.rTilde;
     bool hasDensityDefinedXi = false;
     if (hasDensityDefinedRadius || parameters.flowTransMagnitudeMode == blastwave::FlowTransMagnitudeMode::ShellGradientCorrected) {
-      xiUsed = computeDensityDefinedXiUsed(medium, x, y, parameters);
-      if (!std::isfinite(xiUsed)) {
-        xiUsed = metric.rTilde;
+      xiShell = computeDensityDefinedXiShell(medium, x, y, parameters);
+      if (!std::isfinite(xiShell)) {
+        xiShell = metric.rTilde;
+        xiFlow = metric.rTilde;
       } else {
+        const double densityScale = computeDensityDefinedScale(parameters);
+        if (!std::isfinite(densityScale)) {
+          return {};
+        }
+        xiFlow = densityScale * xiShell;
         hasDensityDefinedXi = true;
       }
     }
 
-    if (!std::isfinite(xiUsed) || xiUsed < 0.0) {
+    if (!std::isfinite(xiFlow) || xiFlow < 0.0) {
       return {};
     }
-    const double radialProfile = std::pow(xiUsed, parameters.flowTransProfilePower);
+    const double radialProfile = std::pow(xiFlow, parameters.flowTransProfilePower);
     if (!std::isfinite(radialProfile)) {
       return {};
     }
@@ -933,7 +962,7 @@ namespace {
       double tildeA = 0.0;
       double shellMean = 0.0;
       if (hasSampleDirection
-          && sampleFlowTransGradientCorrectionValue(gradientProfile, radialDirectionX, radialDirectionY, xiUsed, tildeA, shellMean)
+          && sampleFlowTransGradientCorrectionValue(gradientProfile, radialDirectionX, radialDirectionY, xiShell, tildeA, shellMean)
           && std::isfinite(parameters.flowTransGradientStrength)) {
         correctionDelta = parameters.flowTransGradientStrength * (tildeA - shellMean);
         correctionDelta = std::clamp(correctionDelta, -parameters.flowTransGradientMaxFactorDelta, parameters.flowTransGradientMaxFactorDelta);

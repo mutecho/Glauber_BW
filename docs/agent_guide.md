@@ -106,9 +106,9 @@ For exact example commands, use `docs/项目说明.md`.
 - `initial-geometry-a2/a3` are template mixture weights only; measured `eps2/eps3` should be used for response plots.
 - differential `v2{2}(pT)` / `v3{2}(pT)` are separate analysis payloads and currently use unit track weights only.
 - `density-normal-kappa-compensation` is opt-in and only meaningful for `affine-gaussian + density-normal`.
-- `flow-trans-rho0` and `flow-trans-profile-power` are the current public transverse rapidity baseline/profile names; old `rho0` and `flow-power` are rejected, not compatibility aliases.
-- `flow-trans-direction-gradient-fraction`, `flow-trans-radius`, and explicit `flow-trans-radius-resolution` are valid only for `flow-velocity-sampler = density-normal`; the resolution knob only changes density-percentile/level boundary-profile sampling, not the radius definition.
-- `flow-trans-magnitude-mode = shell-gradient-corrected` is only valid for `density-normal` with `density-percentile` or `density-level` radius; explicit `flow-trans-gradient-*` knobs require that mode and must not be treated as silent no-ops.
+- `flow-trans-rho0` and `flow-trans-profile-power` are the current public transverse rapidity baseline/profile names; old `rho0` and `flow-power` are rejected, not compatibility aliases. For density-defined radii, `flow-trans-rho0` is the rapidity scale at covariance-equivalent `xi_flow = 1`, not a global maximum or the density-boundary value.
+- `flow-trans-direction-gradient-fraction`, `flow-trans-radius`, and explicit `flow-trans-radius-resolution` are valid only for `flow-velocity-sampler = density-normal`; the resolution knob only changes density-percentile/level boundary-profile sampling. Density-defined `R(phi)` sets the angular shell geometry, while main strength uses `xi_flow = q * xi_shell` with `xi_shell = r/R(phi)`.
+- `flow-trans-magnitude-mode = shell-gradient-corrected` is only valid for `density-normal` with `density-percentile` or `density-level` radius; explicit `flow-trans-gradient-*` knobs require that mode and must not be treated as silent no-ops. For `xi_shell > 1`, only the correction-table lookup is clamped to the outer shell; the main radial strength still uses `xi_flow`.
 - `affine-effective` is opt-in and only valid for `affine-gaussian`.
 - `affine-effective-mode = additive-rho` keeps density-normal direction and keeps `flow-trans-rho0` as baseline average flow.
 - `affine-effective-mode = full-tensor` is opt-in and directly uses principal-axis tensor velocity closure.

@@ -118,8 +118,8 @@ namespace blastwave {
         throw std::invalid_argument("flow-trans-radius=density-percentile requires 0 < p < 1.");
       }
     } else if (config_.flowTransRadiusMode == FlowTransRadiusMode::DensityLevel) {
-      if (!isFinite(config_.flowTransRadiusFraction) || config_.flowTransRadiusFraction <= 0.0) {
-        throw std::invalid_argument("flow-trans-radius=density-level requires a finite fraction > 0.");
+      if (!isFinite(config_.flowTransRadiusFraction) || config_.flowTransRadiusFraction <= 0.0 || config_.flowTransRadiusFraction >= 1.0) {
+        throw std::invalid_argument("flow-trans-radius=density-level requires 0 < fraction < 1.");
       }
     }
     if (!isFinite(config_.flowDensitySigma) || config_.flowDensitySigma <= 0.0) {

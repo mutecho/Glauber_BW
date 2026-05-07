@@ -250,9 +250,9 @@ namespace {
                                     + ". Expected syntax 'density-level:<fraction>' with numeric <fraction>.");
       }
       const double fraction = parseDouble(fractionToken, optionName, sourceDescription);
-      if (!std::isfinite(fraction) || fraction <= 0.0) {
+      if (!std::isfinite(fraction) || fraction <= 0.0 || fraction >= 1.0) {
         throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription
-                                    + ". density-level requires a finite fraction > 0.");
+                                    + ". density-level requires 0 < fraction < 1.");
       }
       return {blastwave::FlowTransRadiusMode::DensityLevel, fraction};
     }

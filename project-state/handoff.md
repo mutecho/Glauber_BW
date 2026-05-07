@@ -2,17 +2,19 @@
 
 ## Latest Durable Handoff
 
-- Stage completed: shell-gradient-corrected density-normal flow-magnitude packet from `docs/高阶半径补充.md`
+- Stage completed: sigma-equivalent density-defined flow-trans radius fix from `docs/半径再次修复.md`
 - What changed:
-  - added `flow-trans-magnitude-mode = radius-profile | shell-gradient-corrected`
-  - kept `radius-profile` as the default behavior
-  - added `flow-trans-gradient-strength`, `flow-trans-gradient-density-floor-fraction`, and `flow-trans-gradient-max-factor-delta`
-  - implemented an event-level shell-gradient correction cache that reuses density-defined `R(phi)`, builds the cumulative gradient proxy, applies event RMS normalization, subtracts same-shell means, and clamps the multiplicative `delta`
-  - restricted corrected mode to `flow-velocity-sampler = density-normal` with `flow-trans-radius = density-percentile:<p>` or `density-level:<fraction>`
-  - rejected explicit `flow-trans-gradient-*` knobs unless corrected mode is selected
-  - added `config/test_b8_density_normal_flow_trans_gradient.cfg`
+  - split density-defined radius handling into `xi_shell = r / R_density(phi)` and `xi_flow = q * xi_shell`
+  - mapped `density-percentile:p` to `q = sqrt(-2 * log1p(-p))` and `density-level:fraction` to `q = sqrt(-2 * log(fraction))`
+  - changed the main density-defined transverse rapidity profile to use `xi_flow`
+  - kept invalid density-defined profiles on the existing covariance `rTilde` fallback path
+  - kept `sampleFlowTransGradientCorrectionValue()` lookup clamped to the correction-table domain `0 <= xi_shell <= 1`; `xi_shell > 1` reuses the outer shell correction while the base `rhoRaw` uses `xi_flow`
+  - tightened `density-level` parsing and generator validation to require `0 < fraction < 1`
+  - updated `test_flow_field_model` to cover hard-coded q oracles, `DensityPercentile`, `DensityLevel`, branch-local beta cap, zero-strength shell-gradient equality, and positive-strength shell-gradient `xi_shell`/`xi_flow` separation
+  - updated `test_run_options` to cover `density-level:1.0` / `1.2` rejection text
+  - updated active docs, relevant design notes, and `project-state/`
   - kept the ROOT schema unchanged
-  - updated parser, validation, help text, tests, active docs, and `project-state/`
+  - did not add or change config keys or example cfg files
 - Current documentation ownership:
   - detailed runtime and physics explanation: `docs/项目说明.md`
   - formula walkthrough: `docs/数学物理公式流程说明.md`
@@ -30,11 +32,13 @@
 - V2 `gradient-response` remains opt-in and coupled across medium and flow selection
 - `flow-trans-rho0` and `flow-trans-profile-power` are the current transverse rapidity baseline/profile names; `rho0` and `flow-power` are rejected
 - `flow-trans-direction-gradient-fraction`, `flow-trans-radius`, and explicit `flow-trans-radius-resolution` are only valid when `flow-velocity-sampler = density-normal`
-- `flow-trans-radius-resolution` only changes density-percentile/level profile sampling; it does not change `R(phi)` or `xi = r / R(phi)`, and has no effect on `flow-trans-radius = covariance`
+- `flow-trans-radius-resolution` only changes density-percentile/level profile sampling; it does not change `R_density(phi)`, `xi_shell`, `q`, or `xi_flow`, and has no effect on `flow-trans-radius = covariance`
+- for density-defined radii, `R_density(phi)` is a geometry boundary and `flow-trans-rho0` is the covariance-equivalent `xi_flow = 1` reference rapidity scale, not a global maximum
 - `flow-trans-magnitude-mode = radius-profile` is the default
 - `flow-trans-magnitude-mode = shell-gradient-corrected` requires `density-normal + density-percentile/level`
 - explicit `flow-trans-gradient-*` knobs require `shell-gradient-corrected`
 - `flow-trans-gradient-max-factor-delta` limits the multiplicative factor offset `delta`, not an additive rapidity increment
+- `shell-gradient-corrected` clamps only correction-table lookup to the outer shell for `xi_shell > 1`; the base `rhoRaw` uses `xi_flow`
 - `shell-gradient-corrected` does not add ROOT debug maps or schema objects in this packet
 - authoritative ROOT validation on this machine still comes from the O2Physics executor path
 - `shell_weight` and `EmissionSite::emissionWeight` restructuring remain intentionally deferred
@@ -50,7 +54,10 @@
 - durable baseline after this task: `verified` on 2026-05-07
 - local `cmake --build /Users/allenzhou/Research_software/Blast_wave/build -j4` passed
 - local full `ctest --test-dir /Users/allenzhou/Research_software/Blast_wave/build --output-on-failure` passed with 9/9 tests
-- focused `./bin/test_run_options` passed
-- focused `./bin/test_flow_field_model` passed
-- O2Physics ROOT executor `PRIMARY_OK` generate + QA passed for `config/test_b8_density_normal_flow_trans_gradient.cfg --nevents 20`, written to `qa/test_flow_trans_shell_gradient.root`
-- O2Physics ROOT executor `PRIMARY_OK` generate + QA passed for `config/test_b8_density_normal_flow_trans.cfg --nevents 20`, written to `qa/test_flow_trans_radius_profile_control.root`
+- focused `/Users/allenzhou/Research_software/Blast_wave/bin/test_flow_field_model` passed
+- focused `/Users/allenzhou/Research_software/Blast_wave/bin/test_run_options` passed
+- O2Physics ROOT executor generate + QA passed for `config/test_b8_density_normal_flow_trans.cfg --flow-trans-radius density-percentile:0.95 --nevents 20`, written to `/private/tmp/blastwave_radius_sigma_percentile.root`
+- O2Physics ROOT executor generate + QA passed for `config/test_b8_density_normal_flow_trans.cfg --flow-trans-radius density-level:1.0e-3 --nevents 20`, written to `/private/tmp/blastwave_radius_sigma_level.root`
+- O2Physics ROOT executor generate + QA passed for `config/test_b8_response_023_dense_mix.cfg --nevents 1000`, written to `/private/tmp/blastwave_response_023_dense_mix_sigma.root`
+- O2Physics ROOT executor generate + QA passed for `config/test_b8_023_dense_newrap.cfg --nevents 1000`, written to `/private/tmp/blastwave_response_023_dense_newrap_sigma.root`
+- ROOT metric extraction reported `dense_mix meanPt=1.041669379 psi2_proj=0.022560737` and `newrap meanPt=1.067941944 psi2_proj=0.022885878`

@@ -355,7 +355,7 @@
   - build density-defined profiles with scalar density queries, not full density-gradient samples
   - include resolution and radial sample count in the cached profile key
 - Consequences:
-  - the density-defined radius formula still uses `R(phi)` and `xi = r / R(phi)`; only the profile grid changes
+  - the density-defined boundary profile still owns only `R(phi)` sampling; later DEC-020 defines how `r/R(phi)` is mapped into the main flow-strength coordinate
   - the new default reduces boundary density-query count from `184320/event` to `61440/event`
   - explicit `flow-trans-radius-resolution` is rejected outside `flow-velocity-sampler = density-normal`
 
@@ -364,7 +364,7 @@
 - Status: accepted
 - Date: 2026-05-07
 - Context:
-  - the first high-order density-normal packet already made `xi_used = r / R(phi)` available for density-percentile and density-level radii
+  - the first high-order density-normal packet already made a density shell coordinate from `r / R(phi)` available for density-percentile and density-level radii
   - the second-stage design required direction-dependent flow strength differences within similar outward shells, without changing the default radius-profile behavior
   - the user explicitly requested landing `docs/高阶半径补充.md`
 - Decision:
@@ -376,7 +376,51 @@
   - implement the correction as a multiplicative factor `1 + delta`, where `delta` is clamped by `flow-trans-gradient-max-factor-delta`
   - keep the ROOT schema unchanged; correction diagnostics remain ROOT-free tests/smokes for this packet
 - Consequences:
-  - `flow-trans-rho0` remains the average transverse rapidity scale, not a new `rho_max` key
+  - `flow-trans-rho0` remains the transverse rapidity reference scale, not a new `rho_max` key
   - `flow-trans-gradient-strength = 0` is a valid corrected-mode baseline and degenerates to the main radius profile
   - invalid or degenerate correction profiles fall back to the stable radius-profile behavior
   - the new example config is `config/test_b8_density_normal_flow_trans_gradient.cfg`
+
+## DEC-019 Make Density-Defined Flow-Trans Xi Unbounded Above
+
+- Status: superseded by DEC-020
+- Date: 2026-05-07
+- Context:
+  - `flow-trans-radius = density-percentile:<p>` and `density-level:<fraction>` were intended to define a local density geometry scale `R(phi)`
+  - the implementation still treated that scale as a maximum-flow boundary by clamping `xi = r / R(phi)` to `<= 1`
+  - `docs/半径算法修复.md` selected the no-compatibility fix: keep the public config and schema stable, but correct the existing density-defined radius semantics
+- Decision:
+  - keep `flow-trans-radius`, `flow-trans-radius-resolution`, ROOT payloads, QA schema, and CLI names unchanged
+  - for finite density-defined radii, compute the base profile with `xiUsed = r / R(phi)` and no upper clamp
+  - keep non-finite density-defined radii on the existing covariance `rTilde` fallback path
+  - define `flow-trans-rho0` as the transverse rapidity scale at `xi = 1`, not as a global maximum flow strength
+  - keep `shell-gradient-corrected` correction-table lookup restricted to its profile domain `0 <= xi <= 1`; points with `xi > 1` reuse the outer shell correction value while the base `rhoRaw` keeps growing by the power law
+- Consequences:
+  - density-defined outside-boundary samples may have `rhoRaw > flowTransRho0`
+  - the final transverse velocity remains protected by the existing `betaT <= 0.95` cap
+  - ROOT-free tests now cover `density-percentile`, `density-level`, branch-local beta clipping, zero-strength shell-gradient equality at `xi > 1`, and positive-strength shell-gradient outer-shell lookup
+  - no new config file or config example was required because the input contract did not change
+
+## DEC-020 Use Sigma-Equivalent Flow Strength For Density-Defined Flow-Trans Radius
+
+- Status: accepted
+- Date: 2026-05-07
+- Context:
+  - `docs/半径再次修复.md` found that using `xi = r/R_density(phi)` directly made outer density boundaries such as `density-percentile:0.95` suppress the bulk flow scale
+  - the desired behavior is to keep density-defined radii for angular geometry while preserving comparability with the covariance-radius `flow-trans-rho0` scale
+  - the public config, ROOT schema, and metadata schema should stay unchanged
+- Decision:
+  - keep `flow-trans-radius = density-percentile:<p> | density-level:<fraction>` as density-normal-only selectors
+  - keep `flow-trans-radius-resolution` as a boundary-profile sampling knob only
+  - split density-defined radius semantics internally:
+    - `xi_shell = r / R_density(phi)` for density shell lookup
+    - `xi_flow = q * xi_shell` for the main transverse-rapidity profile
+  - use `q = sqrt(-2 * log1p(-p))` for `density-percentile:p`
+  - use `q = sqrt(-2 * log(fraction))` for `density-level:fraction`
+  - tighten `density-level` validation to `0 < fraction < 1`
+  - keep `shell-gradient-corrected` correction-table lookup on `xi_shell`, clamped to the table domain, while the main `rhoRaw` uses `xi_flow`
+- Consequences:
+  - `flow-trans-rho0` is now the covariance-equivalent `xi_flow = 1` rapidity scale for density-defined radii
+  - density-defined `R_density(phi)` remains a geometry boundary, not a maximum-flow boundary
+  - tests cover hard-coded q values, percentile and level formula paths, beta cap behavior, and shell-gradient `xi_shell`/`xi_flow` separation for both density selectors
+  - no config example or ROOT schema change is required because the input surface is unchanged apart from rejecting `density-level >= 1`

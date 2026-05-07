@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-05-07 Density-Defined Flow-Trans Sigma-Equivalent Radius
+
+- Changed density-percentile and density-level transverse-flow radii so `R_density(phi)` controls angular shell geometry while main strength uses `xi_flow = q * xi_shell`.
+- Defined `q = sqrt(-2 * log1p(-p))` for `density-percentile:p` and `q = sqrt(-2 * log(fraction))` for `density-level:fraction`.
+- Tightened `density-level` validation to `0 < fraction < 1`.
+- Kept shell-gradient correction table lookup bounded to `0 <= xi_shell <= 1`, reusing the outer shell for `xi_shell > 1` while the base `rhoRaw` uses `xi_flow`.
+- Kept CLI/config names, example cfg files, ROOT schema, and QA schema unchanged.
+- Updated ROOT-free tests, active docs, config comments, and `project-state/`; recorded local build, full `ctest`, O2Physics percentile/level smokes, and 1000-event response acceptance metrics.
+
 ## 2026-05-07 Shell-Gradient-Corrected Density-Normal Flow Magnitude
 
 - Added `flow-trans-magnitude-mode = radius-profile | shell-gradient-corrected`, keeping `radius-profile` as the default behavior.

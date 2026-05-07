@@ -5,8 +5,8 @@
 - Date: 2026-05-07
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
 - Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in affine-effective closure path with `additive-rho` and `full-tensor` submodes, the opt-in V2 gradient-response path, optional differential `v2/v3{2}(pT)` analysis, the opt-in `response-test-023` initial-geometry response-test path, and the opt-in density-normal `shell-gradient-corrected` transverse-flow magnitude mode.
-- Latest durable verification anchor: 2026-05-07 local build, full local `ctest`, and O2Physics `PRIMARY_OK` ROOT generate+QA smokes for the new shell-gradient-corrected density-normal config plus a radius-profile control run.
-- Latest task implemented the `shell-gradient-corrected` density-normal flow-magnitude packet from `docs/高阶半径补充.md`.
+- Latest durable verification anchor: 2026-05-07 local build, full local `ctest`, focused `test_flow_field_model` / `test_run_options`, and O2Physics `PRIMARY_OK` ROOT generate+QA smokes for density-percentile, density-level, and response-test density-normal paths.
+- Latest task implemented the sigma-equivalent density-defined radius fix from `docs/半径再次修复.md`.
 
 ## Current Runtime Baseline
 
@@ -38,9 +38,11 @@
   - `flow-trans-direction-gradient-fraction = 0..1`
   - `flow-trans-radius = covariance | density-percentile:<p> | density-level:<fraction>`
   - `flow-trans-radius-resolution = balanced | precise | fast` for density-defined profile construction only
+  - density-defined `R_density(phi)` is a geometry boundary; `xi_shell = r / R_density(phi)` is used for shell lookup
+  - main density-defined flow strength uses `xi_flow = q * xi_shell`, with `q = sqrt(-2 log(1-p))` for percentile and `q = sqrt(-2 log(fraction))` for level
   - `flow-trans-magnitude-mode = radius-profile | shell-gradient-corrected`
   - `flow-trans-gradient-strength`, `flow-trans-gradient-density-floor-fraction`, and `flow-trans-gradient-max-factor-delta` for the opt-in shell-gradient correction only
-  - `flow-trans-rho0` and `flow-trans-profile-power` are the public transverse rapidity baseline/profile names
+  - `flow-trans-rho0` is the covariance-equivalent `xi_flow = 1` reference rapidity scale, and `flow-trans-profile-power` is the public radius-profile exponent
 
 ## Current Contract Highlights
 
@@ -118,6 +120,8 @@
   - flow-trans naming/parser contract with direct old-name rejection
   - density-normal direction mixing and covariance/percentile/level radius modes
   - density-normal flow-trans radius resolution parsing, cache-key separation, and balanced-vs-precise stability
+  - density-normal density-defined radii with sigma-equivalent `xi_flow`, branch-local beta cap coverage, and shell-gradient `xi_shell` outer-shell lookup coverage
+  - 1000-event response-test density-normal `newrap` acceptance with `meanPt` at O(1.0) and `psi2_proj` at O(0.02)
   - density-normal shell-gradient-corrected magnitude parsing, validation, ROOT-free behavior, and ROOT generate+QA smoke
   - `chi2` TH1 contract
   - ROOT-free third-harmonic helper and response-template generator coverage
