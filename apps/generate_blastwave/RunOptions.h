@@ -1,6 +1,12 @@
 #pragma once
 
+#include <chrono>
+#include <condition_variable>
+#include <cstddef>
+#include <iosfwd>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "blastwave/BlastWaveGenerator.h"
@@ -22,6 +28,17 @@ namespace blastwave::app {
     bool hasFlowPtOutputPathOption = false;
   };
 
+  // Progress snapshots are pure render inputs, which keeps ETA/spinner
+  // formatting testable without starting a terminal heartbeat thread.
+  struct ProgressRenderSnapshot {
+    int totalEvents = 0;
+    int completedEvents = 0;
+    int activityFrame = 0;
+    std::chrono::steady_clock::duration elapsed{};
+  };
+
+  [[nodiscard]] std::string formatProgressLine(const ProgressRenderSnapshot &snapshot);
+
   // Keep progress reporting in the CLI layer so the generator core stays
   // side-effect free and deterministic under tests.
   class ProgressReporter {
@@ -33,13 +50,25 @@ namespace blastwave::app {
     void finish();
 
    private:
-    static constexpr int kBarWidth = 20;
+    void runHeartbeat();
+    void stopHeartbeat();
+    void renderLocked(std::chrono::steady_clock::time_point now);
+    void closeLineLocked();
 
     int totalEvents_ = 0;
-    int lastPercent_ = -1;
+    int completedEvents_ = 0;
+    int activityFrame_ = 0;
+    int lastRenderedPercent_ = -1;
+    std::size_t lastRenderedWidth_ = 0U;
+    std::ostream *output_ = nullptr;
+    std::chrono::steady_clock::time_point startTime_{};
+    std::mutex mutex_;
+    std::condition_variable heartbeatWake_;
+    std::thread heartbeatThread_;
     bool enabled_ = false;
     bool drawn_ = false;
     bool lineClosed_ = false;
+    bool stopRequested_ = false;
   };
 
   void printGenerateUsage(const char *programName);

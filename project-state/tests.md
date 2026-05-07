@@ -23,6 +23,19 @@ Long command transcripts and repeated smoke-command variants were intentionally 
 - authoritative outside-sandbox `analyze_blastwave_vnpt ...`
 - ROOT key inspection through the shared inspector scripts when payload placement needs confirmation
 
+## T-028 Progress Heartbeat And ETA
+
+- Status: passed on 2026-05-07
+- Evidence:
+  - local `cmake --build /Users/allenzhou/Research_software/Blast_wave/build -j4` passed after the progress reporter, CMake, test, and docs updates
+  - local `ctest --test-dir /Users/allenzhou/Research_software/Blast_wave/build --output-on-failure` passed with 10/10 tests
+  - focused `test_progress_reporter` passed with deterministic coverage for unknown initial ETA, finite average-event ETA, same-percent activity-frame changes, and final zero ETA
+  - manual `generate_blastwave_events config/test_b8.cfg --progress --nevents 5 --output /private/tmp/blastwave_progress_smoke.root` smoke exited successfully and printed a progress line containing an activity frame plus ETA
+- Locked conclusions:
+  - enabled generator progress now has a one-second heartbeat independent of integer-percent changes
+  - ETA is intentionally approximate and based only on average completed-event duration
+  - no public config key, ROOT schema, or QA schema change was introduced
+
 ## T-027 Density-Defined Flow-Trans Sigma-Equivalent Radius
 
 - Status: passed on 2026-05-07

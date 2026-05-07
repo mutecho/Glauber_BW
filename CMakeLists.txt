@@ -13,6 +13,7 @@ enable_testing()
 # TVectorD metadata plus histogram painters, so those ROOT components must be
 # linked eagerly instead of relying on delayed autoload.
 find_package(ROOT CONFIG REQUIRED COMPONENTS Core Graf Gpad Hist HistPainter Matrix RIO Tree)
+find_package(Threads REQUIRED)
 
 add_library(blastwave_core
   src/BlastWaveGenerator.cpp
@@ -103,6 +104,7 @@ target_link_libraries(generate_blastwave_events
   PRIVATE
     blastwave_core
     blastwave_rootio
+    Threads::Threads
     ROOT::Graf
     ROOT::Gpad
     ROOT::Hist
@@ -195,6 +197,37 @@ target_link_libraries(test_output_path_utils
 add_test(
   NAME test_output_path_utils
   COMMAND $<TARGET_FILE:test_output_path_utils>
+)
+
+add_executable(test_progress_reporter
+  apps/generate_blastwave/ProgressReporter.cpp
+  tests/ProgressReporterTest.cpp
+)
+
+target_include_directories(test_progress_reporter
+  PRIVATE
+    ${PROJECT_SOURCE_DIR}/apps
+    ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_options(test_progress_reporter
+  PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wshadow
+    -Wconversion
+    -Wsign-conversion
+)
+
+target_link_libraries(test_progress_reporter
+  PRIVATE
+    Threads::Threads
+)
+
+add_test(
+  NAME test_progress_reporter
+  COMMAND $<TARGET_FILE:test_progress_reporter>
 )
 
 add_executable(test_flow_field_model
@@ -372,7 +405,7 @@ add_test(
   COMMAND $<TARGET_FILE:test_blast_wave_generator_response>
 )
 
-set_target_properties(generate_blastwave_events qa_blastwave_output analyze_blastwave_vnpt test_maxwell_juttner_sampler test_output_path_utils test_flow_field_model test_emission_sampler test_run_options test_differential_flow_cumulant test_physics_utils test_harmonic_geometry test_blast_wave_generator_response
+set_target_properties(generate_blastwave_events qa_blastwave_output analyze_blastwave_vnpt test_maxwell_juttner_sampler test_output_path_utils test_progress_reporter test_flow_field_model test_emission_sampler test_run_options test_differential_flow_cumulant test_physics_utils test_harmonic_geometry test_blast_wave_generator_response
   PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin
 )

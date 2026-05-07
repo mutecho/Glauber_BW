@@ -5,8 +5,9 @@
 - Date: 2026-05-07
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
 - Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in affine-effective closure path with `additive-rho` and `full-tensor` submodes, the opt-in V2 gradient-response path, optional differential `v2/v3{2}(pT)` analysis, the opt-in `response-test-023` initial-geometry response-test path, and the opt-in density-normal `shell-gradient-corrected` transverse-flow magnitude mode.
-- Latest durable verification anchor: 2026-05-07 local build, full local `ctest`, focused `test_flow_field_model` / `test_run_options`, and O2Physics `PRIMARY_OK` ROOT generate+QA smokes for density-percentile, density-level, and response-test density-normal paths.
-- Latest task implemented the sigma-equivalent density-defined radius fix from `docs/半径再次修复.md`.
+- Latest durable verification anchor: 2026-05-07 local build, full local `ctest` with 10/10 tests, focused `test_progress_reporter`, and prior O2Physics `PRIMARY_OK` ROOT generate+QA smokes for density-percentile, density-level, and response-test density-normal paths.
+- Latest user-run-flow update: enabled `generate_blastwave_events` progress now includes a one-second activity heartbeat plus rough ETA while keeping the existing `progress` / `--progress` / `--no-progress` contract unchanged.
+- Latest task implemented the progress heartbeat/ETA update; the latest physics task remains the sigma-equivalent density-defined radius fix from `docs/半径再次修复.md`.
 
 ## Current Runtime Baseline
 
@@ -99,6 +100,7 @@
 
 - ROOT-free coverage currently includes:
   - `test_maxwell_juttner_sampler`
+  - `test_progress_reporter`
   - `test_run_options`
   - `test_flow_field_model`
   - `test_emission_sampler`

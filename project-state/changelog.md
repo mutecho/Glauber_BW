@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-05-07 Progress Heartbeat And ETA
+
+- Added a one-second heartbeat to `generate_blastwave_events` progress output so enabled progress visibly updates even when the integer percent is unchanged.
+- Added rough ETA rendering based on average completed-event time, showing unknown ETA before the first completed event and zero ETA at completion.
+- Kept the existing `progress`, `--progress`, `--no-progress`, auto-TTY behavior, config keys, ROOT schema, and QA schema unchanged.
+- Added deterministic `test_progress_reporter` coverage and updated the user-facing progress description in `docs/项目说明.md`.
+
 ## 2026-05-07 Density-Defined Flow-Trans Sigma-Equivalent Radius
 
 - Changed density-percentile and density-level transverse-flow radii so `R_density(phi)` controls angular shell geometry while main strength uses `xi_flow = q * xi_shell`.
