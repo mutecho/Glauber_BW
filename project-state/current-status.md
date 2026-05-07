@@ -4,9 +4,9 @@
 
 - Date: 2026-05-07
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
-- Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in affine-effective closure path with `additive-rho` and `full-tensor` submodes, the opt-in V2 gradient-response path, optional differential `v2/v3{2}(pT)` analysis, and the opt-in `response-test-023` initial-geometry response-test path.
-- Latest durable verification anchor: 2026-05-07 local build, full local `ctest`, and O2Physics ROOT generate+QA smokes for density-normal `flow-trans-radius = covariance`, `density-percentile:0.95` with `balanced` and `precise` resolution, and `density-level:1.0e-3` with `balanced` resolution.
-- Latest task implemented the `flow-trans-radius-resolution` optimization packet from `docs/高阶半径优化方案.md`.
+- Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in affine-effective closure path with `additive-rho` and `full-tensor` submodes, the opt-in V2 gradient-response path, optional differential `v2/v3{2}(pT)` analysis, the opt-in `response-test-023` initial-geometry response-test path, and the opt-in density-normal `shell-gradient-corrected` transverse-flow magnitude mode.
+- Latest durable verification anchor: 2026-05-07 local build, full local `ctest`, and O2Physics `PRIMARY_OK` ROOT generate+QA smokes for the new shell-gradient-corrected density-normal config plus a radius-profile control run.
+- Latest task implemented the `shell-gradient-corrected` density-normal flow-magnitude packet from `docs/高阶半径补充.md`.
 
 ## Current Runtime Baseline
 
@@ -38,6 +38,8 @@
   - `flow-trans-direction-gradient-fraction = 0..1`
   - `flow-trans-radius = covariance | density-percentile:<p> | density-level:<fraction>`
   - `flow-trans-radius-resolution = balanced | precise | fast` for density-defined profile construction only
+  - `flow-trans-magnitude-mode = radius-profile | shell-gradient-corrected`
+  - `flow-trans-gradient-strength`, `flow-trans-gradient-density-floor-fraction`, and `flow-trans-gradient-max-factor-delta` for the opt-in shell-gradient correction only
   - `flow-trans-rho0` and `flow-trans-profile-power` are the public transverse rapidity baseline/profile names
 
 ## Current Contract Highlights
@@ -52,6 +54,7 @@
   - `config/test_b8_response_023.cfg`
   - `config/test_b8_flowpt.cfg`
   - `config/test_b8_density_normal_flow_trans.cfg`
+  - `config/test_b8_density_normal_flow_trans_gradient.cfg`
 - public transverse-flow naming:
   - `rho0` is rejected; use `flow-trans-rho0`
   - `flow-power` is rejected; use `flow-trans-profile-power`
@@ -115,6 +118,7 @@
   - flow-trans naming/parser contract with direct old-name rejection
   - density-normal direction mixing and covariance/percentile/level radius modes
   - density-normal flow-trans radius resolution parsing, cache-key separation, and balanced-vs-precise stability
+  - density-normal shell-gradient-corrected magnitude parsing, validation, ROOT-free behavior, and ROOT generate+QA smoke
   - `chi2` TH1 contract
   - ROOT-free third-harmonic helper and response-template generator coverage
   - default Glauber generation + QA with the expanded third-harmonic schema

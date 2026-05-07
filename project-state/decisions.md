@@ -358,3 +358,25 @@
   - the density-defined radius formula still uses `R(phi)` and `xi = r / R(phi)`; only the profile grid changes
   - the new default reduces boundary density-query count from `184320/event` to `61440/event`
   - explicit `flow-trans-radius-resolution` is rejected outside `flow-velocity-sampler = density-normal`
+
+## DEC-018 Add Shell-Gradient-Corrected Density-Normal Flow Magnitude Mode
+
+- Status: accepted
+- Date: 2026-05-07
+- Context:
+  - the first high-order density-normal packet already made `xi_used = r / R(phi)` available for density-percentile and density-level radii
+  - the second-stage design required direction-dependent flow strength differences within similar outward shells, without changing the default radius-profile behavior
+  - the user explicitly requested landing `docs/高阶半径补充.md`
+- Decision:
+  - add `flow-trans-magnitude-mode = radius-profile | shell-gradient-corrected`
+  - keep `radius-profile` as the default and preserve existing behavior
+  - add `flow-trans-gradient-strength`, `flow-trans-gradient-density-floor-fraction`, and `flow-trans-gradient-max-factor-delta`
+  - allow `shell-gradient-corrected` only for `flow-velocity-sampler = density-normal` with `flow-trans-radius = density-percentile:<p>` or `density-level:<fraction>`
+  - reject explicit `flow-trans-gradient-*` knobs unless `shell-gradient-corrected` is selected
+  - implement the correction as a multiplicative factor `1 + delta`, where `delta` is clamped by `flow-trans-gradient-max-factor-delta`
+  - keep the ROOT schema unchanged; correction diagnostics remain ROOT-free tests/smokes for this packet
+- Consequences:
+  - `flow-trans-rho0` remains the average transverse rapidity scale, not a new `rho_max` key
+  - `flow-trans-gradient-strength = 0` is a valid corrected-mode baseline and degenerates to the main radius profile
+  - invalid or degenerate correction profiles fall back to the stable radius-profile behavior
+  - the new example config is `config/test_b8_density_normal_flow_trans_gradient.cfg`

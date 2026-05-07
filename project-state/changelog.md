@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-05-07 Shell-Gradient-Corrected Density-Normal Flow Magnitude
+
+- Added `flow-trans-magnitude-mode = radius-profile | shell-gradient-corrected`, keeping `radius-profile` as the default behavior.
+- Added `flow-trans-gradient-strength`, `flow-trans-gradient-density-floor-fraction`, and `flow-trans-gradient-max-factor-delta`.
+- Implemented an event-level `FlowTransGradientCorrectionProfile` cache that reuses density-defined `R(phi)`, integrates the outward density-gradient proxy, normalizes it event-wide, subtracts same-shell means, and applies a clamped multiplicative correction.
+- Restricted `shell-gradient-corrected` to `density-normal + density-percentile/level`; covariance radius and non-density-normal samplers now fail validation for that mode.
+- Added `config/test_b8_density_normal_flow_trans_gradient.cfg` as the complete Chinese example config for the opt-in corrected path.
+- Updated parser, validation, help text, ROOT-free tests, active docs, and `project-state/`; recorded local build, full `ctest`, and O2Physics `PRIMARY_OK` ROOT generate+QA smokes for shell-gradient and radius-profile control runs.
+
 ## 2026-05-07 Flow-Trans Radius Resolution Presets
 
 - Added density-normal-only `flow-trans-radius-resolution = balanced | precise | fast`, with `balanced` as the new default profile grid and `precise` preserving the old `360 x 512` grid.

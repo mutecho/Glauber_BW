@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 #include <exception>
 #include <iostream>
@@ -24,6 +25,12 @@ namespace {
     if (std::abs(actual - expected) > tolerance) {
       throw std::runtime_error(message + " actual=" + std::to_string(actual) + " expected=" + std::to_string(expected));
     }
+  }
+
+  void requireFiniteFlowFieldSample(const blastwave::FlowFieldSample &sample, const std::string &message) {
+    require(std::isfinite(sample.betaX) && std::isfinite(sample.betaY) && std::isfinite(sample.betaT) && std::isfinite(sample.rhoRaw)
+                && std::isfinite(sample.rTilde),
+            message);
   }
 
   std::vector<blastwave::WeightedTransversePoint> makeAxisAlignedEllipse() {
@@ -102,6 +109,22 @@ namespace {
     parameters.flowTransRadiusResolution = resolution;
     parameters.hasFlowTransDirectionGradientFraction = true;
     parameters.hasFlowTransRadius = true;
+    return parameters;
+  }
+
+  blastwave::FlowFieldParameters makeShellGradientFlowTransParameters(double rho,
+                                                                      double profilePower,
+                                                                      double strength,
+                                                                      double maxFactorDelta,
+                                                                      blastwave::FlowTransRadiusMode radiusMode =
+                                                                          blastwave::FlowTransRadiusMode::DensityPercentile,
+                                                                      double radiusFraction = 0.95) {
+    blastwave::FlowFieldParameters parameters = makeDensityNormalFlowTransParameters(
+        rho, 0.0, profilePower, 1.0, radiusMode, radiusFraction, blastwave::FlowTransRadiusResolution::Balanced);
+    parameters.flowTransMagnitudeMode = blastwave::FlowTransMagnitudeMode::ShellGradientCorrected;
+    parameters.flowTransGradientStrength = strength;
+    parameters.flowTransGradientDensityFloorFraction = 1.0e-4;
+    parameters.flowTransGradientMaxFactorDelta = maxFactorDelta;
     return parameters;
   }
 
@@ -431,6 +454,102 @@ namespace {
         0.7, 0.0, 1.3, 0.0, blastwave::FlowTransRadiusMode::DensityLevel, 1.0e-3);
     const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(medium, 50.0, 0.0, parameters);
     requireNear(sample.rhoRaw, parameters.flowTransRho0, 1.0e-12, "Boundary-exterior density-defined xi should clamp to one.");
+  }
+
+  void runShellGradientCorrectedZeroStrengthMatchesRadiusProfileTest() {
+    const blastwave::EventMedium radiusMedium = buildTriangularHotspotMedium(0.25);
+    const blastwave::EventMedium correctedMedium = buildTriangularHotspotMedium(0.25);
+    const blastwave::FlowFieldParameters radiusParameters = makeDensityNormalFlowTransParameters(
+        0.7, 0.0, 1.2, 1.0, blastwave::FlowTransRadiusMode::DensityPercentile, 0.95);
+    const blastwave::FlowFieldParameters correctedParameters = makeShellGradientFlowTransParameters(0.7, 1.2, 0.0, 0.2);
+
+    const double probePhi = 0.7;
+    const double probeRadius = 1.1;
+    const blastwave::FlowFieldSample radiusSample =
+        blastwave::evaluateFlowField(radiusMedium, probeRadius * std::cos(probePhi), probeRadius * std::sin(probePhi), radiusParameters);
+    const blastwave::FlowFieldSample correctedSample =
+        blastwave::evaluateFlowField(correctedMedium, probeRadius * std::cos(probePhi), probeRadius * std::sin(probePhi), correctedParameters);
+    requireFiniteFlowFieldSample(radiusSample, "Radius-profile shell-gradient baseline should stay finite.");
+    requireFiniteFlowFieldSample(correctedSample, "Zero-strength shell-gradient sample should stay finite.");
+    requireNear(correctedSample.rhoRaw, radiusSample.rhoRaw, 1.0e-12, "Zero shell-gradient strength should preserve radius-profile rhoRaw.");
+    requireNear(correctedSample.betaT, radiusSample.betaT, 1.0e-12, "Zero shell-gradient strength should preserve radius-profile betaT.");
+  }
+
+  void runShellGradientCorrectedCircularMediumTest() {
+    const blastwave::EventMedium medium = buildCircularMedium(0.35);
+    const blastwave::FlowFieldParameters parameters = makeShellGradientFlowTransParameters(0.7, 1.0, 0.6, 0.2);
+    const blastwave::FlowFieldSample sampleX = blastwave::evaluateFlowField(medium, 0.8, 0.0, parameters);
+    const blastwave::FlowFieldSample sampleY = blastwave::evaluateFlowField(medium, 0.0, 0.8, parameters);
+    requireFiniteFlowFieldSample(sampleX, "Circular shell-gradient sample on x should stay finite.");
+    requireFiniteFlowFieldSample(sampleY, "Circular shell-gradient sample on y should stay finite.");
+    requireNear(sampleX.rhoRaw, sampleY.rhoRaw, 1.0e-8, "Circular medium should not create angle-dependent shell-gradient strength.");
+  }
+
+  void runShellGradientCorrectedAsymmetricMediumTest() {
+    blastwave::EventMedium medium = buildTriangularHotspotMedium(0.25);
+    const blastwave::FlowFieldParameters radiusParameters = makeDensityNormalFlowTransParameters(
+        0.7, 0.0, 1.0, 1.0, blastwave::FlowTransRadiusMode::DensityPercentile, 0.95);
+    const blastwave::FlowFieldParameters correctedParameters = makeShellGradientFlowTransParameters(0.7, 1.0, 0.6, 0.2);
+
+    static_cast<void>(blastwave::evaluateFlowField(medium, 1.0, 0.0, radiusParameters));
+    const blastwave::FlowTransRadiusProfile profile = medium.flowTransRadiusProfile;
+    require(profile.valid && profile.angularSamples > 40, "Asymmetric shell-gradient test needs a valid density-defined radius profile.");
+
+    constexpr double kTargetXi = 0.65;
+    const double hotspotPhi = 0.0;
+    const double valleyPhi = std::acos(-1.0) / 3.0;
+    const double hotspotRadius = kTargetXi * profile.boundaryRadii[0U];
+    const double valleyRadius = kTargetXi * profile.boundaryRadii[static_cast<std::size_t>(profile.angularSamples / 6)];
+    const blastwave::FlowFieldSample hotspotSample =
+        blastwave::evaluateFlowField(medium, hotspotRadius * std::cos(hotspotPhi), hotspotRadius * std::sin(hotspotPhi), correctedParameters);
+    const blastwave::FlowFieldSample valleySample =
+        blastwave::evaluateFlowField(medium, valleyRadius * std::cos(valleyPhi), valleyRadius * std::sin(valleyPhi), correctedParameters);
+    requireFiniteFlowFieldSample(hotspotSample, "Hotspot shell-gradient sample should stay finite.");
+    requireFiniteFlowFieldSample(valleySample, "Valley shell-gradient sample should stay finite.");
+    require(std::abs(hotspotSample.rhoRaw - valleySample.rhoRaw) > 1.0e-4,
+            "Shell-gradient correction should distinguish same-xi directions in a triangular medium.");
+  }
+
+  void runShellGradientCorrectedMaxFactorCapTest() {
+    blastwave::EventMedium medium = buildTriangularHotspotMedium(0.25);
+    const blastwave::FlowFieldParameters radiusParameters = makeDensityNormalFlowTransParameters(
+        0.7, 0.0, 1.0, 1.0, blastwave::FlowTransRadiusMode::DensityPercentile, 0.95);
+    const blastwave::FlowFieldParameters cappedParameters = makeShellGradientFlowTransParameters(0.7, 1.0, 100.0, 0.01);
+
+    static_cast<void>(blastwave::evaluateFlowField(medium, 1.0, 0.0, radiusParameters));
+    const blastwave::FlowTransRadiusProfile profile = medium.flowTransRadiusProfile;
+    require(profile.valid, "Cap test needs a valid density-defined radius profile.");
+
+    bool foundCappedProbe = false;
+    for (int iAngle = 0; iAngle < profile.angularSamples; iAngle += 10) {
+      const double boundaryRadius = profile.boundaryRadii[static_cast<std::size_t>(iAngle)];
+      if (!std::isfinite(boundaryRadius) || boundaryRadius <= 0.0) {
+        continue;
+      }
+      const double angle = 2.0 * std::acos(-1.0) * static_cast<double>(iAngle) / static_cast<double>(profile.angularSamples);
+      const double radius = 0.65 * boundaryRadius;
+      const double x = medium.emissionGeometry.centerX + radius * std::cos(angle);
+      const double y = medium.emissionGeometry.centerY + radius * std::sin(angle);
+      const blastwave::FlowFieldSample baseSample = blastwave::evaluateFlowField(medium, x, y, radiusParameters);
+      const blastwave::FlowFieldSample cappedSample = blastwave::evaluateFlowField(medium, x, y, cappedParameters);
+      requireFiniteFlowFieldSample(cappedSample, "Capped shell-gradient sample should stay finite.");
+      if (baseSample.rhoRaw <= 0.0) {
+        continue;
+      }
+      const double factor = cappedSample.rhoRaw / baseSample.rhoRaw;
+      require(factor >= 0.99 - 1.0e-10 && factor <= 1.01 + 1.0e-10, "Shell-gradient max-factor cap should bound the multiplicative correction.");
+      foundCappedProbe = foundCappedProbe || std::abs(factor - 1.0) > 5.0e-3;
+    }
+    require(foundCappedProbe, "High shell-gradient strength should hit the max-factor cap for at least one asymmetric probe.");
+  }
+
+  void runShellGradientCorrectedDegeneratePathStaysFiniteTest() {
+    blastwave::EventMedium medium = buildCircularMedium(0.35);
+    medium.emissionDensity.supportPoints.clear();
+    medium.emissionDensityScale = 0.0;
+    const blastwave::FlowFieldParameters parameters = makeShellGradientFlowTransParameters(0.7, 1.0, 10.0, 0.2);
+    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(medium, 0.8, 0.0, parameters);
+    requireFiniteFlowFieldSample(sample, "Degenerate shell-gradient cache should fall back to a finite radius-profile sample.");
   }
 
   void runSharedRTildeTest() {
@@ -891,6 +1010,11 @@ int main() {
     runFlowTransResolutionStabilityTest();
     runFlowTransDensityRadiusTracksTriangularStructureTest();
     runFlowTransOutsideDensityRadiusClampsXiUsedTest();
+    runShellGradientCorrectedZeroStrengthMatchesRadiusProfileTest();
+    runShellGradientCorrectedCircularMediumTest();
+    runShellGradientCorrectedAsymmetricMediumTest();
+    runShellGradientCorrectedMaxFactorCapTest();
+    runShellGradientCorrectedDegeneratePathStaysFiniteTest();
     runAffineFlowResponseTest();
     runAffineDensityNormalCompensationTest();
     runAffineEffectiveAdditiveDirectionAndCenterTest();

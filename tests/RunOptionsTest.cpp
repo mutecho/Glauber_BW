@@ -52,6 +52,14 @@ namespace {
     bool showHelp = false;
   };
 
+  void requireFlowTransMagnitudeMode(const blastwave::BlastWaveConfig &config, blastwave::FlowTransMagnitudeMode expected, const std::string &message) {
+    require(config.flowTransMagnitudeMode == expected, message);
+  }
+
+  void requireHasFlowTransMagnitudeMode(const blastwave::BlastWaveConfig &config, const std::string &message) {
+    require(config.hasFlowTransMagnitudeMode, message);
+  }
+
   ParsedRunOptions parseArguments(const std::vector<std::string> &arguments) {
     std::vector<std::string> storage;
     storage.reserve(arguments.size() + 1U);
@@ -67,6 +75,29 @@ namespace {
     ParsedRunOptions parsed;
     parsed.runOptions = blastwave::app::parseRunOptions(static_cast<int>(argv.size()), argv.data(), parsed.showHelp);
     return parsed;
+  }
+
+  blastwave::BlastWaveConfig makeShellGradientConfig(blastwave::FlowTransRadiusMode radiusMode,
+                                                     double radiusFraction,
+                                                     double gradientStrength,
+                                                     double floorFraction,
+                                                     double maxFactorDelta,
+                                                     blastwave::FlowVelocitySamplerMode samplerMode = blastwave::FlowVelocitySamplerMode::DensityNormal) {
+    blastwave::BlastWaveConfig config;
+    config.flowVelocitySamplerMode = samplerMode;
+    config.densityEvolutionMode = blastwave::DensityEvolutionMode::AffineGaussianResponse;
+    config.flowTransRadiusMode = radiusMode;
+    config.flowTransRadiusFraction = radiusFraction;
+    config.hasFlowTransRadius = true;
+    config.flowTransMagnitudeMode = blastwave::FlowTransMagnitudeMode::ShellGradientCorrected;
+    config.hasFlowTransMagnitudeMode = true;
+    config.flowTransGradientStrength = gradientStrength;
+    config.flowTransGradientDensityFloorFraction = floorFraction;
+    config.flowTransGradientMaxFactorDelta = maxFactorDelta;
+    config.hasFlowTransGradientStrength = true;
+    config.hasFlowTransGradientDensityFloorFraction = true;
+    config.hasFlowTransGradientMaxFactorDelta = true;
+    return config;
   }
 
   void requireGeneratorValidationSuccess(const blastwave::BlastWaveConfig &config, const std::string &message) {
@@ -286,6 +317,124 @@ namespace {
     config.flowTransRadiusResolution = blastwave::FlowTransRadiusResolution::Balanced;
     config.hasFlowTransRadiusResolution = true;
     requireGeneratorValidationFailure(config, "Explicit flow-trans-radius-resolution should be rejected outside density-normal.");
+  }
+
+  // Exercise the new magnitude-mode parser against the default, config, CLI, and override paths.
+  void runFlowTransMagnitudeModeParseTest() {
+    const ParsedRunOptions defaultParsed = parseArguments({});
+    requireFlowTransMagnitudeMode(defaultParsed.runOptions.config,
+                                  blastwave::FlowTransMagnitudeMode::RadiusProfile,
+                                  "Default flow-trans-magnitude-mode should stay radius-profile.");
+    require(!defaultParsed.runOptions.config.hasFlowTransMagnitudeMode,
+            "Default flow-trans-magnitude-mode should stay implicit.");
+
+    const TemporaryConfigFile radiusProfileConfig("flow-trans-magnitude-mode = radius-profile\n");
+    const ParsedRunOptions radiusProfileParsed = parseArguments({radiusProfileConfig.path().string()});
+    requireFlowTransMagnitudeMode(radiusProfileParsed.runOptions.config,
+                                  blastwave::FlowTransMagnitudeMode::RadiusProfile,
+                                  "Config flow-trans-magnitude-mode should parse radius-profile.");
+    requireHasFlowTransMagnitudeMode(radiusProfileParsed.runOptions.config,
+                                     "Config radius-profile flow-trans-magnitude-mode should mark the option explicit.");
+
+    const TemporaryConfigFile shellGradientConfig("flow-trans-magnitude-mode = shell-gradient-corrected\n");
+    const ParsedRunOptions shellGradientParsed = parseArguments({shellGradientConfig.path().string()});
+    requireFlowTransMagnitudeMode(shellGradientParsed.runOptions.config,
+                                  blastwave::FlowTransMagnitudeMode::ShellGradientCorrected,
+                                  "Config flow-trans-magnitude-mode should parse shell-gradient-corrected.");
+    requireHasFlowTransMagnitudeMode(shellGradientParsed.runOptions.config,
+                                     "Config shell-gradient-corrected flow-trans-magnitude-mode should mark the option explicit.");
+
+    const ParsedRunOptions cliShellGradient = parseArguments({"--flow-trans-magnitude-mode", "shell-gradient-corrected"});
+    requireFlowTransMagnitudeMode(cliShellGradient.runOptions.config,
+                                  blastwave::FlowTransMagnitudeMode::ShellGradientCorrected,
+                                  "CLI flow-trans-magnitude-mode should parse shell-gradient-corrected.");
+    requireHasFlowTransMagnitudeMode(cliShellGradient.runOptions.config,
+                                     "CLI shell-gradient-corrected flow-trans-magnitude-mode should mark the option explicit.");
+
+    const ParsedRunOptions overridden = parseArguments({shellGradientConfig.path().string(), "--flow-trans-magnitude-mode", "radius-profile"});
+    requireFlowTransMagnitudeMode(overridden.runOptions.config,
+                                  blastwave::FlowTransMagnitudeMode::RadiusProfile,
+                                  "CLI flow-trans-magnitude-mode should override the config-file shell-gradient-corrected value.");
+    requireHasFlowTransMagnitudeMode(overridden.runOptions.config,
+                                     "CLI override should still mark flow-trans-magnitude-mode explicit.");
+  }
+
+  // Reject bad magnitude-mode labels with a diagnostic that names the new contract values.
+  void runInvalidFlowTransMagnitudeModeRejectsTest() {
+    bool threw = false;
+    try {
+      static_cast<void>(parseArguments({"--flow-trans-magnitude-mode", "not-a-mode"}));
+    } catch (const std::invalid_argument &error) {
+      threw = std::string(error.what()).find("flow-trans-magnitude-mode") != std::string::npos;
+    }
+    require(threw, "Invalid CLI flow-trans-magnitude-mode should be rejected.");
+
+    const TemporaryConfigFile invalidConfig("flow-trans-magnitude-mode = not-a-mode\n");
+    threw = false;
+    try {
+      static_cast<void>(parseArguments({invalidConfig.path().string()}));
+    } catch (const std::invalid_argument &error) {
+      threw = std::string(error.what()).find("flow-trans-magnitude-mode") != std::string::npos;
+    }
+    require(threw, "Invalid config flow-trans-magnitude-mode should be rejected.");
+  }
+
+  // Validate the density-defined shell-gradient path on the two supported radius selectors.
+  void runShellGradientCorrectedDensityRadiusValidationTest() {
+    const blastwave::BlastWaveConfig percentileConfig =
+        makeShellGradientConfig(blastwave::FlowTransRadiusMode::DensityPercentile, 0.95, 0.25, 1.0e-4, 0.2);
+    requireGeneratorValidationSuccess(percentileConfig, "shell-gradient-corrected with density-percentile should validate.");
+
+    const blastwave::BlastWaveConfig levelConfig =
+        makeShellGradientConfig(blastwave::FlowTransRadiusMode::DensityLevel, 1.0e-3, 0.25, 1.0e-4, 0.2);
+    requireGeneratorValidationSuccess(levelConfig, "shell-gradient-corrected with density-level should validate.");
+  }
+
+  // Reject shell-gradient usage when the sampler or radius choice is incompatible with the contract.
+  void runShellGradientCorrectedValidationRejectsTest() {
+    const blastwave::BlastWaveConfig covarianceRadius =
+        makeShellGradientConfig(blastwave::FlowTransRadiusMode::Covariance, 0.0, 0.25, 1.0e-4, 0.2);
+    requireGeneratorValidationFailure(covarianceRadius, "shell-gradient-corrected with covariance radius should be rejected.");
+
+    const blastwave::BlastWaveConfig nonDensityNormalSampler = makeShellGradientConfig(blastwave::FlowTransRadiusMode::DensityPercentile,
+                                                                                       0.95,
+                                                                                       0.25,
+                                                                                       1.0e-4,
+                                                                                       0.2,
+                                                                                       blastwave::FlowVelocitySamplerMode::CovarianceEllipse);
+    requireGeneratorValidationFailure(nonDensityNormalSampler, "shell-gradient-corrected should be rejected outside density-normal.");
+  }
+
+  // Reject explicit gradient knobs when the magnitude mode stays on the legacy radius-profile path.
+  void runRadiusProfileGradientKnobValidationRejectsTest() {
+    blastwave::BlastWaveConfig radiusProfileGradientStrength;
+    radiusProfileGradientStrength.flowVelocitySamplerMode = blastwave::FlowVelocitySamplerMode::DensityNormal;
+    radiusProfileGradientStrength.densityEvolutionMode = blastwave::DensityEvolutionMode::AffineGaussianResponse;
+    radiusProfileGradientStrength.flowTransRadiusMode = blastwave::FlowTransRadiusMode::DensityPercentile;
+    radiusProfileGradientStrength.flowTransRadiusFraction = 0.95;
+    radiusProfileGradientStrength.hasFlowTransRadius = true;
+    radiusProfileGradientStrength.flowTransMagnitudeMode = blastwave::FlowTransMagnitudeMode::RadiusProfile;
+    radiusProfileGradientStrength.hasFlowTransMagnitudeMode = true;
+    radiusProfileGradientStrength.flowTransGradientStrength = 0.25;
+    radiusProfileGradientStrength.hasFlowTransGradientStrength = true;
+    requireGeneratorValidationFailure(radiusProfileGradientStrength,
+                                      "Explicit flow-trans-gradient-strength should be rejected unless shell-gradient-corrected is selected.");
+  }
+
+  // Keep the new floor and cap bounds finite and within the allowed multiplicative range.
+  void runShellGradientBoundValidationRejectsTest() {
+    const blastwave::BlastWaveConfig zeroFloor = makeShellGradientConfig(blastwave::FlowTransRadiusMode::DensityPercentile, 0.95, 0.25, 0.0, 0.2);
+    requireGeneratorValidationFailure(zeroFloor, "Zero flow-trans-gradient-density-floor-fraction should fail validation.");
+
+    const blastwave::BlastWaveConfig negativeFloor =
+        makeShellGradientConfig(blastwave::FlowTransRadiusMode::DensityPercentile, 0.95, 0.25, -1.0e-4, 0.2);
+    requireGeneratorValidationFailure(negativeFloor, "Negative flow-trans-gradient-density-floor-fraction should fail validation.");
+
+    const blastwave::BlastWaveConfig negativeCap = makeShellGradientConfig(blastwave::FlowTransRadiusMode::DensityPercentile, 0.95, 0.25, 1.0e-4, -0.1);
+    requireGeneratorValidationFailure(negativeCap, "Negative flow-trans-gradient-max-factor-delta should fail validation.");
+
+    const blastwave::BlastWaveConfig largeCap = makeShellGradientConfig(blastwave::FlowTransRadiusMode::DensityPercentile, 0.95, 0.25, 1.0e-4, 1.0);
+    requireGeneratorValidationFailure(largeCap, "flow-trans-gradient-max-factor-delta >= 1 should fail validation.");
   }
 
   void runDeprecatedTransverseFlowNamesRejectTest() {
@@ -902,6 +1051,12 @@ int main() {
     runFlowTransRadiusResolutionCliOverrideParseTest();
     runInvalidFlowTransRadiusResolutionRejectsTest();
     runFlowTransRadiusResolutionValidationRejectsTest();
+    runFlowTransMagnitudeModeParseTest();
+    runInvalidFlowTransMagnitudeModeRejectsTest();
+    runShellGradientCorrectedDensityRadiusValidationTest();
+    runShellGradientCorrectedValidationRejectsTest();
+    runRadiusProfileGradientKnobValidationRejectsTest();
+    runShellGradientBoundValidationRejectsTest();
     runDeprecatedTransverseFlowNamesRejectTest();
     runFlowTransRadiusParseVariantsTest();
     runInvalidFlowTransRadiusRejectsTest();

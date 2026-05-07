@@ -118,6 +118,10 @@ namespace blastwave {
     parameters.affineKappaAniso = config_.affineKappaAniso;
     parameters.affineUMax = config_.affineUMax;
     parameters.affineEffectiveMode = config_.affineEffectiveMode;
+    parameters.flowTransMagnitudeMode = config_.flowTransMagnitudeMode;
+    parameters.flowTransGradientStrength = config_.flowTransGradientStrength;
+    parameters.flowTransGradientDensityFloorFraction = config_.flowTransGradientDensityFloorFraction;
+    parameters.flowTransGradientMaxFactorDelta = config_.flowTransGradientMaxFactorDelta;
     parameters.flowTransDirectionGradientFraction = config_.flowTransDirectionGradientFraction;
     parameters.flowTransRadiusMode = config_.flowTransRadiusMode;
     parameters.flowTransRadiusFraction = config_.flowTransRadiusFraction;

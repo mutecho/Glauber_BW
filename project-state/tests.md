@@ -3,7 +3,7 @@
 ## Durable Verification Baseline
 
 - Status: verified
-- Last comprehensive refresh: 2026-05-06
+- Last comprehensive refresh: 2026-05-07
 - Evidence shape:
   - local rebuild of touched binaries and regression targets passed
   - local `ctest` passed
@@ -22,6 +22,24 @@ Long command transcripts and repeated smoke-command variants were intentionally 
 - authoritative outside-sandbox `qa_blastwave_output ...`
 - authoritative outside-sandbox `analyze_blastwave_vnpt ...`
 - ROOT key inspection through the shared inspector scripts when payload placement needs confirmation
+
+## T-025 Shell-Gradient-Corrected Density-Normal Flow Magnitude
+
+- Status: passed on 2026-05-07
+- Evidence:
+  - local `cmake --build /Users/allenzhou/Research_software/Blast_wave/build -j4` passed after the parser, validation, flow-field cache, tests, config, docs, and project-state updates
+  - local `ctest --test-dir /Users/allenzhou/Research_software/Blast_wave/build --output-on-failure` passed with 9/9 tests
+  - focused `./bin/test_run_options` passed with new `flow-trans-magnitude-mode` parse/default/override/invalid coverage, supported radius validation, covariance/non-density-normal rejection, explicit-gradient-with-radius-profile rejection, and floor/cap bound rejection
+  - focused `./bin/test_flow_field_model` passed with `shell-gradient-corrected` zero-strength equality, circular symmetry, asymmetric same-shell difference, max-factor cap, and degenerate-profile finite fallback coverage
+  - O2Physics ROOT executor returned `STATUS: PRIMARY_OK` for `config/test_b8_density_normal_flow_trans_gradient.cfg --nevents 20`, writing `qa/test_flow_trans_shell_gradient.root`, followed by `qa_blastwave_output --expect-nevents 20`
+  - the same O2Physics command also generated and QA-validated a radius-profile control from `config/test_b8_density_normal_flow_trans.cfg --nevents 20`, writing `qa/test_flow_trans_radius_profile_control.root`
+- Locked conclusions:
+  - `flow-trans-magnitude-mode = radius-profile` remains the default behavior
+  - `shell-gradient-corrected` is executable through the real generator and independent QA path
+  - the correction is density-normal-only and requires `density-percentile` or `density-level` radius
+  - explicit `flow-trans-gradient-*` knobs are rejected unless `shell-gradient-corrected` is selected
+  - `flow-trans-gradient-max-factor-delta` bounds the multiplicative correction factor, not an additive rapidity term
+  - no ROOT schema or QA schema change was introduced by this packet
 
 ## T-024 Flow-Trans Radius Resolution Presets
 

@@ -65,6 +65,31 @@ namespace blastwave {
   };
 
   /**
+   * Cached shell-wise gradient correction table for shell-gradient-corrected
+   * magnitude mode.
+   */
+  struct FlowTransGradientCorrectionProfile {
+    bool valid = false;
+    bool zeroDelta = false;
+    FlowTransMagnitudeMode magnitudeMode = FlowTransMagnitudeMode::RadiusProfile;
+    FlowTransRadiusMode radiusMode = FlowTransRadiusMode::Covariance;
+    double radiusFraction = 0.0;
+    FlowTransRadiusResolution radiusResolution = FlowTransRadiusResolution::Balanced;
+    double centerX = 0.0;
+    double centerY = 0.0;
+    double flowTransGradientStrength = 0.0;
+    double flowTransGradientDensityFloorFraction = 1.0e-4;
+    double flowTransGradientMaxFactorDelta = 0.2;
+    double flowTransGradientDensityScale = 0.0;
+    int angularSamples = 0;
+    int radialSamples = 0;
+    double eventMean = 0.0;
+    double eventRms = 0.0;
+    std::vector<double> tildeA;
+    std::vector<double> shellMean;
+  };
+
+  /**
    * Event-level medium state shared by emission sampling, flow sampling, and
    * optional serialization. participantGeometry preserves initial-state
    * observables, while emissionDensity/emissionGeometry are the stage future
@@ -84,6 +109,7 @@ namespace blastwave {
     FlowEllipseInfo emissionGeometry;
     AffineEffectiveClosure affineEffectiveClosure;
     mutable FlowTransRadiusProfile flowTransRadiusProfile;
+    mutable FlowTransGradientCorrectionProfile flowTransGradientCorrectionProfile;
   };
 
   [[nodiscard]] EventMedium buildEventMedium(const std::vector<WeightedTransversePoint> &points, const EventMediumParameters &parameters);

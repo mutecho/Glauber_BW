@@ -163,7 +163,269 @@ namespace {
   }
 
   bool hasDensityNormalFlowTransOverrides(const blastwave::FlowFieldParameters &parameters) {
-    return parameters.hasFlowTransDirectionGradientFraction || parameters.hasFlowTransRadius;
+    return parameters.flowTransMagnitudeMode == blastwave::FlowTransMagnitudeMode::ShellGradientCorrected
+           || parameters.hasFlowTransDirectionGradientFraction || parameters.hasFlowTransRadius;
+  }
+
+  const blastwave::FlowTransRadiusProfile &getFlowTransRadiusProfile(const blastwave::EventMedium &medium,
+                                                                   const blastwave::FlowFieldParameters &parameters);
+
+  bool sampleLinearProfileValue(const std::vector<double> &values, int radialSamples, std::size_t valueOffset, double xi, double &value) {
+    if (radialSamples <= 0 || valueOffset + static_cast<std::size_t>(radialSamples) + 1U > values.size()) {
+      return false;
+    }
+    if (!std::isfinite(xi)) {
+      return false;
+    }
+    if (xi <= 0.0) {
+      value = values[valueOffset];
+      return std::isfinite(value);
+    }
+    if (xi >= 1.0) {
+      value = values[valueOffset + static_cast<std::size_t>(radialSamples)];
+      return std::isfinite(value);
+    }
+    const double profilePosition = xi * static_cast<double>(radialSamples);
+    const int leftIndex = static_cast<int>(std::floor(profilePosition));
+    const int rightIndex = std::min(leftIndex + 1, radialSamples);
+    const double interpolation = profilePosition - static_cast<double>(leftIndex);
+    const double leftValue = values[valueOffset + static_cast<std::size_t>(leftIndex)];
+    const double rightValue = values[valueOffset + static_cast<std::size_t>(rightIndex)];
+    if (!std::isfinite(leftValue) || !std::isfinite(rightValue)) {
+      return false;
+    }
+    value = leftValue + (rightValue - leftValue) * std::clamp(interpolation, 0.0, 1.0);
+    return std::isfinite(value);
+  }
+
+  // Sample one angle-resolved, one-shell correction value at s.
+  bool sampleFlowTransGradientCorrectionValue(const blastwave::FlowTransGradientCorrectionProfile &profile,
+                                            double directionX,
+                                            double directionY,
+                                            double xiUsed,
+                                            double &tildeA,
+                                            double &shellMean) {
+    if (!profile.valid || profile.angularSamples <= 0 || profile.radialSamples <= 0 || profile.tildeA.empty() || profile.shellMean.empty()) {
+      return false;
+    }
+    if (profile.zeroDelta) {
+      tildeA = 0.0;
+      shellMean = 0.0;
+      return true;
+    }
+
+    const double directionNorm = std::hypot(directionX, directionY);
+    if (!std::isfinite(directionNorm) || directionNorm <= kDirectionTolerance) {
+      return false;
+    }
+    if (!std::isfinite(xiUsed)) {
+      return false;
+    }
+    const double xi = std::clamp(xiUsed, 0.0, 1.0);
+
+    double angle = std::atan2(directionY / directionNorm, directionX / directionNorm);
+    if (angle < 0.0) {
+      angle += kTwoPi;
+    }
+    const double scaledIndex = angle * static_cast<double>(profile.angularSamples) / kTwoPi;
+    const int leftAngle = static_cast<int>(std::floor(scaledIndex)) % profile.angularSamples;
+    const int rightAngle = (leftAngle + 1) % profile.angularSamples;
+    const double angleInterpolation = scaledIndex - std::floor(scaledIndex);
+    const std::size_t radialShellOffset = static_cast<std::size_t>(profile.radialSamples) + 1U;
+    const std::size_t leftShellStart = static_cast<std::size_t>(leftAngle) * radialShellOffset;
+    const std::size_t rightShellStart = static_cast<std::size_t>(rightAngle) * radialShellOffset;
+
+    double leftValue = 0.0;
+    double rightValue = 0.0;
+    if (!sampleLinearProfileValue(profile.tildeA, profile.radialSamples, static_cast<std::size_t>(leftShellStart), xi, leftValue)
+        || !sampleLinearProfileValue(profile.tildeA, profile.radialSamples, static_cast<std::size_t>(rightShellStart), xi, rightValue)) {
+      return false;
+    }
+    tildeA = leftValue + (rightValue - leftValue) * std::clamp(angleInterpolation, 0.0, 1.0);
+    if (!std::isfinite(tildeA)) {
+      return false;
+    }
+
+    double shellMeanValue = 0.0;
+    if (!sampleLinearProfileValue(profile.shellMean, profile.radialSamples, 0U, xi, shellMeanValue)) {
+      return false;
+    }
+    shellMean = shellMeanValue;
+
+    return std::isfinite(shellMean);
+  }
+
+  // Build or reuse a per-event correction cache for shell-gradient mode.
+  const blastwave::FlowTransGradientCorrectionProfile &getFlowTransGradientCorrectionProfile(
+      const blastwave::EventMedium &medium, const blastwave::FlowFieldParameters &parameters) {
+    blastwave::FlowTransGradientCorrectionProfile &profile = medium.flowTransGradientCorrectionProfile;
+
+    if (parameters.flowTransMagnitudeMode != blastwave::FlowTransMagnitudeMode::ShellGradientCorrected) {
+      profile = {};
+      return profile;
+    }
+
+    const blastwave::FlowTransRadiusProfile &radiusProfile = getFlowTransRadiusProfile(medium, parameters);
+    const bool radiusModeValid =
+        radiusProfile.mode == blastwave::FlowTransRadiusMode::DensityPercentile || radiusProfile.mode == blastwave::FlowTransRadiusMode::DensityLevel;
+    if (!radiusModeValid) {
+      profile = {};
+      return profile;
+    }
+
+    const int angularSamples = radiusProfile.angularSamples;
+    const int radialSamples = radiusProfile.radialSamples;
+    const bool cacheMatches = profile.valid && profile.magnitudeMode == parameters.flowTransMagnitudeMode
+                              && profile.radiusMode == radiusProfile.mode
+                              && profile.radiusFraction == radiusProfile.fraction
+                              && profile.radiusResolution == radiusProfile.resolution
+                              && profile.centerX == radiusProfile.centerX
+                              && profile.centerY == radiusProfile.centerY
+                              && profile.angularSamples == angularSamples
+                              && profile.radialSamples == radialSamples
+                              && profile.flowTransGradientStrength == parameters.flowTransGradientStrength
+                              && profile.flowTransGradientDensityFloorFraction == parameters.flowTransGradientDensityFloorFraction
+                              && profile.flowTransGradientMaxFactorDelta == parameters.flowTransGradientMaxFactorDelta;
+    if (cacheMatches) {
+      return profile;
+    }
+
+    profile = {};
+    profile.magnitudeMode = parameters.flowTransMagnitudeMode;
+    profile.radiusMode = radiusProfile.mode;
+    profile.radiusFraction = radiusProfile.fraction;
+    profile.radiusResolution = radiusProfile.resolution;
+    profile.centerX = radiusProfile.centerX;
+    profile.centerY = radiusProfile.centerY;
+    profile.angularSamples = angularSamples;
+    profile.radialSamples = radialSamples;
+    profile.flowTransGradientStrength = parameters.flowTransGradientStrength;
+    profile.flowTransGradientDensityFloorFraction = parameters.flowTransGradientDensityFloorFraction;
+    profile.flowTransGradientMaxFactorDelta = parameters.flowTransGradientMaxFactorDelta;
+    profile.flowTransGradientDensityScale = medium.emissionDensityScale;
+
+    if (!radiusProfile.valid || angularSamples <= 0 || radialSamples <= 0) {
+      return profile;
+    }
+
+    const double floorDensity = profile.flowTransGradientDensityFloorFraction * std::max(0.0, medium.emissionDensityScale);
+    const double integrandFloor = std::max(floorDensity, kDensityEpsilon);
+    const std::size_t radialSampleCount = static_cast<std::size_t>(radialSamples) + 1U;
+    const std::size_t totalSamples = static_cast<std::size_t>(angularSamples) * radialSampleCount;
+    std::vector<double> rawA(totalSamples, std::numeric_limits<double>::quiet_NaN());
+    std::size_t finiteSamples = 0;
+    double rawSum = 0.0;
+
+    for (int iAngle = 0; iAngle < angularSamples; ++iAngle) {
+      const double boundaryRadius = radiusProfile.boundaryRadii[static_cast<std::size_t>(iAngle)];
+      if (!std::isfinite(boundaryRadius) || boundaryRadius <= kDirectionTolerance) {
+        continue;
+      }
+      const double angle = kTwoPi * static_cast<double>(iAngle) / static_cast<double>(angularSamples);
+      const double directionX = std::cos(angle);
+      const double directionY = std::sin(angle);
+      const double step = boundaryRadius / static_cast<double>(radialSamples);
+      if (!(step > 0.0) || !std::isfinite(step)) {
+        continue;
+      }
+
+      const std::size_t baseIndex = static_cast<std::size_t>(iAngle) * radialSampleCount;
+      double cumulative = 0.0;
+      double previousIntegrand = std::numeric_limits<double>::quiet_NaN();
+      bool angleInvalid = false;
+      for (int iSample = 0; iSample <= radialSamples; ++iSample) {
+        const double radius = step * static_cast<double>(iSample);
+        const double x = medium.emissionGeometry.centerX + radius * directionX;
+        const double y = medium.emissionGeometry.centerY + radius * directionY;
+        const blastwave::DensityFieldSample densitySample = blastwave::evaluateDensityField(medium.emissionDensity, x, y);
+        if (!std::isfinite(densitySample.density) || !std::isfinite(densitySample.gradientX) || !std::isfinite(densitySample.gradientY)) {
+          angleInvalid = true;
+          break;
+        }
+        const double gradDotDirection = densitySample.gradientX * directionX + densitySample.gradientY * directionY;
+        const double integrand = -gradDotDirection / std::max(densitySample.density, integrandFloor);
+        if (!std::isfinite(integrand)) {
+          angleInvalid = true;
+          break;
+        }
+        const double positiveIntegrand = std::max(0.0, integrand);
+        if (iSample == 0) {
+          cumulative = 0.0;
+          previousIntegrand = positiveIntegrand;
+        } else if (std::isfinite(previousIntegrand)) {
+          cumulative += 0.5 * (previousIntegrand + positiveIntegrand) * step;
+          previousIntegrand = positiveIntegrand;
+        } else {
+          angleInvalid = true;
+          break;
+        }
+        rawA[baseIndex + static_cast<std::size_t>(iSample)] = cumulative;
+      }
+      if (angleInvalid) {
+        for (int iSample = 0; iSample <= radialSamples; ++iSample) {
+          rawA[baseIndex + static_cast<std::size_t>(iSample)] = std::numeric_limits<double>::quiet_NaN();
+        }
+        continue;
+      }
+
+      for (int iSample = 0; iSample <= radialSamples; ++iSample) {
+        const double value = rawA[baseIndex + static_cast<std::size_t>(iSample)];
+        if (std::isfinite(value)) {
+          rawSum += value;
+          ++finiteSamples;
+        }
+      }
+    }
+
+    if (finiteSamples == 0 || !std::isfinite(rawSum)) {
+      return profile;
+    }
+
+    const double eventMean = rawSum / static_cast<double>(finiteSamples);
+    double eventVariance = 0.0;
+    for (double value : rawA) {
+      if (std::isfinite(value)) {
+        eventVariance += (value - eventMean) * (value - eventMean);
+      }
+    }
+    eventVariance /= static_cast<double>(finiteSamples);
+    const double eventRms = std::sqrt(eventVariance);
+
+    profile.eventMean = eventMean;
+    profile.eventRms = eventRms;
+    profile.tildeA.assign(totalSamples, std::numeric_limits<double>::quiet_NaN());
+    profile.shellMean.assign(static_cast<std::size_t>(radialSamples + 1), std::numeric_limits<double>::quiet_NaN());
+    profile.zeroDelta = !std::isfinite(eventRms) || eventRms <= kDensityEpsilon;
+    profile.valid = true;
+
+    if (!profile.zeroDelta) {
+      for (std::size_t i = 0; i < rawA.size(); ++i) {
+        if (std::isfinite(rawA[i])) {
+          profile.tildeA[i] = (rawA[i] - eventMean) / eventRms;
+        }
+      }
+
+      for (int iSample = 0; iSample <= radialSamples; ++iSample) {
+        double shellSum = 0.0;
+        std::size_t shellCount = 0;
+        for (int iAngle = 0; iAngle < angularSamples; ++iAngle) {
+          const std::size_t index = static_cast<std::size_t>(iAngle) * (static_cast<std::size_t>(radialSamples) + 1U)
+                                   + static_cast<std::size_t>(iSample);
+          if (std::isfinite(profile.tildeA[index])) {
+            shellSum += profile.tildeA[index];
+            ++shellCount;
+          }
+        }
+        if (shellCount > 0) {
+          profile.shellMean[static_cast<std::size_t>(iSample)] = shellSum / static_cast<double>(shellCount);
+        }
+      }
+    } else {
+      // Degenerate normalization must keep behavior finite and conservative.
+      std::fill(profile.tildeA.begin(), profile.tildeA.end(), 0.0);
+      std::fill(profile.shellMean.begin(), profile.shellMean.end(), 0.0);
+    }
+    return profile;
   }
 
   // Resolve the configured fallback chain for mixed density-normal direction.
@@ -613,7 +875,10 @@ namespace {
     double normalY = 0.0;
     sample.rTilde = metric.rTilde;
 
-    // Preserve historical density-normal behavior unless an explicit
+    const bool hasDensityDefinedRadius =
+        parameters.flowTransRadiusMode == blastwave::FlowTransRadiusMode::DensityPercentile
+        || parameters.flowTransRadiusMode == blastwave::FlowTransRadiusMode::DensityLevel;
+    // Preserve historical density-normal behavior unless corrected-mode or an explicit
     // direction/radius flow-trans override has been provided.
     if (!hasDensityNormalFlowTransOverrides(parameters)) {
       if (!sampleDensityNormalDirection(medium, x, y, metric, normalX, normalY)) {
@@ -635,12 +900,21 @@ namespace {
       return sample;
     }
 
+    bool hasSampleDirection = false;
+    double radialDirectionX = 0.0;
+    double radialDirectionY = 0.0;
+    if (sampleGeometricRadialDirection(medium.emissionGeometry, x, y, radialDirectionX, radialDirectionY)) {
+      hasSampleDirection = true;
+    }
+
     double xiUsed = metric.rTilde;
-    if (parameters.flowTransRadiusMode == blastwave::FlowTransRadiusMode::DensityPercentile
-        || parameters.flowTransRadiusMode == blastwave::FlowTransRadiusMode::DensityLevel) {
+    bool hasDensityDefinedXi = false;
+    if (hasDensityDefinedRadius || parameters.flowTransMagnitudeMode == blastwave::FlowTransMagnitudeMode::ShellGradientCorrected) {
       xiUsed = computeDensityDefinedXiUsed(medium, x, y, parameters);
       if (!std::isfinite(xiUsed)) {
         xiUsed = metric.rTilde;
+      } else {
+        hasDensityDefinedXi = true;
       }
     }
 
@@ -653,7 +927,20 @@ namespace {
     }
 
     sample.phiB = std::atan2(normalY, normalX);
-    sample.rhoRaw = parameters.flowTransRho0 * radialProfile;
+    double correctionDelta = 0.0;
+    if (parameters.flowTransMagnitudeMode == blastwave::FlowTransMagnitudeMode::ShellGradientCorrected && hasDensityDefinedXi) {
+      const blastwave::FlowTransGradientCorrectionProfile &gradientProfile = getFlowTransGradientCorrectionProfile(medium, parameters);
+      double tildeA = 0.0;
+      double shellMean = 0.0;
+      if (hasSampleDirection
+          && sampleFlowTransGradientCorrectionValue(gradientProfile, radialDirectionX, radialDirectionY, xiUsed, tildeA, shellMean)
+          && std::isfinite(parameters.flowTransGradientStrength)) {
+        correctionDelta = parameters.flowTransGradientStrength * (tildeA - shellMean);
+        correctionDelta = std::clamp(correctionDelta, -parameters.flowTransGradientMaxFactorDelta, parameters.flowTransGradientMaxFactorDelta);
+      }
+    }
+    const double correctionFactor = std::isfinite(correctionDelta) ? (1.0 + correctionDelta) : 1.0;
+    sample.rhoRaw = parameters.flowTransRho0 * radialProfile * correctionFactor;
     if (medium.densityEvolutionMode == blastwave::DensityEvolutionMode::AffineGaussianResponse && parameters.densityNormalKappaCompensation) {
       sample.rhoRaw *= computeAffineKappaModulation(sample.phiB, medium, parameters);
     }

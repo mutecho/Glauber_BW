@@ -108,6 +108,7 @@ For exact example commands, use `docs/项目说明.md`.
 - `density-normal-kappa-compensation` is opt-in and only meaningful for `affine-gaussian + density-normal`.
 - `flow-trans-rho0` and `flow-trans-profile-power` are the current public transverse rapidity baseline/profile names; old `rho0` and `flow-power` are rejected, not compatibility aliases.
 - `flow-trans-direction-gradient-fraction`, `flow-trans-radius`, and explicit `flow-trans-radius-resolution` are valid only for `flow-velocity-sampler = density-normal`; the resolution knob only changes density-percentile/level boundary-profile sampling, not the radius definition.
+- `flow-trans-magnitude-mode = shell-gradient-corrected` is only valid for `density-normal` with `density-percentile` or `density-level` radius; explicit `flow-trans-gradient-*` knobs require that mode and must not be treated as silent no-ops.
 - `affine-effective` is opt-in and only valid for `affine-gaussian`.
 - `affine-effective-mode = additive-rho` keeps density-normal direction and keeps `flow-trans-rho0` as baseline average flow.
 - `affine-effective-mode = full-tensor` is opt-in and directly uses principal-axis tensor velocity closure.

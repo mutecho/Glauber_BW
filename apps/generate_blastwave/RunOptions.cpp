@@ -201,6 +201,18 @@ namespace {
     throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'none' or 'mt-cosh'.");
   }
 
+  blastwave::FlowTransMagnitudeMode parseFlowTransMagnitudeMode(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
+    if (rawValue == "radius-profile") {
+      return blastwave::FlowTransMagnitudeMode::RadiusProfile;
+    }
+    if (rawValue == "shell-gradient-corrected") {
+      return blastwave::FlowTransMagnitudeMode::ShellGradientCorrected;
+    }
+
+    throw std::invalid_argument(
+        "Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'radius-profile' or 'shell-gradient-corrected'.");
+  }
+
   blastwave::app::FlowPtOutputMode parseFlowPtOutputMode(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
     if (rawValue == "same-file") {
       return blastwave::app::FlowPtOutputMode::SameFile;
@@ -387,6 +399,18 @@ namespace {
       runOptions.config.kappa2 = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "flow-trans-profile-power") {
       runOptions.config.flowTransProfilePower = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "flow-trans-magnitude-mode") {
+      runOptions.config.flowTransMagnitudeMode = parseFlowTransMagnitudeMode(rawValue, optionName, sourceDescription);
+      runOptions.config.hasFlowTransMagnitudeMode = true;
+    } else if (optionName == "flow-trans-gradient-strength") {
+      runOptions.config.flowTransGradientStrength = parseDouble(rawValue, optionName, sourceDescription);
+      runOptions.config.hasFlowTransGradientStrength = true;
+    } else if (optionName == "flow-trans-gradient-density-floor-fraction") {
+      runOptions.config.flowTransGradientDensityFloorFraction = parseDouble(rawValue, optionName, sourceDescription);
+      runOptions.config.hasFlowTransGradientDensityFloorFraction = true;
+    } else if (optionName == "flow-trans-gradient-max-factor-delta") {
+      runOptions.config.flowTransGradientMaxFactorDelta = parseDouble(rawValue, optionName, sourceDescription);
+      runOptions.config.hasFlowTransGradientMaxFactorDelta = true;
     } else if (optionName == "flow-trans-direction-gradient-fraction") {
       runOptions.config.flowTransDirectionGradientFraction = parseDouble(rawValue, optionName, sourceDescription);
       runOptions.config.hasFlowTransDirectionGradientFraction = true;
@@ -531,6 +555,9 @@ namespace blastwave::app {
               << "  v2pt-bins, v3pt-bins, flowpt-output-mode, flowpt-output,\n"
               << "  progress,\n"
               << "  flow-trans-rho0, kappa2, flow-trans-profile-power,\n"
+              << "  flow-trans-magnitude-mode,\n"
+              << "  flow-trans-gradient-strength, flow-trans-gradient-density-floor-fraction,\n"
+              << "  flow-trans-gradient-max-factor-delta,\n"
               << "  flow-trans-direction-gradient-fraction, flow-trans-radius,\n"
               << "  flow-trans-radius-resolution,\n"
               << "  flow-velocity-sampler, density-evolution,\n"
@@ -588,6 +615,10 @@ namespace blastwave::app {
               << "  --flow-trans-rho0 <value>\n"
               << "  --kappa2 <value>\n"
               << "  --flow-trans-profile-power <value>\n"
+              << "  --flow-trans-magnitude-mode <radius-profile|shell-gradient-corrected>\n"
+              << "  --flow-trans-gradient-strength <value>\n"
+              << "  --flow-trans-gradient-density-floor-fraction <value>\n"
+              << "  --flow-trans-gradient-max-factor-delta <value>\n"
               << "  --flow-trans-direction-gradient-fraction <value>\n"
               << "  --flow-trans-radius <covariance|density-percentile:<p>|density-level:<fraction>>\n"
               << "  --flow-trans-radius-resolution <balanced|precise|fast>\n"

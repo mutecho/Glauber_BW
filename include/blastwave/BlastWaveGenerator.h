@@ -45,6 +45,14 @@ namespace blastwave {
     double flowTransRho0 = 1.0986122886681098;
     double kappa2 = 1.0986122886681098;
     double flowTransProfilePower = 1.0;
+    FlowTransMagnitudeMode flowTransMagnitudeMode = FlowTransMagnitudeMode::RadiusProfile;
+    double flowTransGradientStrength = 0.0;
+    double flowTransGradientDensityFloorFraction = 1.0e-4;
+    double flowTransGradientMaxFactorDelta = 0.2;
+    bool hasFlowTransMagnitudeMode = false;
+    bool hasFlowTransGradientStrength = false;
+    bool hasFlowTransGradientDensityFloorFraction = false;
+    bool hasFlowTransGradientMaxFactorDelta = false;
     double flowTransDirectionGradientFraction = 1.0;
     FlowTransRadiusMode flowTransRadiusMode = FlowTransRadiusMode::Covariance;
     double flowTransRadiusFraction = 0.0;

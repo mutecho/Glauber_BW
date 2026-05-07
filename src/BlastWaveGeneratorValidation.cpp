@@ -186,6 +186,31 @@ namespace blastwave {
         && config_.densityEvolutionMode != DensityEvolutionMode::AffineGaussianResponse) {
       throw std::invalid_argument("flowVelocitySamplerMode=affine-effective requires densityEvolutionMode=affine-gaussian.");
     }
+    if (!std::isfinite(config_.flowTransGradientStrength)) {
+      throw std::invalid_argument("flow-trans-gradient-strength must be finite.");
+    }
+    if (!std::isfinite(config_.flowTransGradientDensityFloorFraction) || config_.flowTransGradientDensityFloorFraction <= 0.0) {
+      throw std::invalid_argument("flow-trans-gradient-density-floor-fraction must be finite and greater than 0.");
+    }
+    if (!std::isfinite(config_.flowTransGradientMaxFactorDelta) || config_.flowTransGradientMaxFactorDelta < 0.0
+        || config_.flowTransGradientMaxFactorDelta >= 1.0) {
+      throw std::invalid_argument("flow-trans-gradient-max-factor-delta must be finite and satisfy 0 <= value < 1.");
+    }
+    const bool hasExplicitFlowTransGradientParameters =
+        config_.hasFlowTransGradientStrength || config_.hasFlowTransGradientDensityFloorFraction || config_.hasFlowTransGradientMaxFactorDelta;
+    if (hasExplicitFlowTransGradientParameters
+        && config_.flowTransMagnitudeMode != FlowTransMagnitudeMode::ShellGradientCorrected) {
+      throw std::invalid_argument(
+          "flow-trans-gradient-strength, flow-trans-gradient-density-floor-fraction, and flow-trans-gradient-max-factor-delta require flow-trans-magnitude-mode=shell-gradient-corrected.");
+    }
+    if (config_.flowTransMagnitudeMode == FlowTransMagnitudeMode::ShellGradientCorrected) {
+      if (config_.flowVelocitySamplerMode != FlowVelocitySamplerMode::DensityNormal) {
+        throw std::invalid_argument("flow-trans-magnitude-mode=shell-gradient-corrected requires flow-velocity-sampler=density-normal.");
+      }
+      if (config_.flowTransRadiusMode != FlowTransRadiusMode::DensityPercentile && config_.flowTransRadiusMode != FlowTransRadiusMode::DensityLevel) {
+        throw std::invalid_argument("flow-trans-magnitude-mode=shell-gradient-corrected requires flow-trans-radius=density-percentile:<p> or density-level:<fraction>.");
+      }
+    }
     const bool hasDensityNormalOnlyFlowTransOverrides = config_.hasFlowTransDirectionGradientFraction || config_.hasFlowTransRadius
                                                      || config_.hasFlowTransRadiusResolution;
     if (hasDensityNormalOnlyFlowTransOverrides && config_.flowVelocitySamplerMode != FlowVelocitySamplerMode::DensityNormal) {
