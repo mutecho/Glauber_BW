@@ -46,8 +46,8 @@ Long command transcripts and repeated smoke-command variants were intentionally 
   - local `ctest --test-dir /Users/allenzhou/Research_software/Blast_wave/build --output-on-failure` passed with 9/9 tests
   - O2Physics ROOT executor generated and QA-validated `config/test_b8_density_normal_flow_trans.cfg --flow-trans-radius density-percentile:0.95 --nevents 20`, writing `/private/tmp/blastwave_radius_sigma_percentile.root`
   - O2Physics ROOT executor generated and QA-validated `config/test_b8_density_normal_flow_trans.cfg --flow-trans-radius density-level:1.0e-3 --nevents 20`, writing `/private/tmp/blastwave_radius_sigma_level.root`
-  - O2Physics ROOT executor generated and QA-validated `config/test_b8_response_023_dense_mix.cfg --nevents 1000`, writing `/private/tmp/blastwave_response_023_dense_mix_sigma.root`
-  - O2Physics ROOT executor generated and QA-validated `config/test_b8_023_dense_newrap.cfg --nevents 1000`, writing `/private/tmp/blastwave_response_023_dense_newrap_sigma.root`
+  - O2Physics ROOT executor generated and QA-validated `config/test_b8_response_023_dense_mix.cfg --nevents 1000`, writing `/private/tmp/blastwave_response_023_dense_mix_sigma.root`; current tracked equivalent path is `config/test_023_dense_mix.cfg`
+  - O2Physics ROOT executor generated and QA-validated `config/test_b8_023_dense_newrap.cfg --nevents 1000`, writing `/private/tmp/blastwave_response_023_dense_newrap_sigma.root`; current tracked equivalent path is `config/test_023_dense_newrap.cfg`
   - ROOT metric extraction reported `dense_mix meanPt=1.041669379 psi2_proj=0.022560737` and `newrap meanPt=1.067941944 psi2_proj=0.022885878`
 - Locked conclusions:
   - density-defined `R_density(phi)` now defines angular shell geometry only
@@ -128,7 +128,7 @@ Long command transcripts and repeated smoke-command variants were intentionally 
 - Evidence:
   - local `cmake --build /Users/allenzhou/Research_software/Blast_wave/build -j4` passed after the ROOT writer display-window change
   - local `ctest --output-on-failure` passed with 9/9 tests
-  - O2Physics ROOT executor generated `/tmp/response_axis_range_smoke.root` from `config/test_b8_response_023.cfg --nevents 20`
+  - O2Physics ROOT executor generated `/tmp/response_axis_range_smoke.root` from `config/test_b8_response_023.cfg --nevents 20`; current tracked equivalent path is `config/test_023_dense.cfg`
   - O2Physics ROOT executor QA passed for the smoke file with `--expect-nevents 20`
   - direct ROOT read of all four response/cross-talk TH2s reported `xstorage=0..1`, `xview=0..0.35`, `ystorage=-1..1`, `yview=-0.15..0.15`
 - Locked conclusions:
@@ -162,7 +162,7 @@ Long command transcripts and repeated smoke-command variants were intentionally 
   - local `cmake --build /Users/allenzhou/Research_software/Blast_wave/build -j4` passed after adding the response-test generator, schema, QA, and tests
   - local `ctest --output-on-failure` passed with 9/9 tests, including `test_harmonic_geometry` and `test_blast_wave_generator_response`
   - authoritative outside-sandbox O2Physics generate + QA passed for default `config/test_b8.cfg --nevents 20`, written to `qa/response_test_glauber_smoke.root`
-  - authoritative outside-sandbox O2Physics generate + QA passed for `config/test_b8_response_023.cfg --nevents 100`, written to `qa/response_test_023_smoke.root`
+  - authoritative outside-sandbox O2Physics generate + QA passed for `config/test_b8_response_023.cfg --nevents 100`, written to `qa/response_test_023_smoke.root`; current tracked equivalent path is `config/test_023_dense.cfg`
   - response-test QA validated 100 events with `mean_Npart=600`, `mean_eps3=0.0732512`, and `mean_v3=0.0461744`
   - four-point outside-sandbox `A3` scan passed generate + QA with 50 events per point, then ROOT extraction from `events` reported:
     - `A3=0`: `mean_eps3=0.065015732`, `mean_v3_wrt_psi3=0.010711697`

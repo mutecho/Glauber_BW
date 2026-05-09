@@ -23,9 +23,11 @@
 - `reference/legacy-root-macros/`
   历史 ROOT 参考宏，只用于理解物理意图与对照旧思路，不参与构建，也不应直接复制到主实现。
 - `docs/`
-  人写说明、agent 指南和简明手记。
+  当前说明、公式说明、简明手记和历史计划归档。
 - `project-state/`
   仓库内工程协作台账。
+- `AGENTS.md`
+  当前 agent 工作规则。
 
 ## 本地产物目录
 
@@ -40,13 +42,15 @@
 
 ## 入口文档
 
+- 文档索引：[docs/README.md](/Users/allenzhou/Research_software/Blast_wave/docs/README.md)
+  查看当前说明、协作台账和历史计划归档的分工。
 - 项目说明：[docs/项目说明.md](/Users/allenzhou/Research_software/Blast_wave/docs/项目说明.md)
   当前最详细的运行与物理说明。
 - 数学/物理公式流程说明：[docs/数学物理公式流程说明.md](/Users/allenzhou/Research_software/Blast_wave/docs/数学物理公式流程说明.md)
   公式导向地串起 participant 几何、密度演化、发射抽样、热动量、流场 boost 和 flow 观测量。
-- Agent 指南：[docs/agent_guide.md](/Users/allenzhou/Research_software/Blast_wave/docs/agent_guide.md)
-  只保留 agent 需要的语义边界与同步规则。
 - 简明手记：[docs/手记文档.md](/Users/allenzhou/Research_software/Blast_wave/docs/手记文档.md)
   快速查看主链和常见误解。
 - 当前协作状态：[project-state/guide.md](/Users/allenzhou/Research_software/Blast_wave/project-state/guide.md)
   查看当前协作基线与文档分工。
+- Agent 工作规则：[AGENTS.md](/Users/allenzhou/Research_software/Blast_wave/AGENTS.md)
+  当前仓库级 agent-first workflow policy。

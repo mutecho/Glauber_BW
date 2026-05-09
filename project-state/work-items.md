@@ -41,7 +41,7 @@
   - the tracked example config path had been normalized to `config/test_b8.cfg`
   - higher-authority docs and one durable generate+QA record were still missing at the time this work item was opened
 - Suggested owner action:
-  - completed on 2026-04-14 by updating `docs/项目说明.md` and `docs/agent_guide.md`
+  - completed on 2026-04-14 by updating `docs/项目说明.md` and the then-current agent guide, now archived at `docs/PLAN/agent_guide.md`
   - completed on 2026-04-14 by recording an authoritative default-MJ config-file generate+QA run in `project-state/tests.md`
 - Exit condition:
   - satisfied: the canonical tracked sample config now has one durable end-to-end generate-and-validate result recorded in `project-state/`
@@ -64,7 +64,7 @@
 - Status: done on 2026-05-06
 - Goal: prepare the config contract before implementing high-order transverse-flow direction, radius, or gradient-correction changes.
 - Why it exists:
-  - `docs/高阶半径与梯度混合整合方案.md` defines config naming cleanup as the mandatory first step
+  - `docs/PLAN/高阶半径与梯度混合整合方案.md` defined config naming cleanup as the mandatory first step
   - new transverse-flow internals should use a clear `flow-trans-*` layer rather than adding ambiguous `flow-*` keys
   - current keys such as `rho0`, `kappa2`, `flow-power`, `flow-density-sigma`, and `gradient-*` need an explicit keep/rename/deprecate decision before new behavior is added
 - Suggested owner action:

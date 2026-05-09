@@ -43,7 +43,7 @@
 - `config/`
   - 受版本控制的示例配置
 - `docs/`
-  - 人写说明、设计文档和 hand note
+  - 当前说明、公式说明、简明手记和历史计划归档
 - `project-state/`
   - 当前协作台账，不替代代码和高权威说明文档
 
@@ -60,7 +60,7 @@
 - 当前规范示例配置：
   - `config/test_b8.cfg`
   - `config/test_b8_affine_effective.cfg`
-  - `config/test_b8_response_023.cfg`
+  - `config/test_023_dense.cfg`
   - `config/test_b8_flowpt.cfg`
   - `config/test_b8_density_normal_flow_trans.cfg`
   - `config/test_b8_density_normal_flow_trans_gradient.cfg`
@@ -84,14 +84,20 @@
 
 ## 文档角色约定
 
+- `docs/README.md`
+  - 当前文档索引，说明当前说明、协作台账和历史计划归档的分工
 - `docs/项目说明.md`
   - 详细运行说明和当前物理/接口解释
 - `docs/数学物理公式流程说明.md`
   - 公式导向的主链说明，串起 participant 几何、密度演化、发射抽样、热动量、流场 boost 和 flow 观测量
 - `docs/手记文档.md`
   - 简明主链和易混淆概念
-- `docs/agent_guide.md`
-  - 面向 agent 的改动约束和文档同步规则
+- `docs/PLAN/`
+  - 历史设计、旧 handoff 和已执行计划归档，默认不作为当前契约来源
+- `AGENTS.md`
+  - 当前仓库级 agent 工作规则
+- `project-state/doc-sync-map.yml`
+  - 当前 `sync-project-knowledge` 文档同步路由
 - `project-state/current-status.md`
   - 当前基线和注意事项
 - `project-state/tests.md`
@@ -102,6 +108,7 @@
 ## 当前协作规则
 
 - 若修改算法语义、配置契约、ROOT schema、QA 逻辑或用户运行方式，必须同步相应 `project-state/` 文件。
+- 文档同步优先按 `project-state/doc-sync-map.yml` 扩展 required doc checks；`docs/PLAN/` 下的历史计划默认列为 `skip_historical`，除非用户明确要求修改历史文档。
 - 当前 affine-effective 语义以 DEC-013 与 DEC-016 为准：`additive-rho` 保留 `flow-trans-rho0` baseline，`full-tensor` 为 opt-in，`affine-kappa-aniso` 是 legacy/no-op。
 - 当前横向流强公开名以 DEC-016 为准：`flow-trans-rho0` / `flow-trans-profile-power` 替代旧 `rho0` / `flow-power`，旧名直接报错。
 - 当前 density-defined flow-trans 半径 profile 分辨率以 DEC-017 为准：`balanced` 是默认，`precise` 是旧 `360 x 512` 网格，`fast` 是低成本预扫。

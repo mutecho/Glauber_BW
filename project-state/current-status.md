@@ -54,7 +54,7 @@
 - canonical tracked example config:
   - `config/test_b8.cfg`
   - `config/test_b8_affine_effective.cfg`
-  - `config/test_b8_response_023.cfg`
+  - `config/test_023_dense.cfg`
   - `config/test_b8_flowpt.cfg`
   - `config/test_b8_density_normal_flow_trans.cfg`
   - `config/test_b8_density_normal_flow_trans_gradient.cfg`
@@ -143,13 +143,16 @@ Use `project-state/tests.md` for the summarized evidence trail.
 - `response-test-023` is opt-in only; template weights `A2/A3` are not physical eccentricities
 - response/cross-talk TH2 objects keep full storage ranges `epsilon = 0..1` and projected `v = -1..1`, but open with compact default display ranges `epsilon = 0..0.35` and projected `v = -0.15..0.15`
 - `shell_weight` and any `EmissionSite::emissionWeight` restructuring remain intentionally deferred; the current response-test rollout only adds geometry templates and observables
+- older validation ledgers may cite pre-archive response-test config names; current tracked response-test examples use `config/test_023_dense*.cfg`
 
-## Documentation Layout After Compaction
+## Current Documentation Layout
 
+- documentation index stays in `docs/README.md`
 - detailed runtime explanation stays in `docs/项目说明.md`
 - formula-heavy workflow explanation stays in `docs/数学物理公式流程说明.md`
-- high-order transverse-flow radius/direction planning stays in `docs/高阶半径与梯度混合整合方案.md`; the executed first packet is summarized in `docs/配置名整理高阶半径梯度混合最终方案.md`
 - quick semantic reminders stay in `docs/手记文档.md`
-- agent-facing sync rules stay in `docs/agent_guide.md`
+- historical design and handoff plans stay under `docs/PLAN/` and are skipped by default during closeout
+- current agent-facing workflow rules stay in `AGENTS.md`
+- deterministic documentation routing stays in `project-state/doc-sync-map.yml`
 - current coordination state stays in `project-state/guide.md`, this file, and `project-state/handoff.md`
 - detailed raw command transcripts were intentionally removed from `project-state/tests.md`; only durable conclusions remain

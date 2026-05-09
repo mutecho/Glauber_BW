@@ -366,7 +366,7 @@
 - Context:
   - the first high-order density-normal packet already made a density shell coordinate from `r / R(phi)` available for density-percentile and density-level radii
   - the second-stage design required direction-dependent flow strength differences within similar outward shells, without changing the default radius-profile behavior
-  - the user explicitly requested landing `docs/高阶半径补充.md`
+  - the user explicitly requested landing the plan now archived at `docs/PLAN/高阶半径补充.md`
 - Decision:
   - add `flow-trans-magnitude-mode = radius-profile | shell-gradient-corrected`
   - keep `radius-profile` as the default and preserve existing behavior
@@ -424,3 +424,21 @@
   - density-defined `R_density(phi)` remains a geometry boundary, not a maximum-flow boundary
   - tests cover hard-coded q values, percentile and level formula paths, beta cap behavior, and shell-gradient `xi_shell`/`xi_flow` separation for both density selectors
   - no config example or ROOT schema change is required because the input surface is unchanged apart from rejecting `density-level >= 1`
+
+## DEC-021 Adopt Doc-Sync Map Routing And Historical Plan Archive
+
+- Status: accepted
+- Date: 2026-05-09
+- Context:
+  - the current `sync-project-knowledge` skill expects explicit document roles, authority levels, update modes, and skipped historical docs
+  - the repository already uses `project-state/` as an adopted coordination ledger
+  - old design plans and handoffs had been moved under `docs/PLAN/`, while current docs still contained references to root-level historical paths
+- Decision:
+  - use `project-state/doc-sync-map.yml` as the repository-local routing manifest for `sync-project-knowledge`
+  - keep current explanatory docs in `docs/项目说明.md`, `docs/数学物理公式流程说明.md`, and `docs/手记文档.md`
+  - keep old plans, old handoffs, and superseded agent notes under `docs/PLAN/` as `historical_reference`
+  - treat `AGENTS.md` as the current agent workflow policy instead of resurrecting `docs/agent_guide.md`
+- Consequences:
+  - future closeout work should first check `project-state/doc-sync-map.yml`
+  - residual hits in `docs/PLAN/` are reported as historical unless the user explicitly asks to edit archived plans
+  - current docs should integrate new facts into existing sections instead of appending patch-note fragments

@@ -1,0 +1,225 @@
+# Repository-local routing for sync-project-knowledge closeout.
+# Markdown files are the maintained source of truth; generated or historical
+# notes should not become the active contract unless this map says so.
+
+impact_tags:
+  config_contract:
+    changed_paths:
+      - apps/generate_blastwave/RunOptions.cpp
+      - apps/generate_blastwave/RunOptions.h
+      - apps/generate_blastwave_events.cpp
+      - config/*.cfg
+      - scripts/*.sh
+    required_docs:
+      - path: docs/项目说明.md
+        role: runtime manual and config contract
+        authority: source_of_truth
+        default_action: write
+        update_modes: [integrate, rewrite_section, no_change]
+      - path: README.md
+        role: entrypoint documentation index
+        authority: active_summary
+        default_action: check_only
+        update_modes: [integrate, no_change]
+      - path: project-state/guide.md
+        role: current coordination view
+        authority: active_summary
+        default_action: check_only
+        update_modes: [integrate, no_change]
+      - path: project-state/current-status.md
+        role: status snapshot
+        authority: active_summary
+        default_action: check_only
+        update_modes: [integrate, no_change]
+
+  metadata_or_output_schema:
+    changed_paths:
+      - include/blastwave/io/RootOutputSchema.h
+      - include/blastwave/io/DifferentialFlowRootPayload.h
+      - src/RootOutputSchema.cpp
+      - src/DifferentialFlowRootPayload.cpp
+      - apps/generate_blastwave/RootEventFileWriter.cpp
+      - apps/generate_blastwave/RootEventFileWriter.h
+      - apps/qa_blastwave_output.cpp
+    required_docs:
+      - path: docs/项目说明.md
+        role: runtime manual and ROOT payload contract
+        authority: source_of_truth
+        default_action: write
+        update_modes: [integrate, rewrite_section, no_change]
+      - path: docs/数学物理公式流程说明.md
+        role: formula workflow reference
+        authority: source_of_truth
+        default_action: check_only
+        update_modes: [integrate, rewrite_section, no_change]
+      - path: project-state/tests.md
+        role: validation ledger
+        authority: ledger
+        default_action: check_only
+        update_modes: [append_ledger_entry, no_change]
+
+  behavior_or_algorithm_semantics:
+    changed_paths:
+      - include/blastwave/*.h
+      - src/*.cpp
+      - apps/generate_blastwave/*.cpp
+      - apps/generate_blastwave/*.h
+    required_docs:
+      - path: docs/数学物理公式流程说明.md
+        role: formula workflow reference
+        authority: source_of_truth
+        default_action: write
+        update_modes: [integrate, rewrite_section, no_change]
+      - path: docs/项目说明.md
+        role: runtime manual and physics explanation
+        authority: source_of_truth
+        default_action: write
+        update_modes: [integrate, rewrite_section, no_change]
+      - path: docs/手记文档.md
+        role: concise semantic reminders
+        authority: active_summary
+        default_action: check_only
+        update_modes: [integrate, no_change]
+      - path: project-state/current-status.md
+        role: status snapshot
+        authority: active_summary
+        default_action: check_only
+        update_modes: [integrate, no_change]
+      - path: project-state/decisions.md
+        role: decision ledger
+        authority: ledger
+        default_action: check_only
+        update_modes: [append_ledger_entry, no_change]
+
+  validation_or_coverage:
+    changed_paths:
+      - tests/*.cpp
+      - apps/qa_blastwave_output.cpp
+      - scripts/run_test.sh
+      - scripts/run_example_config.sh
+      - scripts/run_newrep_test.sh
+    required_docs:
+      - path: project-state/tests.md
+        role: validation ledger
+        authority: ledger
+        default_action: write
+        update_modes: [append_ledger_entry, compact_then_update, no_change]
+      - path: project-state/current-status.md
+        role: status snapshot
+        authority: active_summary
+        default_action: check_only
+        update_modes: [integrate, no_change]
+      - path: project-state/changelog.md
+        role: changelog
+        authority: ledger
+        default_action: check_only
+        update_modes: [append_ledger_entry, no_change]
+
+  readme_or_operator_usage:
+    changed_paths:
+      - README.md
+      - CMakeLists.txt
+      - CMakePresets.json
+      - scripts/*.sh
+      - apps/*.cpp
+      - apps/generate_blastwave_events.cpp
+    required_docs:
+      - path: README.md
+        role: entrypoint documentation index
+        authority: active_summary
+        default_action: write
+        update_modes: [integrate, no_change]
+      - path: docs/项目说明.md
+        role: runtime manual
+        authority: source_of_truth
+        default_action: write
+        update_modes: [integrate, rewrite_section, no_change]
+      - path: project-state/guide.md
+        role: current coordination view
+        authority: active_summary
+        default_action: check_only
+        update_modes: [integrate, no_change]
+
+  durable_decision_or_handoff:
+    changed_paths:
+      - AGENTS.md
+      - project-state/*.md
+      - project-state/doc-sync-map.yml
+      - docs/README.md
+      - docs/PLAN/README.md
+    required_docs:
+      - path: project-state/guide.md
+        role: current coordination view
+        authority: active_summary
+        default_action: write
+        update_modes: [integrate, no_change]
+      - path: project-state/current-status.md
+        role: status snapshot
+        authority: active_summary
+        default_action: write
+        update_modes: [integrate, no_change]
+      - path: project-state/handoff.md
+        role: latest actionable handoff
+        authority: active_summary
+        default_action: check_only
+        update_modes: [rewrite_section, integrate, no_change]
+      - path: project-state/decisions.md
+        role: decision ledger
+        authority: ledger
+        default_action: check_only
+        update_modes: [append_ledger_entry, no_change]
+      - path: project-state/changelog.md
+        role: changelog
+        authority: ledger
+        default_action: write
+        update_modes: [append_ledger_entry, no_change]
+
+docs:
+  README.md:
+    role: repository entrypoint and documentation index
+    authority: active_summary
+    default_action: check_only
+  AGENTS.md:
+    role: agent-first engineering policy
+    authority: source_of_truth
+    default_action: check_only
+  docs/README.md:
+    role: documentation index
+    authority: active_summary
+    default_action: check_only
+  docs/项目说明.md:
+    role: runtime manual, config contract, and ROOT payload contract
+    authority: source_of_truth
+    default_action: check_only
+  docs/数学物理公式流程说明.md:
+    role: formula workflow reference
+    authority: source_of_truth
+    default_action: check_only
+  docs/手记文档.md:
+    role: concise semantic reminders
+    authority: active_summary
+    default_action: check_only
+  project-state/*.md:
+    role: adopted coordination ledger
+    authority: ledger
+    default_action: check_only
+  docs/PLAN/**:
+    role: historical design, handoff, and planning archive
+    authority: historical_reference
+    default_action: skip_historical
+  reference/legacy-root-macros/**:
+    role: historical ROOT macro reference
+    authority: historical_reference
+    default_action: skip_historical
+
+rendered_outputs:
+  - path: docs/site/index.html
+    source_docs:
+      - README.md
+      - docs/README.md
+      - docs/项目说明.md
+      - docs/数学物理公式流程说明.md
+      - docs/手记文档.md
+    generator_command: "mkdir -p docs/site && pandoc --standalone --toc --metadata title='Blast-Wave Documentation' README.md docs/README.md docs/项目说明.md docs/数学物理公式流程说明.md docs/手记文档.md -o docs/site/index.html"
+    expected_action: generate
+    tracked: false

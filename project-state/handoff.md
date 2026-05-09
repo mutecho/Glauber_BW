@@ -2,7 +2,7 @@
 
 ## Latest Durable Handoff
 
-- Stage completed: sigma-equivalent density-defined flow-trans radius fix from `docs/半径再次修复.md`
+- Stage completed: sigma-equivalent density-defined flow-trans radius fix from the historical plan now archived at `docs/PLAN/半径再次修复.md`
 - What changed:
   - split density-defined radius handling into `xi_shell = r / R_density(phi)` and `xi_flow = q * xi_shell`
   - mapped `density-percentile:p` to `q = sqrt(-2 * log1p(-p))` and `density-level:fraction` to `q = sqrt(-2 * log(fraction))`
@@ -16,10 +16,13 @@
   - kept the ROOT schema unchanged
   - did not add or change config keys or example cfg files
 - Current documentation ownership:
+  - documentation index and role map: `docs/README.md`
   - detailed runtime and physics explanation: `docs/项目说明.md`
   - formula walkthrough: `docs/数学物理公式流程说明.md`
-  - high-order design/current contract: `docs/高阶半径与梯度混合整合方案.md`
+  - historical design and old handoffs: `docs/PLAN/`
   - concise semantic reminders: `docs/手记文档.md`
+  - agent workflow policy: `AGENTS.md`
+  - documentation sync routing: `project-state/doc-sync-map.yml`
   - current coordination view: `project-state/guide.md`
   - current snapshot and caveats: `project-state/current-status.md`
   - summarized durable validation evidence: `project-state/tests.md`
@@ -47,7 +50,8 @@
 
 - for physics conclusions from shell-gradient scans, run larger-statistics response-test or Glauber scans and compare \(p_T\), `v2`, `v3`, and geometry-plane projections against radius-profile controls
 - if future work needs to inspect correction internals, add an explicit ROOT-free or optional-debug payload design first; this packet intentionally kept ROOT schema unchanged
-- if the active code worktree changes physics, config parsing, schema, QA behavior, or operator flow again, refresh `docs/项目说明.md`, `docs/agent_guide.md`, and the relevant `project-state/` files in the same patch
+- if the active code worktree changes physics, config parsing, schema, QA behavior, or operator flow again, use `project-state/doc-sync-map.yml` to refresh the required current docs and relevant `project-state/` files in the same patch
+- older validation records may cite pre-archive or pre-rename document/config paths; current tracked response-test examples use `config/test_023_dense*.cfg`, and historical plans live under `docs/PLAN/`
 
 ## Verification Status
 
@@ -58,6 +62,6 @@
 - focused `/Users/allenzhou/Research_software/Blast_wave/bin/test_run_options` passed
 - O2Physics ROOT executor generate + QA passed for `config/test_b8_density_normal_flow_trans.cfg --flow-trans-radius density-percentile:0.95 --nevents 20`, written to `/private/tmp/blastwave_radius_sigma_percentile.root`
 - O2Physics ROOT executor generate + QA passed for `config/test_b8_density_normal_flow_trans.cfg --flow-trans-radius density-level:1.0e-3 --nevents 20`, written to `/private/tmp/blastwave_radius_sigma_level.root`
-- O2Physics ROOT executor generate + QA passed for `config/test_b8_response_023_dense_mix.cfg --nevents 1000`, written to `/private/tmp/blastwave_response_023_dense_mix_sigma.root`
-- O2Physics ROOT executor generate + QA passed for `config/test_b8_023_dense_newrap.cfg --nevents 1000`, written to `/private/tmp/blastwave_response_023_dense_newrap_sigma.root`
+- O2Physics ROOT executor generate + QA passed for `config/test_b8_response_023_dense_mix.cfg --nevents 1000`, written to `/private/tmp/blastwave_response_023_dense_mix_sigma.root`; current tracked equivalent path is `config/test_023_dense_mix.cfg`
+- O2Physics ROOT executor generate + QA passed for `config/test_b8_023_dense_newrap.cfg --nevents 1000`, written to `/private/tmp/blastwave_response_023_dense_newrap_sigma.root`; current tracked equivalent path is `config/test_023_dense_newrap.cfg`
 - ROOT metric extraction reported `dense_mix meanPt=1.041669379 psi2_proj=0.022560737` and `newrap meanPt=1.067941944 psi2_proj=0.022885878`

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-05-09 Documentation Routing And Historical Plan Archive
+
+- Added `project-state/doc-sync-map.yml` as the local `sync-project-knowledge` routing manifest.
+- Added `docs/README.md` and `docs/PLAN/README.md` to separate current docs, coordination ledgers, and historical plans.
+- Updated active entrypoint and `project-state` docs to treat `AGENTS.md` as the current agent policy and `docs/PLAN/` as historical reference.
+
 ## 2026-05-07 Progress Heartbeat And ETA
 
 - Added a one-second heartbeat to `generate_blastwave_events` progress output so enabled progress visibly updates even when the integer percent is unchanged.
