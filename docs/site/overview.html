@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Blast-Wave Overview</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <link rel="stylesheet" href="theme.css?v=20260509g" />
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Blast-Wave Overview</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#blast_wave" id="toc-blast_wave">Blast_wave</a>
+<ul>
+<li><a href="#当前仓库结构" id="toc-当前仓库结构">当前仓库结构</a></li>
+<li><a href="#本地产物目录" id="toc-本地产物目录">本地产物目录</a></li>
+<li><a href="#入口文档" id="toc-入口文档">入口文档</a></li>
+</ul></li>
+<li><a href="#blast-wave-文档索引"
+id="toc-blast-wave-文档索引">Blast-Wave 文档索引</a>
+<ul>
+<li><a href="#当前说明" id="toc-当前说明">当前说明</a></li>
+<li><a href="#协作台账" id="toc-协作台账">协作台账</a></li>
+<li><a href="#历史计划" id="toc-历史计划">历史计划</a></li>
+<li><a href="#维护规则" id="toc-维护规则">维护规则</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="blast_wave">Blast_wave</h1>
+<p>一个基于 C++17 和 ROOT 的小型 Blast-Wave
+事例生成器仓库。当前主线保持三层职责分离：</p>
+<ul>
+<li><code>include/</code> + <code>src/</code>：ROOT-free
+核心物理与输出契约实现</li>
+<li><code>apps/</code>：ROOT 相关的命令行入口，包括生成器、QA 和独立
+<code>v_n{2}(pT)</code> 分析器</li>
+<li><code>tests/</code>：不依赖 ROOT 文件 I/O 的核心回归测试</li>
+</ul>
+<h2 id="当前仓库结构">当前仓库结构</h2>
+<ul>
+<li><code>include/blastwave/</code> 公共头文件与对外数据契约。</li>
+<li><code>src/</code> 生成器核心、热动量采样器和 ROOT 输出实现。</li>
+<li><code>apps/</code> 生成、QA 和独立 <code>v_n{2}(pT)</code>
+分析入口。</li>
+<li><code>tests/</code> 当前的 ROOT-free 单元/回归测试，包括差分
+<code>v2/v3{2}(pT)</code> cumulant 回归。</li>
+<li><code>config/</code> 受版本控制的示例配置文件。</li>
+<li><code>scripts/</code> 本地运行辅助脚本，不与静态配置混放。</li>
+<li><code>reference/legacy-root-macros/</code> 历史 ROOT
+参考宏，只用于理解物理意图与对照旧思路，不参与构建，也不应直接复制到主实现。</li>
+<li><code>docs/</code> 当前说明、公式说明、简明手记和历史计划归档。</li>
+<li><code>project-state/</code> 仓库内工程协作台账。</li>
+<li><code>AGENTS.md</code> 当前 agent 工作规则。</li>
+</ul>
+<h2 id="本地产物目录">本地产物目录</h2>
+<ul>
+<li><code>build/</code>、<code>bin/</code> 本地构建产物。</li>
+<li><code>qa/</code> 本地 smoke/QA ROOT 输出。</li>
+<li><code>res/</code> 本地较长运行结果。</li>
+</ul>
+<p>这些目录默认不纳入版本控制。</p>
+<h2 id="入口文档">入口文档</h2>
+<ul>
+<li>文档索引：<a
+href="/Users/allenzhou/Research_software/Blast_wave/docs/README.md">docs/README.md</a>
+查看当前说明、协作台账和历史计划归档的分工。</li>
+<li>项目说明：<a
+href="/Users/allenzhou/Research_software/Blast_wave/docs/项目说明.md">docs/项目说明.md</a>
+当前最详细的运行与物理说明。</li>
+<li>数学/物理公式流程说明：<a
+href="/Users/allenzhou/Research_software/Blast_wave/docs/数学物理公式流程说明.md">docs/数学物理公式流程说明.md</a>
+公式导向地串起 participant 几何、密度演化、发射抽样、热动量、流场 boost
+和 flow 观测量。</li>
+<li>简明手记：<a
+href="/Users/allenzhou/Research_software/Blast_wave/docs/手记文档.md">docs/手记文档.md</a>
+快速查看主链和常见误解。</li>
+<li>当前协作状态：<a
+href="/Users/allenzhou/Research_software/Blast_wave/project-state/guide.md">project-state/guide.md</a>
+查看当前协作基线与文档分工。</li>
+<li>Agent 工作规则：<a
+href="/Users/allenzhou/Research_software/Blast_wave/AGENTS.md">AGENTS.md</a>
+当前仓库级 agent-first workflow policy。</li>
+</ul>
+<h1 id="blast-wave-文档索引">Blast-Wave 文档索引</h1>
+<p>本目录只维护当前说明和历史计划两层。当前契约优先看
+<code>docs/项目说明.md</code>、<code>docs/数学物理公式流程说明.md</code>、<code>docs/手记文档.md</code>
+和 <code>project-state/</code>；历史计划只用于追溯设计来源。</p>
+<h2 id="当前说明">当前说明</h2>
+<ul>
+<li><code>项目说明.md</code>
+<ul>
+<li>运行方式、配置契约、ROOT 输出结构、QA
+行为和面向使用者的物理说明。</li>
+<li>当 CLI、配置项、输出 schema、QA
+语义或用户运行方式变化时优先更新。</li>
+</ul></li>
+<li><code>数学物理公式流程说明.md</code>
+<ul>
+<li>公式导向的 participant 几何、密度演化、发射抽样、热动量、流场 boost
+和 flow 观测量说明。</li>
+<li>当算法、公式、物理解释、模型链顺序或代码位置变化时优先更新。</li>
+</ul></li>
+<li><code>手记文档.md</code>
+<ul>
+<li>当前主链和容易混淆概念的简明提醒。</li>
+<li>只放高频语义提醒，不承载完整参数表或完整历史。</li>
+</ul></li>
+</ul>
+<h2 id="协作台账">协作台账</h2>
+<ul>
+<li><code>../project-state/guide.md</code>
+<ul>
+<li>当前协作视图、文档角色和维护规则。</li>
+</ul></li>
+<li><code>../project-state/current-status.md</code>
+<ul>
+<li>当前运行基线、验证图景和 caveat。</li>
+</ul></li>
+<li><code>../project-state/handoff.md</code>
+<ul>
+<li>最新可执行 handoff。</li>
+</ul></li>
+<li><code>../project-state/tests.md</code>
+<ul>
+<li>耐久验证证据摘要。</li>
+</ul></li>
+<li><code>../project-state/decisions.md</code>
+<ul>
+<li>长期有效的决策。</li>
+</ul></li>
+<li><code>../project-state/changelog.md</code>
+<ul>
+<li>简明历史条目。</li>
+</ul></li>
+<li><code>../project-state/issues.md</code> 与
+<code>../project-state/work-items.md</code>
+<ul>
+<li>仍需关注的问题和后续工作。</li>
+</ul></li>
+<li><code>../project-state/doc-sync-map.yml</code>
+<ul>
+<li>按当前 <code>sync-project-knowledge</code> skill
+规范维护的文档同步路由。</li>
+</ul></li>
+</ul>
+<h2 id="历史计划">历史计划</h2>
+<ul>
+<li><code>PLAN/</code>
+<ul>
+<li>历史设计稿、旧 handoff 和已执行计划归档。</li>
+<li>默认不作为当前契约来源；若历史计划里的结论仍有效，应迁移或总结到当前说明、<code>project-state/</code>
+或决策台账中。</li>
+</ul></li>
+</ul>
+<h2 id="维护规则">维护规则</h2>
+<ul>
+<li>不把当前说明写成按时间追加的 patch
+note；新内容应合并进对应章节。</li>
+<li>不在多个文档重复完整参数表、完整 ROOT schema 或完整验证命令。</li>
+<li>修改算法、配置、输出 schema、QA、测试策略或用户运行方式时，按
+<code>project-state/doc-sync-map.yml</code>
+找到需要检查和更新的文档。</li>
+<li><code>AGENTS.md</code> 是当前 agent
+工作规则来源；<code>docs/PLAN/agent_guide.md</code> 只是历史归档。</li>
+</ul>
+<script src="enhance.js?v=20260509g"></script>
+</body>
+</html>

@@ -1,0 +1,2210 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Blast-Wave 数学物理公式流程说明</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <link rel="stylesheet" href="theme.css?v=20260509g" />
+  <script defer=""
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js"
+  type="text/javascript"></script>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Blast-Wave 数学物理公式流程说明</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#blast-wave-数学物理公式流程说明"
+id="toc-blast-wave-数学物理公式流程说明">Blast-Wave
+数学物理公式流程说明</a>
+<ul>
+<li><a href="#说明范围" id="toc-说明范围">说明范围</a></li>
+<li><a href="#符号约定" id="toc-符号约定">符号约定</a></li>
+<li><a href="#总体抽象流程" id="toc-总体抽象流程">总体抽象流程</a>
+<ul>
+<li><a href="#代码位置" id="toc-代码位置">代码位置</a></li>
+</ul></li>
+<li><a href="#woods-saxon-核子抽样与-participant-判定"
+id="toc-woods-saxon-核子抽样与-participant-判定">1. Woods-Saxon
+核子抽样与 participant 判定</a>
+<ul>
+<li><a href="#数学物理公式" id="toc-数学物理公式">数学/物理公式</a></li>
+<li><a href="#抽象操作" id="toc-抽象操作">抽象操作</a></li>
+<li><a href="#代码位置-1" id="toc-代码位置-1">代码位置</a></li>
+<li><a href="#response-test-023-人工初态模板"
+id="toc-response-test-023-人工初态模板">1.1
+<code>response-test-023</code> 人工初态模板</a></li>
+</ul></li>
+<li><a href="#participant-covariance-椭圆与初态-epsilon_2psi_2"
+id="toc-participant-covariance-椭圆与初态-epsilon_2psi_2">2. Participant
+covariance 椭圆与初态 <span
+class="math inline">\(\epsilon_2,\Psi_2\)</span></a>
+<ul>
+<li><a href="#数学物理公式-1"
+id="toc-数学物理公式-1">数学/物理公式</a></li>
+<li><a href="#抽象操作-1" id="toc-抽象操作-1">抽象操作</a></li>
+<li><a href="#代码位置-3" id="toc-代码位置-3">代码位置</a></li>
+</ul></li>
+<li><a href="#gaussian-point-cloud-密度场"
+id="toc-gaussian-point-cloud-密度场">3. Gaussian point-cloud 密度场</a>
+<ul>
+<li><a href="#数学物理公式-2"
+id="toc-数学物理公式-2">数学/物理公式</a></li>
+<li><a href="#抽象操作-2" id="toc-抽象操作-2">抽象操作</a></li>
+<li><a href="#代码位置-4" id="toc-代码位置-4">代码位置</a></li>
+</ul></li>
+<li><a href="#eventmedium从初态点云到发射阶段介质"
+id="toc-eventmedium从初态点云到发射阶段介质">4.
+EventMedium：从初态点云到发射阶段介质</a>
+<ul>
+<li><a href="#代码位置-5" id="toc-代码位置-5">代码位置</a></li>
+<li><a href="#density-evolution-none"
+id="toc-density-evolution-none">4.1
+<code>density-evolution = none</code></a></li>
+<li><a href="#density-evolution-affine-gaussian"
+id="toc-density-evolution-affine-gaussian">4.2
+<code>density-evolution = affine-gaussian</code></a></li>
+<li><a href="#density-evolution-gradient-response"
+id="toc-density-evolution-gradient-response">4.3
+<code>density-evolution = gradient-response</code></a></li>
+</ul></li>
+<li><a href="#每个-participant-的-multiplicity"
+id="toc-每个-participant-的-multiplicity">5. 每个 participant 的
+multiplicity</a>
+<ul>
+<li><a href="#数学物理公式-6"
+id="toc-数学物理公式-6">数学/物理公式</a></li>
+<li><a href="#抽象操作-6" id="toc-抽象操作-6">抽象操作</a></li>
+<li><a href="#代码位置-9" id="toc-代码位置-9">代码位置</a></li>
+</ul></li>
+<li><a href="#横向-emission-site-抽样"
+id="toc-横向-emission-site-抽样">6. 横向 emission site 抽样</a>
+<ul>
+<li><a href="#代码位置-10" id="toc-代码位置-10">代码位置</a></li>
+<li><a href="#participanthotspot" id="toc-participanthotspot">6.1
+<code>ParticipantHotspot</code></a></li>
+<li><a href="#densityfield" id="toc-densityfield">6.2
+<code>DensityField</code></a></li>
+<li><a href="#gradientresponse" id="toc-gradientresponse">6.3
+<code>GradientResponse</code></a></li>
+</ul></li>
+<li><a href="#纵向空间快度与-freeze-out-坐标"
+id="toc-纵向空间快度与-freeze-out-坐标">7. 纵向空间快度与 freeze-out
+坐标</a>
+<ul>
+<li><a href="#数学物理公式-10"
+id="toc-数学物理公式-10">数学/物理公式</a></li>
+<li><a href="#抽象操作-10" id="toc-抽象操作-10">抽象操作</a></li>
+<li><a href="#代码位置-14" id="toc-代码位置-14">代码位置</a></li>
+</ul></li>
+<li><a href="#局域静止系热动量" id="toc-局域静止系热动量">8.
+局域静止系热动量</a>
+<ul>
+<li><a href="#数学物理公式-11"
+id="toc-数学物理公式-11">数学/物理公式</a></li>
+<li><a href="#抽象操作-11" id="toc-抽象操作-11">抽象操作</a></li>
+<li><a href="#代码位置-15" id="toc-代码位置-15">代码位置</a></li>
+</ul></li>
+<li><a href="#横向流场" id="toc-横向流场">9. 横向流场</a>
+<ul>
+<li><a href="#代码位置-16" id="toc-代码位置-16">代码位置</a></li>
+<li><a href="#通用速度转换" id="toc-通用速度转换">9.1
+通用速度转换</a></li>
+<li><a href="#flow-velocity-sampler-covariance-ellipse"
+id="toc-flow-velocity-sampler-covariance-ellipse">9.2
+<code>flow-velocity-sampler = covariance-ellipse</code></a></li>
+<li><a href="#flow-velocity-sampler-density-normal"
+id="toc-flow-velocity-sampler-density-normal">9.3
+<code>flow-velocity-sampler = density-normal</code></a></li>
+<li><a href="#抽象操作-13" id="toc-抽象操作-13">抽象操作</a></li>
+<li><a href="#flow-velocity-sampler-affine-effective"
+id="toc-flow-velocity-sampler-affine-effective">9.4
+<code>flow-velocity-sampler = affine-effective</code></a></li>
+<li><a href="#flow-velocity-sampler-gradient-response"
+id="toc-flow-velocity-sampler-gradient-response">9.5
+<code>flow-velocity-sampler = gradient-response</code></a></li>
+</ul></li>
+<li><a href="#lorentz-boost-到实验室系"
+id="toc-lorentz-boost-到实验室系">10. Lorentz boost 到实验室系</a>
+<ul>
+<li><a href="#数学物理公式-15"
+id="toc-数学物理公式-15">数学/物理公式</a></li>
+<li><a href="#抽象操作-16" id="toc-抽象操作-16">抽象操作</a></li>
+<li><a href="#代码位置-22" id="toc-代码位置-22">代码位置</a></li>
+</ul></li>
+<li><a href="#可选-emission-weight" id="toc-可选-emission-weight">11.
+可选 emission weight</a>
+<ul>
+<li><a href="#数学物理公式-16"
+id="toc-数学物理公式-16">数学/物理公式</a></li>
+<li><a href="#抽象操作-17" id="toc-抽象操作-17">抽象操作</a></li>
+<li><a href="#代码位置-23" id="toc-代码位置-23">代码位置</a></li>
+</ul></li>
+<li><a href="#事件级几何和末态观测量"
+id="toc-事件级几何和末态观测量">12. 事件级几何和末态观测量</a>
+<ul>
+<li><a href="#代码位置-24" id="toc-代码位置-24">代码位置</a></li>
+<li><a href="#初末态半径矩" id="toc-初末态半径矩">12.1
+初末态半径矩</a></li>
+<li><a href="#freeze-out-eccentricity-response"
+id="toc-freeze-out-eccentricity-response">12.2 Freeze-out eccentricity
+response</a></li>
+<li><a href="#事件级-events.v2" id="toc-事件级-events.v2">12.3 事件级
+<code>events.v2</code></a></li>
+<li><a href="#抽象操作-18" id="toc-抽象操作-18">抽象操作</a></li>
+<li><a href="#初态三阶几何与末态投影"
+id="toc-初态三阶几何与末态投影">12.4 初态三阶几何与末态投影</a></li>
+</ul></li>
+<li><a href="#差分-v_n2pt-分析" id="toc-差分-v_n2pt-分析">13. 差分
+<code>v_n{2}(pT)</code> 分析</a>
+<ul>
+<li><a href="#数学物理公式-17"
+id="toc-数学物理公式-17">数学/物理公式</a></li>
+<li><a href="#抽象操作-19" id="toc-抽象操作-19">抽象操作</a></li>
+<li><a href="#代码位置-29" id="toc-代码位置-29">代码位置</a></li>
+</ul></li>
+<li><a href="#root-输出与数学对象的对应关系"
+id="toc-root-输出与数学对象的对应关系">14. ROOT
+输出与数学对象的对应关系</a>
+<ul>
+<li><a href="#事件树-events" id="toc-事件树-events">事件树
+<code>events</code></a></li>
+<li><a href="#粒子树-particles" id="toc-粒子树-particles">粒子树
+<code>particles</code></a></li>
+<li><a href="#可选-debuganalysis-对象"
+id="toc-可选-debuganalysis-对象">可选 debug/analysis 对象</a></li>
+<li><a href="#代码位置-30" id="toc-代码位置-30">代码位置</a></li>
+</ul></li>
+<li><a href="#端到端物理抽象总结" id="toc-端到端物理抽象总结">15.
+端到端物理抽象总结</a>
+<ul>
+<li><a href="#代码位置-31" id="toc-代码位置-31">代码位置</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="blast-wave-数学物理公式流程说明">Blast-Wave
+数学物理公式流程说明</h1>
+<h2 id="说明范围">说明范围</h2>
+<p>本文按当前代码主线说明一次 <code>generate_blastwave_events</code>
+运行中每一步的数学/物理定义，以及它在程序中的抽象操作。它描述的是当前实现，而不是完整流体动力学模型：</p>
+<ul>
+<li>当前生成单一直接 <code>pi+</code>。</li>
+<li>当前不是完整 Cooper-Frye freeze-out
+超曲面采样；<code>cooper-frye-weight = mt-cosh</code>
+只是一个可选权重代理。</li>
+<li>默认链路是
+<code>density-evolution = affine-gaussian</code>、<code>flow-velocity-sampler = covariance-ellipse</code>、<code>thermal-sampler = maxwell-juttner</code>。</li>
+<li><code>density-evolution = none</code>、<code>flow-velocity-sampler = density-normal</code>、<code>flow-velocity-sampler = affine-effective</code>、<code>density/flow = gradient-response</code>、<code>v2{2}(pT)</code>
+都是当前可选分支。</li>
+</ul>
+<h2 id="符号约定">符号约定</h2>
+<ul>
+<li>横向坐标写作 <span class="math display">\[
+\mathbf r=(x,y)^T,\qquad \Delta \mathbf r=\mathbf r-\bar{\mathbf r}.
+\]</span></li>
+<li>自然单位约定 <span class="math inline">\(c=1\)</span>。长度单位是
+<code>fm</code>，动量和质量单位是 <code>GeV</code>。</li>
+<li>participant 点云记为 <span class="math display">\[
+\{(\mathbf r_i,w_i)\}_{i=1}^{N_{\rm part}},
+\]</span> 当前 Glauber 生成器中 <span
+class="math inline">\(w_i=1\)</span>。</li>
+<li>participant-plane 的短轴方向记为 <span class="math inline">\(\mathbf
+e_{\rm in}\)</span>，长轴方向记为 <span class="math inline">\(\mathbf
+e_{\rm out}\)</span>。代码里 <code>in-plane</code> 对应 covariance minor
+axis，<code>out-of-plane</code> 对应 major axis。</li>
+<li>初态 participant 几何量使用下标 <code>0</code> 或
+<code>participant</code>；freeze-out/发射阶段几何量使用下标
+<code>f</code>。</li>
+<li>横向流快度记为 <span
+class="math inline">\(\rho_t\)</span>，横向速度大小记为 <span
+class="math inline">\(\beta_T=\tanh\rho_t\)</span>。</li>
+</ul>
+<h2 id="总体抽象流程">总体抽象流程</h2>
+<p>当前 <code>generateEvent()</code> 的总流程可以抽象成：</p>
+<pre class="text"><code>配置参数
+  -&gt; sampleParticipants()
+  -&gt; buildEventMedium()
+  -&gt; sampleEmissionSites()
+  -&gt; sample eta_s
+  -&gt; sample local thermal momentum p*
+  -&gt; evaluate flow velocity beta
+  -&gt; Lorentz boost p* -&gt; p_lab
+  -&gt; accumulate EventInfo / ParticleRecord / ROOT payload</code></pre>
+<p>对应代码落点：</p>
+<ul>
+<li>事件编排：<code>src/BlastWaveGenerator.cpp</code></li>
+<li>participant
+几何：<code>src/BlastWaveGeneratorGeometry.cpp</code></li>
+<li>介质构造：<code>src/EventMedium.cpp</code></li>
+<li>发射点抽样：<code>src/EmissionSampler.cpp</code></li>
+<li>流场：<code>src/FlowFieldModel.cpp</code></li>
+<li>热动量：<code>src/MaxwellJuttnerMomentumSampler.cpp</code></li>
+<li>共享观测量：<code>src/PhysicsUtils.cpp</code></li>
+<li>ROOT
+写出：<code>apps/generate_blastwave/RootEventFileWriter.cpp</code></li>
+</ul>
+<h3 id="代码位置">代码位置</h3>
+<ul>
+<li><code>apps/generate_blastwave_events.cpp</code>：程序入口，完成参数解析、事件循环和
+writer 调用。</li>
+<li><code>include/blastwave/BlastWaveGenerator.h</code>：<code>BlastWaveConfig</code>、<code>GeneratedEvent</code>、<code>EventInfo</code>、<code>ParticleRecord</code>
+等主数据契约。</li>
+<li><code>src/BlastWaveGenerator.cpp</code>：<code>BlastWaveGenerator::generateEvent()</code>，串起几何、介质、发射、动量、flow
+和事件摘要。</li>
+<li><code>apps/generate_blastwave/RunOptions.cpp</code>：CLI/config
+参数解析到 <code>BlastWaveConfig</code> 与 app 层选项。</li>
+</ul>
+<h2 id="woods-saxon-核子抽样与-participant-判定">1. Woods-Saxon
+核子抽样与 participant 判定</h2>
+<h3 id="数学物理公式">数学/物理公式</h3>
+<p>单个核子的径向 Woods-Saxon 密度取</p>
+<p><span class="math display">\[
+\rho_{\rm WS}(r)\propto
+\frac{1}{1+\exp((r-R)/a)},
+\]</span></p>
+<p>其中 <span
+class="math inline">\(R=\texttt{woodsSaxonRadius}\)</span>，<span
+class="math inline">\(a=\texttt{woodsSaxonDiffuseness}\)</span>。球坐标抽样的径向概率包含体积因子：</p>
+<p><span class="math display">\[
+P(r)\,dr \propto r^2 \rho_{\rm WS}(r)\,dr.
+\]</span></p>
+<p>两束核分别在横向 <span class="math inline">\(x\)</span> 方向平移</p>
+<p><span class="math display">\[
+x_A=x-\frac{b}{2},\qquad x_B=x+\frac{b}{2},
+\]</span></p>
+<p>其中 <span
+class="math inline">\(b=\texttt{impactParameter}\)</span>。两个核子发生一次几何碰撞的判据为</p>
+<p><span class="math display">\[
+d_T^2=(x_A-x_B)^2+(y_A-y_B)^2
+\le \frac{\sigma_{NN}}{\pi}.
+\]</span></p>
+<p>至少发生一次碰撞的核子被标记为 participant。</p>
+<p>当前中心度只是固定 <span class="math inline">\(b\)</span>
+的显示映射：</p>
+<p><span class="math display">\[
+{\rm centrality}
+=\operatorname{clip}\left(
+\frac{100\,b}{2R},0,100
+\right).
+\]</span></p>
+<h3 id="抽象操作">抽象操作</h3>
+<p>这一层把“两个带 Woods-Saxon
+形状的核在固定冲量参数下几何相交”抽象成一个逐事件 participant 点云：</p>
+<p><span class="math display">\[
+\{(x_i,y_i,z_i,\text{nucleus\_id}_i)\}.
+\]</span></p>
+<p>后续所有初态几何、密度和发射锚点都从这个点云派生。</p>
+<h3 id="代码位置-1">代码位置</h3>
+<ul>
+<li><code>src/BlastWaveGeneratorGeometry.cpp</code>：<code>sampleParticipants()</code>
+实现两核抽样和 <span class="math inline">\(NN\)</span> black-disk
+participant 判定。</li>
+<li><code>src/BlastWaveGeneratorGeometry.cpp</code>：<code>sampleSingleNucleon()</code>
+实现 Woods-Saxon 径向拒绝抽样和核子坐标平移。</li>
+<li><code>src/PhysicsUtils.cpp</code>：<code>computeCentralityPercent()</code>
+实现当前固定 <span class="math inline">\(b\)</span>
+的中心度显示映射。</li>
+<li><code>include/blastwave/BlastWaveGenerator.h</code>：<code>BlastWaveConfig</code>
+保存
+<code>impactParameter</code>、<code>sigmaNN</code>、<code>woodsSaxonRadius</code>、<code>woodsSaxonDiffuseness</code>
+等参数。</li>
+</ul>
+<h3 id="response-test-023-人工初态模板">1.1
+<code>response-test-023</code> 人工初态模板</h3>
+<p>当配置</p>
+<pre class="text"><code>initial-geometry = response-test-023</code></pre>
+<p>时，<code>sampleParticipants()</code> 不再抽 Woods-Saxon
+核子，而是生成一个横向 synthetic point cloud。该模板用于
+response/closure test，不用于替代真实初态模型。</p>
+<p>点云密度的概念形式为</p>
+<p><span class="math display">\[
+\rho(x,y)=\rho_0(x,y)+A_2\rho_2(x,y)+A_3\rho_3(x,y).
+\]</span></p>
+<p>这里 <span class="math inline">\(A_2,A_3\)</span>
+只是模板混合权重，不等同于实际 <span
+class="math inline">\(\epsilon_2,\epsilon_3\)</span>。当前实现按
+<code>1:A2:A3</code> 把 <code>initial-geometry-source-count</code>
+个离散源点分配到三类分量：</p>
+<ul>
+<li><span class="math inline">\(n=0\)</span>：宽度
+<code>initial-geometry-r0</code> 的圆形 Gaussian 背景；</li>
+<li><span class="math inline">\(n=2\)</span>：局域主轴宽度
+<code>initial-geometry-r2x/r2y</code>、方向
+<code>initial-geometry-phi2</code> 的椭圆 Gaussian；</li>
+<li><span class="math inline">\(n=3\)</span>：三个中心位于 <span
+class="math display">\[
+R_3(\cos(\Phi_3+2\pi k/3),\sin(\Phi_3+2\pi k/3)),\quad k=0,1,2
+\]</span> 的 Gaussian hotspot，参数为
+<code>initial-geometry-r3</code>、<code>initial-geometry-sigma3</code>、<code>initial-geometry-phi3</code>。</li>
+</ul>
+<p>生成后点云会整体 recenter，使</p>
+<p><span class="math display">\[
+\bar x\simeq 0,\qquad \bar y\simeq 0,
+\]</span></p>
+<p>以压低人工 dipole contamination。模板源在 <code>participants</code>
+tree 中使用 <code>nucleus_id=-1</code>，随后仍走同一个
+<code>buildEventMedium()</code>、<code>EmissionSampler</code>、flow 和
+ROOT 输出链。</p>
+<h4 id="代码位置-2">代码位置</h4>
+<ul>
+<li><code>include/blastwave/BlastWaveGenerator.h</code>：<code>InitialGeometryMode</code>
+与 <code>initialGeometry*</code> 配置字段。</li>
+<li><code>src/BlastWaveGeneratorGeometry.cpp</code>：<code>sampleParticipants()</code>
+在 Glauber 与 <code>sampleResponseTest023Participants()</code>
+之间分派。</li>
+<li><code>apps/generate_blastwave/RunOptions.cpp</code>：解析
+<code>initial-geometry*</code> 和
+<code>debug-initial-geometry</code>。</li>
+<li><code>config/test_023_dense.cfg</code>：完整中文说明的三阶响应测试配置。</li>
+</ul>
+<h2 id="participant-covariance-椭圆与初态-epsilon_2psi_2">2. Participant
+covariance 椭圆与初态 <span
+class="math inline">\(\epsilon_2,\Psi_2\)</span></h2>
+<h3 id="数学物理公式-1">数学/物理公式</h3>
+<p>对横向点云计算加权中心：</p>
+<p><span class="math display">\[
+W=\sum_i w_i,\qquad
+\bar x=\frac{1}{W}\sum_i w_i x_i,\qquad
+\bar y=\frac{1}{W}\sum_i w_i y_i.
+\]</span></p>
+<p>二阶矩/covariance 为</p>
+<p><span class="math display">\[
+\Sigma=
+\begin{pmatrix}
+\sigma_x^2 &amp; \sigma_{xy}\\
+\sigma_{xy} &amp; \sigma_y^2
+\end{pmatrix},
+\]</span></p>
+<p>其中</p>
+<p><span class="math display">\[
+\sigma_x^2=\frac{1}{W}\sum_i w_i(x_i-\bar x)^2,
+\]</span></p>
+<p><span class="math display">\[
+\sigma_y^2=\frac{1}{W}\sum_i w_i(y_i-\bar y)^2,
+\]</span></p>
+<p><span class="math display">\[
+\sigma_{xy}=\frac{1}{W}\sum_i w_i(x_i-\bar x)(y_i-\bar y).
+\]</span></p>
+<p>代码使用的二阶 eccentricity 向量为</p>
+<p><span class="math display">\[
+E_x=\sigma_y^2-\sigma_x^2,\qquad
+E_y=2\sigma_{xy}.
+\]</span></p>
+<p>participant eccentricity 和 participant-plane 角为</p>
+<p><span class="math display">\[
+\epsilon_2=
+\frac{\sqrt{E_x^2+E_y^2}}{\sigma_x^2+\sigma_y^2},
+\]</span></p>
+<p><span class="math display">\[
+\Psi_2=\frac{1}{2}\operatorname{atan2}(E_y,E_x).
+\]</span></p>
+<p>协方差矩阵本征值为</p>
+<p><span class="math display">\[
+\lambda_{\rm major/minor}
+=\frac{1}{2}\left[
+\operatorname{tr}\Sigma
+\pm
+\sqrt{(\sigma_x^2-\sigma_y^2)^2+4\sigma_{xy}^2}
+\right],
+\]</span></p>
+<p>半轴长度为</p>
+<p><span class="math display">\[
+R_{\rm major/minor}=\sqrt{\lambda_{\rm major/minor}}.
+\]</span></p>
+<p>给定一个查询点 <span class="math inline">\(\mathbf
+r\)</span>，协方差归一化法向和广义半径定义为</p>
+<p><span class="math display">\[
+\mathbf q=\Sigma^{-1}(\mathbf r-\bar{\mathbf r}),
+\]</span></p>
+<p><span class="math display">\[
+\hat{\mathbf n}_{\Sigma}=\frac{\mathbf q}{|\mathbf q|},
+\]</span></p>
+<p><span class="math display">\[
+\tilde r^2=(\mathbf r-\bar{\mathbf r})^T\Sigma^{-1}(\mathbf
+r-\bar{\mathbf r}).
+\]</span></p>
+<h3 id="抽象操作-1">抽象操作</h3>
+<p>这一层把离散 participant 点云压缩成一个事件级椭圆几何代理：</p>
+<ul>
+<li><code>centerX/centerY</code>：事件几何中心</li>
+<li><code>eps2/psi2</code>：初态二阶各向异性</li>
+<li><code>major/minor axis</code>：稳定的主轴基</li>
+<li><code>inverse covariance</code>：供流场方向、归一化半径和 fallback
+使用</li>
+</ul>
+<p>重要语义：<code>events.eps2</code> 和 <code>events.psi2</code>
+始终是初态 participant 几何，不会被 freeze-out 几何覆盖。</p>
+<h3 id="代码位置-3">代码位置</h3>
+<ul>
+<li><code>include/blastwave/FlowFieldModel.h</code>：<code>FlowEllipseInfo</code>
+定义 covariance 椭圆、主轴、逆协方差、<code>eps2</code> 和
+<code>psi2</code>。</li>
+<li><code>src/FlowFieldGeometry.cpp</code>：<code>computeFlowEllipseInfo()</code>
+从加权横向点云恢复事件中心、covariance、主轴、半轴、<span
+class="math inline">\(\epsilon_2\)</span>、<span
+class="math inline">\(\Psi_2\)</span>。</li>
+<li><code>src/EventMedium.cpp</code>：<code>finalizeEllipseFromCovariance()</code>
+在 affine kernel covariance 加入后重新计算 freeze-out 椭圆派生量。</li>
+<li><code>src/BlastWaveGenerator.cpp</code>：<code>generateEvent()</code>
+把 <code>medium.participantGeometry.eps2/psi2</code> 写入
+<code>EventInfo</code>。</li>
+</ul>
+<h2 id="gaussian-point-cloud-密度场">3. Gaussian point-cloud 密度场</h2>
+<h3 id="数学物理公式-2">数学/物理公式</h3>
+<p>当前横向密度统一用 Gaussian point-cloud 表示。对支持点 <span
+class="math inline">\(\mathbf r_i\)</span> 和二维核协方差 <span
+class="math inline">\(K\)</span>，密度为</p>
+<p><span class="math display">\[
+s(\mathbf r)
+=\sum_i w_i\,G_K(\mathbf r-\mathbf r_i),
+\]</span></p>
+<p><span class="math display">\[
+G_K(\Delta\mathbf r)
+=
+\frac{1}{2\pi\sqrt{\det K}}
+\exp\left[
+-\frac{1}{2}
+\Delta\mathbf r^T K^{-1}\Delta\mathbf r
+\right].
+\]</span></p>
+<p>密度梯度解析计算：</p>
+<p><span class="math display">\[
+\nabla s(\mathbf r)
+=
+-\sum_i
+w_i\,G_K(\mathbf r-\mathbf r_i)
+K^{-1}(\mathbf r-\mathbf r_i).
+\]</span></p>
+<p>等方核时</p>
+<p><span class="math display">\[
+K=\sigma^2 I.
+\]</span></p>
+<p>带仿射演化的发射阶段允许使用完整二维核：</p>
+<p><span class="math display">\[
+K=
+\begin{pmatrix}
+K_{xx} &amp; K_{xy}\\
+K_{xy} &amp; K_{yy}
+\end{pmatrix}.
+\]</span></p>
+<h3 id="抽象操作-2">抽象操作</h3>
+<p>这一层把离散点云变成可查询的连续场：</p>
+<pre class="text"><code>support points + kernel covariance
+  -&gt; density s(x,y)
+  -&gt; gradient grad s(x,y)</code></pre>
+<p>这个接口同时服务于：</p>
+<ul>
+<li>初态密度 <code>initialDensity</code></li>
+<li>发射阶段密度 <code>emissionDensity</code></li>
+<li>gradient-response 的 marker 密度 <code>s_em</code></li>
+<li>gradient-response 的动力学密度 <code>s_dyn</code></li>
+<li>density-normal 和 affine-effective 中的密度法向</li>
+<li>ROOT debug density map</li>
+</ul>
+<h3 id="代码位置-4">代码位置</h3>
+<ul>
+<li><code>include/blastwave/DensityFieldModel.h</code>：<code>WeightedTransversePoint</code>、<code>DensityField</code>、<code>DensityFieldSample</code>
+以及 density evaluator 接口。</li>
+<li><code>src/FlowFieldDensity.cpp</code>：<code>buildGaussianPointCloudDensityField()</code>
+构造等方或完整 covariance kernel 的 Gaussian point-cloud。</li>
+<li><code>src/FlowFieldDensity.cpp</code>：<code>evaluateDensityField()</code>
+计算 <span class="math inline">\(s(x,y)\)</span> 和解析 <span
+class="math inline">\(\nabla s(x,y)\)</span>。</li>
+<li><code>apps/generate_blastwave/RootEventFileWriter.cpp</code>：<code>fillDensityHistogramFromField()</code>
+把解析密度场栅格化成 ROOT <code>TH2F</code> debug map。</li>
+</ul>
+<h2 id="eventmedium从初态点云到发射阶段介质">4.
+EventMedium：从初态点云到发射阶段介质</h2>
+<h3 id="代码位置-5">代码位置</h3>
+<ul>
+<li><code>include/blastwave/EventMedium.h</code>：<code>EventMediumParameters</code>、<code>EventMedium</code>、<code>AffineEffectiveClosure</code>
+和 <code>DensityEvolutionMode</code>。</li>
+<li><code>src/BlastWaveGeneratorGeometry.cpp</code>：<code>buildMedium()</code>
+把 generator config 和 participant 点云转成
+<code>EventMediumParameters</code>。</li>
+<li><code>src/EventMedium.cpp</code>：<code>buildEventMedium()</code> 是
+<code>none</code>、<code>affine-gaussian</code>、<code>gradient-response</code>
+三条介质路径的调度入口。</li>
+<li><code>src/EventMedium.cpp</code>：<code>computeSupportDensityScale()</code>
+为 gradient-response 的 density floor/cutoff 提供事件级 density
+scale。</li>
+</ul>
+<h3 id="density-evolution-none">4.1
+<code>density-evolution = none</code></h3>
+<h4 id="数学物理公式-3">数学/物理公式</h4>
+<p>无演化路径直接令</p>
+<p><span class="math display">\[
+s_0=s_{\rm marker}=s_{\rm dyn}=s_f,
+\]</span></p>
+<p><span class="math display">\[
+\Sigma_f=\Sigma_{\rm participant}.
+\]</span></p>
+<h4 id="抽象操作-3">抽象操作</h4>
+<p>这是旧路径/对照路径：participant
+几何、发射几何和密度场保持同一语义。</p>
+<h4 id="代码位置-6">代码位置</h4>
+<ul>
+<li><code>src/EventMedium.cpp</code>：<code>buildEventMedium()</code> 的
+<code>DensityEvolutionMode::None</code> 分支把
+<code>initialDensity</code> 复制到 marker、dynamics 和 emission
+density，并保留 participant geometry。</li>
+<li><code>src/BlastWaveGeneratorSampling.cpp</code>：<code>sampleEventEmissionSites()</code>
+在该模式下选择
+<code>EmissionSamplerMode::ParticipantHotspot</code>。</li>
+</ul>
+<h3 id="density-evolution-affine-gaussian">4.2
+<code>density-evolution = affine-gaussian</code></h3>
+<h4 id="数学物理公式-4">数学/物理公式</h4>
+<p>先在 participant-plane 主轴基中分解点坐标：</p>
+<p><span class="math display">\[
+\Delta\mathbf r_i=\mathbf r_i-\bar{\mathbf r},
+\]</span></p>
+<p><span class="math display">\[
+x_{{\rm in},i}=\Delta\mathbf r_i\cdot\mathbf e_{\rm in},
+\qquad
+x_{{\rm out},i}=\Delta\mathbf r_i\cdot\mathbf e_{\rm out}.
+\]</span></p>
+<p>对短轴/长轴做不同仿射膨胀：</p>
+<p><span class="math display">\[
+\mathbf r_i&#39;
+=\bar{\mathbf r}
++\lambda_{\rm in}\,x_{{\rm in},i}\mathbf e_{\rm in}
++\lambda_{\rm out}\,x_{{\rm out},i}\mathbf e_{\rm out},
+\]</span></p>
+<p>其中</p>
+<p><span class="math display">\[
+\lambda_{\rm in}=\texttt{affine-lambda-in},
+\qquad
+\lambda_{\rm out}=\texttt{affine-lambda-out}.
+\]</span></p>
+<p>Gaussian kernel 也被同一个线性映射拉伸，并额外加入演化平滑：</p>
+<p><span class="math display">\[
+A=\lambda_{\rm in}\,\mathbf e_{\rm in}\mathbf e_{\rm in}^T
++\lambda_{\rm out}\,\mathbf e_{\rm out}\mathbf e_{\rm out}^T,
+\]</span></p>
+<p><span class="math display">\[
+K_f=A(\sigma_{\rm dep}^2 I)A^T+\sigma_{\rm evo}^2 I.
+\]</span></p>
+<p>其中</p>
+<p><span class="math display">\[
+\sigma_{\rm dep}=\texttt{flow-density-sigma},
+\qquad
+\sigma_{\rm evo}=\texttt{affine-sigma-evo}.
+\]</span></p>
+<p>发射密度为</p>
+<p><span class="math display">\[
+s_f(\mathbf r)=\sum_i w_i\,G_{K_f}(\mathbf r-\mathbf r_i&#39;).
+\]</span></p>
+<p>发射几何代理把 transformed support cloud 的 covariance 和 kernel
+covariance 加在一起：</p>
+<p><span class="math display">\[
+\Sigma_f={\rm Cov}(\{\mathbf r_i&#39;\})+K_f.
+\]</span></p>
+<p>若启用 affine-effective，几何闭合量从初末态半轴恢复：</p>
+<p><span class="math display">\[
+G_{\rm in}=\frac{\sigma_{{\rm in},f}}{\sigma_{{\rm in},0}},
+\qquad
+G_{\rm out}=\frac{\sigma_{{\rm out},f}}{\sigma_{{\rm out},0}},
+\]</span></p>
+<p><span class="math display">\[
+\Lambda_{\rm in}=\ln G_{\rm in},
+\qquad
+\Lambda_{\rm out}=\ln G_{\rm out},
+\]</span></p>
+<p><span class="math display">\[
+\bar\Lambda=\frac{1}{2}(\Lambda_{\rm in}+\Lambda_{\rm out}),
+\qquad
+\Delta\Lambda=\frac{1}{2}(\Lambda_{\rm in}-\Lambda_{\rm out}),
+\]</span></p>
+<p><span class="math display">\[
+H_{\rm in}^{\rm eff}=\frac{\Lambda_{\rm in}}{\Delta\tau_{\rm ref}},
+\qquad
+H_{\rm out}^{\rm eff}=\frac{\Lambda_{\rm out}}{\Delta\tau_{\rm ref}}.
+\]</span></p>
+<h4 id="抽象操作-4">抽象操作</h4>
+<p>这一层把初态 participant cloud 变成一个更宽、更椭圆响应后的
+freeze-out density：</p>
+<pre class="text"><code>participant points
+  -&gt; affine axis transform
+  -&gt; anisotropic Gaussian kernel
+  -&gt; emissionDensity s_f
+  -&gt; emissionGeometry Sigma_f
+  -&gt; optional affine-effective closure</code></pre>
+<p>注意：<code>participantGeometry</code>
+仍保留初态语义；<code>emissionGeometry</code> 是 freeze-out
+诊断和流场查询用的几何代理。</p>
+<h4 id="代码位置-7">代码位置</h4>
+<ul>
+<li><code>src/EventMedium.cpp</code>：<code>applyAffineResponse()</code>
+实现 participant-plane 中的 <span class="math inline">\(\lambda_{\rm
+in/out}\)</span> 仿射变换。</li>
+<li><code>src/EventMedium.cpp</code>：<code>computeAffineKernelCovariance()</code>
+实现 <span class="math inline">\(K_f=A\sigma_{\rm dep}^2IA^T+\sigma_{\rm
+evo}^2I\)</span>。</li>
+<li><code>src/EventMedium.cpp</code>：<code>buildEventMedium()</code> 的
+<code>DensityEvolutionMode::AffineGaussianResponse</code> 分支构造
+<code>emissionDensity</code>、<code>emissionGeometry</code>。</li>
+<li><code>src/EventMedium.cpp</code>：<code>buildAffineEffectiveClosure()</code>
+从初末态半轴恢复 <span class="math inline">\(G_{\rm
+in/out}\)</span>、<span class="math inline">\(\Lambda_{\rm
+in/out}\)</span>、<span
+class="math inline">\(\bar\Lambda\)</span>、<span
+class="math inline">\(\Delta\Lambda\)</span>。</li>
+<li><code>include/blastwave/BlastWaveGenerator.h</code>：<code>BlastWaveConfig</code>
+保存
+<code>affineLambdaIn</code>、<code>affineLambdaOut</code>、<code>affineSigmaEvo</code>
+和 affine-effective 相关参数。</li>
+</ul>
+<h3 id="density-evolution-gradient-response">4.3
+<code>density-evolution = gradient-response</code></h3>
+<h4 id="数学物理公式-5">数学/物理公式</h4>
+<p>该路径构造三套密度：</p>
+<p><span class="math display">\[
+s_0:\quad \sigma_0=\texttt{flow-density-sigma},
+\]</span></p>
+<p><span class="math display">\[
+s_{\rm em}:\quad
+\sigma_{\rm em}^{\rm eff}
+=\sqrt{\sigma_0^2+\texttt{gradient-sigma-em}^2},
+\]</span></p>
+<p><span class="math display">\[
+s_{\rm dyn}:\quad
+\sigma_{\rm dyn}^{\rm eff}
+=\sqrt{\sigma_0^2+\texttt{gradient-sigma-dyn}^2}.
+\]</span></p>
+<p><code>markerDensity = s_em</code> 用于抽 marker
+初态位置，<code>dynamicsDensity = s_dyn</code>
+用于给出位移和横向速度。生成时会在接受的最终发射点上重新计算 freeze-out
+几何： <span class="math display">\[
+\Sigma_f={\rm Cov}(\{\mathbf r_{f,j}\}).
+\]</span></p>
+<h4 id="抽象操作-5">抽象操作</h4>
+<p>该路径把“介质演化”推迟到逐粒子的 gradient response：</p>
+<pre class="text"><code>s_em: where marker r0 is sampled
+s_dyn: which local gradient pushes r0 to rf and sets beta_T
+accepted rf cloud: later determines eps2_f / psi2_f</code></pre>
+<p>该路径必须和 <code>flow-velocity-sampler = gradient-response</code>
+成对使用。</p>
+<h4 id="代码位置-8">代码位置</h4>
+<ul>
+<li><code>src/EventMedium.cpp</code>：<code>buildEventMedium()</code> 的
+<code>DensityEvolutionMode::GradientResponse</code> 分支构造
+<code>initialDensity</code>、<code>markerDensity</code>、<code>dynamicsDensity</code>。</li>
+<li><code>src/BlastWaveGeneratorSampling.cpp</code>：<code>sampleEventEmissionSites()</code>
+在该模式下选择 <code>EmissionSamplerMode::GradientResponse</code>。</li>
+<li><code>src/BlastWaveGeneratorValidation.cpp</code>：<code>validateConfig()</code>
+校验 gradient medium 和 gradient flow
+必须成对使用，并校验相关参数范围。</li>
+<li><code>src/BlastWaveGenerator.cpp</code>：<code>generateEvent()</code>
+对 gradient-response 的 accepted final emission points 重新计算
+<code>emissionGeometry</code>。</li>
+</ul>
+<h2 id="每个-participant-的-multiplicity">5. 每个 participant 的
+multiplicity</h2>
+<h3 id="数学物理公式-6">数学/物理公式</h3>
+<p>每个 participant 的候选粒子数使用 Gamma-Poisson
+形式的负二项分布。先抽</p>
+<p><span class="math display">\[
+\lambda_i\sim \Gamma(k,\theta=\mu/k),
+\]</span></p>
+<p>再抽</p>
+<p><span class="math display">\[
+n_i\sim {\rm Poisson}(\lambda_i).
+\]</span></p>
+<p>于是</p>
+<p><span class="math display">\[
+\mathbb E[n_i]=\mu,
+\qquad
+{\rm Var}(n_i)=\mu+\frac{\mu^2}{k}.
+\]</span></p>
+<p>其中 <span class="math inline">\(\mu=\texttt{nbd-mu}\)</span>，<span
+class="math inline">\(k=\texttt{nbd-k}\)</span>。</p>
+<h3 id="抽象操作-6">抽象操作</h3>
+<p>这一层把每个 participant source anchor 转换成若干个候选 emission
+site。当前粒子总数 <span class="math inline">\(N_{\rm ch}\)</span>
+就是所有被接受 emission site 的数量。</p>
+<h3 id="代码位置-9">代码位置</h3>
+<ul>
+<li><code>include/blastwave/EmissionSampler.h</code>：<code>EmissionParameters</code>
+保存 <code>nbdMu</code>、<code>nbdK</code>。</li>
+<li><code>src/EmissionSampler.cpp</code>：<code>sampleHotspotMultiplicity()</code>
+实现 Gamma-Poisson 负二项 multiplicity 抽样。</li>
+<li><code>src/EmissionSampler.cpp</code>：三个 emission backend 都调用
+<code>sampleHotspotMultiplicity()</code> 为每个 participant
+产生候选粒子数。</li>
+</ul>
+<h2 id="横向-emission-site-抽样">6. 横向 emission site 抽样</h2>
+<h3 id="代码位置-10">代码位置</h3>
+<ul>
+<li><code>include/blastwave/EmissionSampler.h</code>：<code>EmissionSite</code>
+定义
+<code>initialPosition</code>、<code>position</code>、<code>sourceAnchor</code>、gradient-response
+velocity 和 <code>emissionWeight</code>。</li>
+<li><code>include/blastwave/EmissionSampler.h</code>：<code>EmissionSamplerMode</code>
+与 <code>EmissionParameters</code> 定义三种 backend 的公共配置。</li>
+<li><code>src/BlastWaveGeneratorSampling.cpp</code>：<code>sampleEventEmissionSites()</code>
+根据 <code>densityEvolutionMode</code> 选择 emission backend。</li>
+<li><code>src/EmissionSampler.cpp</code>：<code>sampleEmissionSites()</code>
+是 backend dispatch 入口。</li>
+</ul>
+<h3 id="participanthotspot">6.1 <code>ParticipantHotspot</code></h3>
+<h4 id="数学物理公式-7">数学/物理公式</h4>
+<p>无演化旧路径下，marker 初态位置就是 participant anchor：</p>
+<p><span class="math display">\[
+\mathbf r_0=\mathbf r_i.
+\]</span></p>
+<p>最终发射位置加上等方 Gaussian smear：</p>
+<p><span class="math display">\[
+\mathbf r_f=\mathbf r_i+\boldsymbol\xi,
+\qquad
+\boldsymbol\xi\sim\mathcal N(0,\sigma_{\rm smear}^2 I).
+\]</span></p>
+<h4 id="抽象操作-7">抽象操作</h4>
+<pre class="text"><code>participant anchor -&gt; local hotspot smear -&gt; final emission position</code></pre>
+<p>写出语义：</p>
+<ul>
+<li><code>source_x/source_y = participant anchor</code></li>
+<li><code>x0/y0 = participant anchor</code></li>
+<li><code>x/y = smeared final emission point</code></li>
+</ul>
+<h4 id="代码位置-11">代码位置</h4>
+<ul>
+<li><code>src/EmissionSampler.cpp</code>：<code>sampleParticipantHotspotEmissionSites()</code>
+实现旧 hotspot 发射路径。</li>
+<li><code>src/EmissionSampler.cpp</code>：<code>sampleSmearedPosition()</code>
+实现 <span class="math inline">\(\mathbf r_i+\mathcal N(0,\sigma_{\rm
+smear}^2I)\)</span>。</li>
+<li><code>src/BlastWaveGeneratorSampling.cpp</code>：<code>sampleEventEmissionSites()</code>
+在 <code>density-evolution = none</code> 下选择该 backend。</li>
+</ul>
+<h3 id="densityfield">6.2 <code>DensityField</code></h3>
+<h4 id="数学物理公式-8">数学/物理公式</h4>
+<p><code>affine-gaussian</code> 默认使用该 backend。对第 <span
+class="math inline">\(i\)</span> 个 participant，使用第 <span
+class="math inline">\(i\)</span> 个 freeze-out support center <span
+class="math inline">\(\mathbf r&#39;_i\)</span> 和共享 kernel <span
+class="math inline">\(K_f\)</span> 抽样： <span class="math display">\[
+\mathbf r_f\sim\mathcal N(\mathbf r&#39;_i,K_f).
+\]</span></p>
+<p>marker 初态仍记录原 participant：</p>
+<p><span class="math display">\[
+\mathbf r_0=\mathbf r_i.
+\]</span></p>
+<h4 id="抽象操作-8">抽象操作</h4>
+<pre class="text"><code>participant anchor
+  -&gt; corresponding freeze-out support center
+  -&gt; sample from emission density kernel
+  -&gt; final emission position</code></pre>
+<p>写出语义：</p>
+<ul>
+<li><code>source_x/source_y = participant anchor</code></li>
+<li><code>x0/y0 = participant anchor</code></li>
+<li><code>x/y = sampled freeze-out position</code></li>
+</ul>
+<h4 id="代码位置-12">代码位置</h4>
+<ul>
+<li><code>src/EmissionSampler.cpp</code>：<code>sampleDensityFieldEmissionSites()</code>
+从 <code>medium.emissionDensity.supportPoints</code> 和共享 kernel 抽
+freeze-out emission point。</li>
+<li><code>src/EmissionSampler.cpp</code>：<code>buildKernelSampler()</code>
+对二维 kernel covariance 做 Cholesky 形式采样准备。</li>
+<li><code>src/EmissionSampler.cpp</code>：<code>sampleKernelPosition()</code>
+执行二维 Gaussian kernel 抽样。</li>
+<li><code>src/BlastWaveGeneratorSampling.cpp</code>：<code>sampleEventEmissionSites()</code>
+在 <code>density-evolution = affine-gaussian</code> 下选择该
+backend。</li>
+</ul>
+<h3 id="gradientresponse">6.3 <code>GradientResponse</code></h3>
+<h4 id="数学物理公式-9">数学/物理公式</h4>
+<p>先从 marker density 对应 Gaussian component 抽 marker：</p>
+<p><span class="math display">\[
+\mathbf r_0\sim \mathcal N(\mathbf r_i,K_{\rm em}).
+\]</span></p>
+<p>若</p>
+<p><span class="math display">\[
+s_{\rm em}(\mathbf r_0)
+&lt; f_{\rm cutoff}\,s_{\rm em}^{\rm scale},
+\]</span></p>
+<p>则重新抽样，直到达到重试上限。这里</p>
+<p><span class="math display">\[
+f_{\rm cutoff}=\texttt{gradient-density-cutoff-fraction}.
+\]</span></p>
+<p>在 <span class="math inline">\(\mathbf r_0\)</span>
+查询动力学密度梯度，并构造向外响应向量：</p>
+<p><span class="math display">\[
+\mathbf g
+=
+\frac{-\nabla s_{\rm dyn}(\mathbf r_0)}
+{\max\left(\epsilon,\ s_{\rm dyn}(\mathbf r_0)+f_{\rm floor}s_{\rm
+dyn}^{\rm scale}\right)}.
+\]</span></p>
+<p>其中</p>
+<p><span class="math display">\[
+f_{\rm floor}=\texttt{gradient-density-floor-fraction}.
+\]</span></p>
+<p>方向为</p>
+<p><span class="math display">\[
+\hat{\mathbf g}=\frac{\mathbf g}{|\mathbf g|}.
+\]</span></p>
+<p>确定性位移长度为</p>
+<p><span class="math display">\[
+\ell_{\rm disp}
+=d_{\max}\tanh(\kappa_{\rm disp}|\mathbf g|),
+\]</span></p>
+<p>其中</p>
+<p><span class="math display">\[
+d_{\max}=\texttt{gradient-displacement-max},
+\qquad
+\kappa_{\rm disp}=\texttt{gradient-displacement-kappa}.
+\]</span></p>
+<p>最终位移为</p>
+<p><span class="math display">\[
+\Delta\mathbf r
+=\ell_{\rm disp}\hat{\mathbf g}
++\boldsymbol\xi_{\rm diff},
+\]</span></p>
+<p><span class="math display">\[
+\boldsymbol\xi_{\rm diff}\sim
+\mathcal N(0,\sigma_{\rm diff}^2 I).
+\]</span></p>
+<p>最终发射位置为</p>
+<p><span class="math display">\[
+\mathbf r_f=\mathbf r_0+\Delta\mathbf r.
+\]</span></p>
+<p>该 site 的横向速度大小为</p>
+<p><span class="math display">\[
+\beta_T
+=v_{\max}\tanh(\kappa_v|\mathbf g|),
+\]</span></p>
+<p><span class="math display">\[
+\boldsymbol\beta_T=\beta_T\hat{\mathbf g}.
+\]</span></p>
+<p>其中</p>
+<p><span class="math display">\[
+v_{\max}=\texttt{gradient-vmax},
+\qquad
+\kappa_v=\texttt{gradient-velocity-kappa}.
+\]</span></p>
+<h4 id="抽象操作-9">抽象操作</h4>
+<pre class="text"><code>participant anchor
+  -&gt; sample marker r0 from s_em
+  -&gt; query -grad(s_dyn)/(s_dyn + floor)
+  -&gt; bounded displacement r0 -&gt; rf
+  -&gt; bounded transverse beta_T saved on EmissionSite</code></pre>
+<p>写出语义：</p>
+<ul>
+<li><code>source_x/source_y = participant anchor</code></li>
+<li><code>x0/y0 = marker initial position r0</code></li>
+<li><code>x/y = final emission position rf</code></li>
+<li><code>emission_weight = site weight before optional particle-level mt-cosh multiplier</code></li>
+</ul>
+<h4 id="代码位置-13">代码位置</h4>
+<ul>
+<li><code>src/EmissionSampler.cpp</code>：<code>sampleGradientResponseEmissionSites()</code>
+遍历 participant 并生成 gradient-response sites。</li>
+<li><code>src/EmissionSampler.cpp</code>：<code>sampleGradientResponseSite()</code>
+实现 marker cutoff、<span class="math inline">\(-\nabla s_{\rm
+dyn}/(s_{\rm dyn}+{\rm floor})\)</span>、位移、扩散和 <span
+class="math inline">\(\boldsymbol\beta_T\)</span>。</li>
+<li><code>src/EmissionSampler.cpp</code>：<code>buildKernelSampler()</code>
+与 <code>sampleKernelPosition()</code> 负责从 <code>markerDensity</code>
+Gaussian component 抽 <span class="math inline">\(\mathbf
+r_0\)</span>。</li>
+<li><code>src/FlowFieldModel.cpp</code>：<code>evaluateGradientResponseFlow()</code>
+后续直接消费 <code>EmissionSite::betaTX/betaTY</code>。</li>
+</ul>
+<h2 id="纵向空间快度与-freeze-out-坐标">7. 纵向空间快度与 freeze-out
+坐标</h2>
+<h3 id="数学物理公式-10">数学/物理公式</h3>
+<p>若 <code>eta-plateau = L</code> 且
+<code>sigma-eta = \sigma_\eta</code>，当前空间快度分布可以理解为中心平台加
+Gaussian 尾部：</p>
+<p><span class="math display">\[
+P(\eta_s)\propto
+\begin{cases}
+1, &amp; |\eta_s|\le L,\\
+\exp\left[-\frac{(|\eta_s|-L)^2}{2\sigma_\eta^2}\right], &amp;
+|\eta_s|&gt;L.
+\end{cases}
+\]</span></p>
+<p>实现中先用面积比选择平台或尾部：</p>
+<p><span class="math display">\[
+P_{\rm plateau}
+=
+\frac{L}{L+\sigma_\eta\sqrt{\pi/2}}.
+\]</span></p>
+<p>固定 proper time 为</p>
+<p><span class="math display">\[
+\tau=\tau_0.
+\]</span></p>
+<p>发射点四坐标写成</p>
+<p><span class="math display">\[
+t=\tau_0\cosh\eta_s,
+\qquad
+z=\tau_0\sinh\eta_s,
+\]</span></p>
+<p><span class="math display">\[
+x=x_f,\qquad y=y_f.
+\]</span></p>
+<h3 id="抽象操作-10">抽象操作</h3>
+<p>横向 emission site 只提供 <span
+class="math inline">\(x_f,y_f\)</span>。这一层把它补成一个
+boost-invariant 风格的 freeze-out spacetime point：</p>
+<pre class="text"><code>(x_f, y_f) + eta_s + tau0 -&gt; (t, x, y, z)</code></pre>
+<h3 id="代码位置-14">代码位置</h3>
+<ul>
+<li><code>src/BlastWaveGeneratorSampling.cpp</code>：<code>sampleEtaS()</code>
+实现 plateau-plus-tail <span class="math inline">\(\eta_s\)</span>
+抽样。</li>
+<li><code>src/BlastWaveGenerator.cpp</code>：<code>generateEvent()</code>
+把 <span class="math inline">\(\tau_0,\eta_s\)</span> 转成
+<code>particle.t</code> 和 <code>particle.z</code>，并写入
+<code>particle.x/y/etaS</code>。</li>
+<li><code>include/blastwave/BlastWaveGenerator.h</code>：<code>ParticleRecord</code>
+定义 <code>x/y/z/t</code> 与 <code>etaS</code> 输出字段。</li>
+</ul>
+<h2 id="局域静止系热动量">8. 局域静止系热动量</h2>
+<h3 id="数学物理公式-11">数学/物理公式</h3>
+<p>默认 <code>maxwell-juttner</code> 模式抽动量大小 <span
+class="math inline">\(p^*=|\mathbf p^*|\)</span>，概率密度取截断形式</p>
+<p><span class="math display">\[
+f(p^*)\propto
+(p^*)^2
+\exp\left[-\frac{\sqrt{(p^*)^2+m^2}}{T}\right],
+\qquad
+0\le p^*\le p_{\max}.
+\]</span></p>
+<p>代码用数值表构造 CDF：</p>
+<p><span class="math display">\[
+F(p)=
+\frac{\int_0^p f(p&#39;)\,dp&#39;}
+{\int_0^{p_{\max}} f(p&#39;)\,dp&#39;}.
+\]</span></p>
+<p>然后用 inverse-CDF 插值抽样 <span
+class="math inline">\(p^*\)</span>。</p>
+<p>动量方向各向同性：</p>
+<p><span class="math display">\[
+\cos\theta\sim U(-1,1),
+\qquad
+\phi\sim U(0,2\pi).
+\]</span></p>
+<p>局域静止系四动量：</p>
+<p><span class="math display">\[
+p_x^*=p^*\sin\theta\cos\phi,
+\]</span></p>
+<p><span class="math display">\[
+p_y^*=p^*\sin\theta\sin\phi,
+\]</span></p>
+<p><span class="math display">\[
+p_z^*=p^*\cos\theta,
+\]</span></p>
+<p><span class="math display">\[
+E^*=\sqrt{m^2+(p^*)^2}.
+\]</span></p>
+<p>兼容模式 <code>gamma</code> 使用</p>
+<p><span class="math display">\[
+p^*\sim \Gamma(k=3,\theta=T).
+\]</span></p>
+<h3 id="抽象操作-11">抽象操作</h3>
+<p>这一层只负责“局域静止系热动量”。它不知道事件几何、流场和 ROOT
+输出：</p>
+<pre class="text"><code>mass + temperature + sampler mode -&gt; local four momentum p*</code></pre>
+<h3 id="代码位置-15">代码位置</h3>
+<ul>
+<li><code>include/blastwave/MaxwellJuttnerMomentumSampler.h</code>：Maxwell-Juttner
+inverse-CDF sampler 对外接口。</li>
+<li><code>src/MaxwellJuttnerMomentumSampler.cpp</code>：<code>thermalWeight()</code>、构造函数和
+<code>sample()</code> 实现查表积分、归一化 CDF 和插值抽样。</li>
+<li><code>src/BlastWaveGenerator.cpp</code>：<code>BlastWaveGenerator</code>
+构造函数在默认 <code>maxwell-juttner</code> 模式下初始化 sampler
+table。</li>
+<li><code>src/BlastWaveGeneratorSampling.cpp</code>：<code>sampleThermalMomentum()</code>
+抽局域静止系四动量，并保留 <code>gamma</code> 兼容模式。</li>
+</ul>
+<h2 id="横向流场">9. 横向流场</h2>
+<h3 id="代码位置-16">代码位置</h3>
+<ul>
+<li><code>include/blastwave/FlowFieldModel.h</code>：<code>FlowVelocitySamplerMode</code>、<code>FlowFieldParameters</code>、<code>FlowFieldSample</code>
+和 affine-effective debug 契约。</li>
+<li><code>src/FlowFieldModel.cpp</code>：<code>evaluateFlowField()</code>
+是 flow sampler dispatch 入口。</li>
+<li><code>src/BlastWaveGeneratorSampling.cpp</code>：<code>sampleFlowVelocity()</code>
+把横向 sampler 结果和 Bjorken 纵向速度组合成三维 boost velocity。</li>
+<li><code>src/BlastWaveGeneratorValidation.cpp</code>：<code>validateConfig()</code>
+校验 flow sampler 与 density evolution 的合法组合。</li>
+</ul>
+<h3 id="通用速度转换">9.1 通用速度转换</h3>
+<p>给定横向流快度 <span
+class="math inline">\(\rho_t\)</span>，横向速度为</p>
+<p><span class="math display">\[
+\beta_T=\tanh\rho_t.
+\]</span></p>
+<p>默认数值保护对 covariance/density-normal 路径使用</p>
+<p><span class="math display">\[
+\beta_T\le 0.95.
+\]</span></p>
+<p>横向方向角为</p>
+<p><span class="math display">\[
+\phi_B=\operatorname{atan2}(n_y,n_x),
+\]</span></p>
+<p>于是</p>
+<p><span class="math display">\[
+\beta_x=\beta_T\cos\phi_B,
+\qquad
+\beta_y=\beta_T\sin\phi_B.
+\]</span></p>
+<p>随后叠加 Bjorken 纵向速度。若横向 sampler 给出 <span
+class="math inline">\((\beta_x^T,\beta_y^T)\)</span>，生成器实际 boost
+使用</p>
+<p><span class="math display">\[
+\beta_x=\frac{\beta_x^T}{\cosh\eta_s},
+\qquad
+\beta_y=\frac{\beta_y^T}{\cosh\eta_s},
+\qquad
+\beta_z=\tanh\eta_s.
+\]</span></p>
+<p>这样总速度满足</p>
+<p><span class="math display">\[
+\beta^2
+=
+\frac{(\beta_T)^2}{\cosh^2\eta_s}
++\tanh^2\eta_s
+&lt;1
+\]</span></p>
+<p>只要 <span class="math inline">\(\beta_T&lt;1\)</span>。</p>
+<h4 id="代码位置-17">代码位置</h4>
+<ul>
+<li><code>src/FlowFieldModel.cpp</code>：<code>computeBetaT()</code>
+实现 <span class="math inline">\(\beta_T=\tanh\rho_t\)</span> 以及
+covariance/density-normal 路径的上限保护。</li>
+<li><code>src/FlowFieldModel.cpp</code>：<code>safeAtanh()</code> 保护
+affine-effective 中的 <span
+class="math inline">\(\operatorname{atanh}\)</span> 数值边界。</li>
+<li><code>src/BlastWaveGeneratorSampling.cpp</code>：<code>sampleFlowVelocity()</code>
+实现 <span class="math inline">\(\beta_x/\cosh\eta_s\)</span>、<span
+class="math inline">\(\beta_y/\cosh\eta_s\)</span>、<span
+class="math inline">\(\beta_z=\tanh\eta_s\)</span> 的 Bjorken
+组合。</li>
+</ul>
+<h3 id="flow-velocity-sampler-covariance-ellipse">9.2
+<code>flow-velocity-sampler = covariance-ellipse</code></h3>
+<h4 id="数学物理公式-12">数学/物理公式</h4>
+<p>先用发射阶段几何 <span class="math inline">\(\Sigma_f\)</span>
+计算</p>
+<p><span class="math display">\[
+\mathbf q=\Sigma_f^{-1}(\mathbf r_f-\bar{\mathbf r}_f),
+\]</span></p>
+<p><span class="math display">\[
+\hat{\mathbf n}_{\Sigma}=\frac{\mathbf q}{|\mathbf q|},
+\]</span></p>
+<p><span class="math display">\[
+\tilde r^2=(\mathbf r_f-\bar{\mathbf r}_f)^T
+\Sigma_f^{-1}
+(\mathbf r_f-\bar{\mathbf r}_f).
+\]</span></p>
+<p>若当前是 <code>affine-gaussian</code>，二阶响应振幅来自初态
+participant 几何：</p>
+<p><span class="math display">\[
+a_2=\kappa_2\,\epsilon_{2,0}.
+\]</span></p>
+<p>流快度为</p>
+<p><span class="math display">\[
+\rho_t
+=
+\rho_{\rm trans}\,\tilde r^{\alpha}
+\exp\left[
+2a_2\cos 2(\phi_B-\Psi_{2,0})
+\right],
+\]</span></p>
+<p>其中</p>
+<p><span class="math display">\[
+\rho_{\rm trans}=\texttt{flow-trans-rho0},
+\qquad
+\alpha=\texttt{flow-trans-profile-power}.
+\]</span></p>
+<p>这里 <span class="math inline">\(\phi_B\)</span> 是 lab frame 中的
+covariance-normal 方向角。</p>
+<p>若是 <code>density-evolution = none</code>
+的旧比较路径，则代码使用</p>
+<p><span class="math display">\[
+x\rho_t=\tilde r^\alpha \left[\rho_{\rm
+trans}+a_2\cos(2\phi_B&#39;)\right]
+\]</span></p>
+<p>其中 <span class="math inline">\(\phi_B&#39;\)</span>
+是在主轴投影空间中恢复的角。</p>
+<h4 id="抽象操作-12">抽象操作</h4>
+<pre class="text"><code>emissionGeometry covariance
+  -&gt; covariance normal direction
+  -&gt; generalized radius rTilde
+  -&gt; rho_t radial profile with optional second-order modulation
+  -&gt; beta_T and transverse beta vector</code></pre>
+<h4 id="代码位置-18">代码位置</h4>
+<ul>
+<li><code>src/FlowFieldModel.cpp</code>：<code>sampleEllipseMetric()</code>
+计算 <span class="math inline">\(\mathbf q\)</span>、<span
+class="math inline">\(\tilde r\)</span>、covariance normal
+和主轴投影。</li>
+<li><code>src/FlowFieldModel.cpp</code>：<code>computeAffineKappaModulation()</code>
+实现 <span class="math inline">\(a_2=\kappa_2\epsilon_{2,0}\)</span> 的
+V1a 二阶响应因子。</li>
+<li><code>src/FlowFieldModel.cpp</code>：<code>evaluateCovarianceEllipseFlow()</code>
+实现 covariance-ellipse sampler 的 <span
+class="math inline">\(\rho_t\)</span>、<span
+class="math inline">\(\beta_T\)</span>、<span
+class="math inline">\(\beta_x/\beta_y\)</span>。</li>
+<li><code>tests/FlowFieldModelTest.cpp</code>：覆盖 covariance-ellipse
+flow 的 ROOT-free 回归测试。</li>
+</ul>
+<h3 id="flow-velocity-sampler-density-normal">9.3
+<code>flow-velocity-sampler = density-normal</code></h3>
+<h4 id="数学物理公式-13">数学/物理公式</h4>
+<p>先在发射密度上取向外 density normal：</p>
+<p><span class="math display">\[
+\hat{\mathbf n}_{s}
+=
+-\frac{\nabla s_f(\mathbf r_f)}
+{|\nabla s_f(\mathbf r_f)|}.
+\]</span></p>
+<p>若局部密度太平或梯度数值退化，则 fallback 到 covariance normal：</p>
+<p><span class="math display">\[
+\hat{\mathbf n}_{s}\rightarrow \hat{\mathbf n}_{\Sigma}.
+\]</span></p>
+<p>默认未显式配置新方向/半径键时，流强度只依赖协方差广义半径：</p>
+<p><span class="math display">\[
+\rho_t=\rho_{\rm trans}\tilde r^\alpha.
+\]</span></p>
+<p>若显式启用 <code>density-normal-kappa-compensation</code>，并且处于
+<code>affine-gaussian + density-normal</code>，则额外乘上 V1a
+二阶响应：</p>
+<p><span class="math display">\[
+\rho_t
+=
+\rho_{\rm trans}\tilde r^\alpha
+\exp\left[
+2\kappa_2\epsilon_{2,0}
+\cos 2(\phi_B-\Psi_{2,0})
+\right].
+\]</span></p>
+<p>若显式配置 <code>flow-trans-direction-gradient-fraction = f_g</code>
+或 <code>flow-trans-radius</code>，则方向先由几何径向方向 <span
+class="math inline">\(\hat{\mathbf n}_{r}\)</span> 与 density-gradient
+外向方向 <span class="math inline">\(\hat{\mathbf n}_{s}\)</span>
+混合：</p>
+<p><span class="math display">\[
+\hat{\mathbf n}_{\rm mix}
+=
+\frac{(1-f_g)\hat{\mathbf n}_r+f_g\hat{\mathbf n}_s}
+{|(1-f_g)\hat{\mathbf n}_r+f_g\hat{\mathbf n}_s|},
+\qquad 0\le f_g\le 1.
+\]</span></p>
+<p>半径变量拆成 density shell 坐标和主流强坐标。对 covariance 半径，</p>
+<p><span class="math display">\[
+\xi_{\rm flow}=\tilde r.
+\]</span></p>
+<p>对 density-defined 半径，先用发射密度边界定义 shell 坐标</p>
+<p><span class="math display">\[
+\xi_{\rm shell}
+=
+\begin{cases}
+r/r_p(\phi), &amp; \texttt{flow-trans-radius = density-percentile:p},\\
+r/r_{\rm level}(\phi), &amp; \texttt{flow-trans-radius =
+density-level:fraction},
+\end{cases}
+\]</span></p>
+<p>其中 <span class="math inline">\(r_p(\phi)\)</span>
+是沿角向射线累计发射密度达到分位数 <span
+class="math inline">\(p\)</span> 的边界，<span
+class="math inline">\(r_{\rm level}(\phi)\)</span> 是发射密度降到 <span
+class="math inline">\(\texttt{fraction}\times\texttt{emissionDensityScale}\)</span>
+的边界，并要求 <span
+class="math inline">\(0&lt;\texttt{fraction}&lt;1\)</span>。主流强再换算到
+covariance/sigma-equivalent 尺度：</p>
+<p><span class="math display">\[
+\xi_{\rm flow}=q\,\xi_{\rm shell},
+\]</span></p>
+<p><span class="math display">\[
+q=
+\begin{cases}
+\sqrt{-2\log(1-p)}, &amp; \texttt{density-percentile:p},\\
+\sqrt{-2\log(f)}, &amp; \texttt{density-level:f}.
+\end{cases}
+\]</span></p>
+<p>也就是说，density-defined <span
+class="math inline">\(R(\phi)\)</span>
+只决定角向几何形状；<code>flow-trans-rho0</code> 对应
+covariance-equivalent 的 <span class="math inline">\(\xi_{\rm
+flow}=1\)</span> 强度尺度。</p>
+<p><code>flow-trans-radius-resolution</code>
+只控制这个事件级角向边界表的数值网格：</p>
+<p><span class="math display">\[
+\texttt{balanced}=240\times256,\qquad
+\texttt{precise}=360\times512,\qquad
+\texttt{fast}=120\times128.
+\]</span></p>
+<p>这里第一维是角向采样点数，第二维是每条射线的径向采样点数。该配置不改变
+<span class="math inline">\(R(\phi)\)</span>、<span
+class="math inline">\(\xi_{\rm shell}=r/R(\phi)\)</span>、<span
+class="math inline">\(q\)</span>
+或横向流强公式本身；<code>precise</code> 保留旧的 <span
+class="math inline">\(360\times512\)</span>
+数值路径，<code>balanced</code> 是新的默认折中。density-defined 半径中的
+<span class="math inline">\(R(\phi)\)</span>
+是局域密度几何参考尺度，不是最大流强边界；代码对有限且非负的 <span
+class="math inline">\(\xi_{\rm shell}\)</span> 或 <span
+class="math inline">\(\xi_{\rm flow}\)</span> 不做上限截断，并使用</p>
+<p><span class="math display">\[
+\rho_t=\rho_{\rm trans}\xi_{\rm flow}^{\alpha}.
+\]</span></p>
+<p>这里 <span class="math inline">\(\rho_{\rm
+trans}=\texttt{flow-trans-rho0}\)</span> 表示 <span
+class="math inline">\(\xi_{\rm flow}=1\)</span>
+的快度尺度。最终速度仍走通用保护 <span
+class="math inline">\(\beta_T=\min(0.95,\tanh\max(0,\rho_t))\)</span>。</p>
+<p>若进一步选择</p>
+<pre class="text"><code>flow-trans-magnitude-mode = shell-gradient-corrected</code></pre>
+<p>则流强保持同一个主径向项，但乘上壳层累计梯度修正。该模式只允许
+<code>density-normal + density-percentile/level</code>，因为它需要上面定义的
+<span class="math inline">\(R(\phi)\)</span>。修正表只在边界 profile
+内定义，因此 lookup 使用</p>
+<p><span class="math display">\[
+s_{\rm lookup}=\min(\max(\xi_{\rm shell},0),1),
+\]</span></p>
+<p>这只限制 correction-profile 的插值域，不限制基础 <span
+class="math inline">\(\rho_{\rm trans}\xi_{\rm
+flow}^{\alpha}\)</span>。</p>
+<p>先沿每条角向射线构造累计量：</p>
+<p><span class="math display">\[
+A(\phi,s_{\rm lookup})=
+\int_0^{s_{\rm lookup}R(\phi)}
+\max\left(
+0,
+\frac{-\nabla s_f(\mathbf c+t\hat{\mathbf e}_\phi)\cdot\hat{\mathbf
+e}_\phi}
+{\max(s_f(\mathbf c+t\hat{\mathbf e}_\phi), f_{\rm floor}s_{\rm scale})}
+\right)dt.
+\]</span></p>
+<p>事件级归一化为</p>
+<p><span class="math display">\[
+\tilde A=
+\frac{A-\langle A\rangle_{\rm event}}
+{\mathrm{RMS}_{\rm event}},
+\]</span></p>
+<p>然后在相同 <span class="math inline">\(s\)</span>
+壳层扣除角向平均，得到乘法修正：</p>
+<p><span class="math display">\[
+\delta=
+\lambda_A
+\left[
+\tilde A(\phi,s_{\rm lookup})-\langle\tilde A\rangle_{s_{\rm lookup}}
+\right],
+\qquad
+\delta\in[-\delta_{\max},+\delta_{\max}].
+\]</span></p>
+<p>最终快度为</p>
+<p><span class="math display">\[
+\rho_t=
+\rho_{\rm trans}\xi_{\rm flow}^{\alpha}(1+\delta).
+\]</span></p>
+<p>其中 <span
+class="math inline">\(\lambda_A=\texttt{flow-trans-gradient-strength}\)</span>，
+<span class="math inline">\(f_{\rm
+floor}=\texttt{flow-trans-gradient-density-floor-fraction}\)</span>，
+<span
+class="math inline">\(\delta_{\max}=\texttt{flow-trans-gradient-max-factor-delta}\)</span>。当
+<span class="math inline">\(\lambda_A=0\)</span>、event RMS 退化或
+correction cache 无效时，该模式退回主径向项。</p>
+<h3 id="抽象操作-13">抽象操作</h3>
+<pre class="text"><code>emissionDensity gradient
+  -&gt; optional geometric/density-gradient direction mix
+  -&gt; covariance normal fallback if flat
+  -&gt; density-defined xi_shell and sigma-equivalent xi_flow if requested
+  -&gt; optional shell-gradient correction at clamped xi_shell table lookup
+  -&gt; flow-trans-rho0 * radius_profile^flow-trans-profile-power
+  -&gt; optional kappa2 compensation
+  -&gt; beta vector</code></pre>
+<p>这个 sampler 的物理意图是：方向各向异性主要来自 freeze-out density
+的几何梯度，而不是显式强行叠加的解析二阶项。</p>
+<h4 id="代码位置-19">代码位置</h4>
+<ul>
+<li><code>src/FlowFieldModel.cpp</code>：<code>sampleDensityNormalDirection()</code>
+查询 <code>emissionDensity</code> 的 <span class="math inline">\(-\nabla
+s\)</span> 并在平坦区 fallback 到 covariance normal。</li>
+<li><code>src/FlowFieldModel.cpp</code>：<code>sampleConfiguredDensityNormalDirection()</code>
+实现几何径向与 density-gradient 外向方向的连续混合和 fallback 链。</li>
+<li><code>src/FlowFieldModel.cpp</code>：<code>getFlowTransRadiusProfile()</code>、<code>computeDensityDefinedXiShell()</code>
+与 <code>computeDensityDefinedScale()</code> 实现
+<code>density-percentile</code> / <code>density-level</code>
+的事件级角向边界 profile cache、resolution preset、cache key、shell
+坐标和 sigma-equivalent 标定。</li>
+<li><code>src/FlowFieldModel.cpp</code>：<code>getFlowTransGradientCorrectionProfile()</code>、<code>sampleFlowTransGradientCorrectionValue()</code>
+与 <code>evaluateDensityNormalFlow()</code> 实现
+<code>shell-gradient-corrected</code>
+的累计梯度表、壳层平均扣除、乘法截断和 fallback。</li>
+<li><code>src/FlowFieldModel.cpp</code>：<code>evaluateDensityNormalFlow()</code>
+实现 density-normal sampler 的 <span
+class="math inline">\(\rho_t=\rho_{\rm trans}\xi_{\rm
+flow}^\alpha\)</span>、可选 shell-gradient 乘法修正和可选
+<code>densityNormalKappaCompensation</code>。</li>
+<li><code>src/FlowFieldDensity.cpp</code>：<code>evaluateDensityField()</code>
+提供 density-normal 方向需要的解析 density
+gradient；<code>evaluateDensityValue()</code> 提供 boundary profile
+构建只需的 scalar density，避免在高频径向采样中计算 gradient。</li>
+<li><code>apps/generate_blastwave/RootEventFileWriter.cpp</code>：<code>maybeCaptureDensityNormalEventDensity()</code>
+写出该 sampler 的首个有效事件密度快照。</li>
+</ul>
+<h3 id="flow-velocity-sampler-affine-effective">9.4
+<code>flow-velocity-sampler = affine-effective</code></h3>
+<p>该 sampler 只允许配合
+<code>density-evolution = affine-gaussian</code>。它先用第 4.2
+节的闭合量恢复</p>
+<p><span class="math display">\[
+H_{\rm in}^{\rm eff},\qquad H_{\rm out}^{\rm eff}.
+\]</span></p>
+<p>令</p>
+<p><span class="math display">\[
+\bar H=\frac{1}{2}
+(H_{\rm in}^{\rm eff}+H_{\rm out}^{\rm eff}),
+\]</span></p>
+<p><span class="math display">\[
+\bar R=\sqrt{\sigma_{{\rm in},f}\sigma_{{\rm out},f}}.
+\]</span></p>
+<p>并在 freeze-out 主轴基中写</p>
+<p><span class="math display">\[
+x&#39;=(\mathbf r_f-\bar{\mathbf r}_f)\cdot\mathbf e_{\rm in},
+\]</span></p>
+<p><span class="math display">\[
+y&#39;=(\mathbf r_f-\bar{\mathbf r}_f)\cdot\mathbf e_{\rm out}.
+\]</span></p>
+<h4
+id="affine-effective-mode-additive-rho"><code>affine-effective-mode = additive-rho</code></h4>
+<p>该模式保留 density-normal 方向，并把 affine 几何修正加到 <span
+class="math inline">\(\rho_0\)</span> baseline 上。</p>
+<p>局域 affine 几何速度代理：</p>
+<p><span class="math display">\[
+u_{\rm geom}
+=
+\kappa_{\rm flow}\,\tilde r^\alpha
+\sqrt{
+(H_{\rm in}^{\rm eff}x&#39;)^2
++
+(H_{\rm out}^{\rm eff}y&#39;)^2
+}.
+\]</span></p>
+<p>各向同性参考项：</p>
+<p><span class="math display">\[
+u_{\rm iso}
+=
+\kappa_{\rm flow}\,\tilde r^\alpha
+\bar H\,\tilde r\,\bar R.
+\]</span></p>
+<p>速度代理先被 <code>affine-u-max</code> 截断：</p>
+<p><span class="math display">\[
+u_{\rm geom}^{\rm clip}=\min(u_{\rm geom},u_{\max}),
+\]</span></p>
+<p><span class="math display">\[
+u_{\rm iso}^{\rm clip}=\min(u_{\rm iso},u_{\max}).
+\]</span></p>
+<p>几何修正写成流快度差：</p>
+<p><span class="math display">\[
+\Delta\rho_{\rm geom}
+=
+\operatorname{atanh}(u_{\rm geom}^{\rm clip})
+-
+\operatorname{atanh}(u_{\rm iso}^{\rm clip}).
+\]</span></p>
+<p>最终</p>
+<p><span class="math display">\[
+\rho_t
+=
+\max\left(
+0,\,
+\rho_0\tilde r^\alpha+\Delta\rho_{\rm geom}
+\right),
+\]</span></p>
+<p><span class="math display">\[
+\beta_T
+=
+\min\left(u_{\max},\tanh\rho_t\right).
+\]</span></p>
+<p>方向仍是 density-normal 方向。</p>
+<h4
+id="affine-effective-mode-full-tensor"><code>affine-effective-mode = full-tensor</code></h4>
+<p>该模式直接把主轴膨胀率映射成横向速度张量：</p>
+<p><span class="math display">\[
+u_{\rm in}&#39;
+=
+\kappa_{\rm flow}\tilde r^\alpha
+H_{\rm in}^{\rm eff}x&#39;,
+\]</span></p>
+<p><span class="math display">\[
+u_{\rm out}&#39;
+=
+\kappa_{\rm flow}\tilde r^\alpha
+H_{\rm out}^{\rm eff}y&#39;.
+\]</span></p>
+<p>旋回 lab frame：</p>
+<p><span class="math display">\[
+\boldsymbol\beta_T
+=
+u_{\rm in}&#39;\mathbf e_{\rm in}
++
+u_{\rm out}&#39;\mathbf e_{\rm out}.
+\]</span></p>
+<p>若</p>
+<p><span class="math display">\[
+|\boldsymbol\beta_T|&gt;u_{\max},
+\]</span></p>
+<p>则整体缩放到 <span class="math inline">\(u_{\max}\)</span>。该模式中
+<code>flow-trans-rho0</code> 不参与速度公式。</p>
+<h4 id="抽象操作-14">抽象操作</h4>
+<pre class="text"><code>affine-gaussian initial/final semi-axes
+  -&gt; effective expansion rates H_in/out
+  -&gt; additive-rho: flow-trans-rho0 baseline + geometry rapidity correction
+  -&gt; full-tensor: principal-axis velocity tensor
+  -&gt; clipped beta vector</code></pre>
+<p><code>affine-kappa-aniso</code> 当前只是 legacy/no-op 兼容参数。</p>
+<h4 id="代码位置-20">代码位置</h4>
+<ul>
+<li><code>src/EventMedium.cpp</code>：<code>buildAffineEffectiveClosure()</code>
+生成 affine-effective 所需的初末态半轴闭合量。</li>
+<li><code>src/FlowFieldModel.cpp</code>：<code>computeAffineEffectiveSharedTerms()</code>
+计算 <span class="math inline">\(H_{\rm in/out}^{\rm
+eff}\)</span>、<span class="math inline">\(\bar H\)</span>、<span
+class="math inline">\(\bar R\)</span>。</li>
+<li><code>src/FlowFieldModel.cpp</code>：<code>evaluateAffineEffectiveAdditiveRho()</code>
+实现 <code>additive-rho</code> 公式。</li>
+<li><code>src/FlowFieldModel.cpp</code>：<code>evaluateAffineEffectiveFullTensor()</code>
+实现 <code>full-tensor</code> 公式。</li>
+<li><code>src/FlowFieldModel.cpp</code>：<code>evaluateAffineEffectiveFlow()</code>
+根据 <code>affineEffectiveMode</code> 调度两个子模式。</li>
+<li><code>src/FlowFieldModel.cpp</code>：<code>computeAffineEffectiveFlowInfoImpl()</code>
+生成 <code>flow_ellipse_debug</code> 中的 surface 诊断量。</li>
+<li><code>apps/generate_blastwave/RootEventFileWriter.cpp</code>：<code>toFlowEllipseDebugBranches()</code>
+和 <code>maybeCaptureAffineEffectiveDensityMaps()</code> 写出
+affine-effective debug tree 与 before/after density maps。</li>
+</ul>
+<h3 id="flow-velocity-sampler-gradient-response">9.5
+<code>flow-velocity-sampler = gradient-response</code></h3>
+<h4 id="数学物理公式-14">数学/物理公式</h4>
+<p>这个 sampler 不再重新查询几何场，而是直接使用
+<code>EmissionSampler</code> 在第 6.3 节保存的</p>
+<p><span class="math display">\[
+\boldsymbol\beta_T=(\beta_x^T,\beta_y^T).
+\]</span></p>
+<p>若数值上达到或超过光速，代码把它缩放到略小于 1。</p>
+<h4 id="抽象操作-15">抽象操作</h4>
+<pre class="text"><code>EmissionSite betaTX/betaTY -&gt; FlowFieldSample</code></pre>
+<p>该路径把位移和流速都绑定到同一个 <span class="math inline">\(-\nabla
+s_{\rm dyn}\)</span> 响应。</p>
+<h4 id="代码位置-21">代码位置</h4>
+<ul>
+<li><code>src/EmissionSampler.cpp</code>：<code>sampleGradientResponseSite()</code>
+在 emission 阶段计算并保存 <code>betaTX/betaTY</code>。</li>
+<li><code>src/FlowFieldModel.cpp</code>：<code>evaluateGradientResponseFlow()</code>
+把 <code>EmissionSite::betaTX/betaTY</code> 转成
+<code>FlowFieldSample</code>。</li>
+<li><code>src/FlowFieldModel.cpp</code>：<code>evaluateFlowField(const EventMedium &amp;, const EmissionSite &amp;, ...)</code>
+的 site overload 在 <code>GradientResponse</code> 下调用该路径。</li>
+</ul>
+<h2 id="lorentz-boost-到实验室系">10. Lorentz boost 到实验室系</h2>
+<h3 id="数学物理公式-15">数学/物理公式</h3>
+<p>给定局域静止系四动量</p>
+<p><span class="math display">\[
+p^{*\mu}=(E^*,\mathbf p^*)
+\]</span></p>
+<p>和流体元速度</p>
+<p><span class="math display">\[
+\boldsymbol\beta=(\beta_x,\beta_y,\beta_z),
+\]</span></p>
+<p>定义</p>
+<p><span class="math display">\[
+\beta^2=\boldsymbol\beta\cdot\boldsymbol\beta,
+\qquad
+\gamma=\frac{1}{\sqrt{1-\beta^2}}.
+\]</span></p>
+<p>三动量 boost 为</p>
+<p><span class="math display">\[
+\mathbf p
+=
+\mathbf p^*
++
+\frac{\gamma-1}{\beta^2}
+(\boldsymbol\beta\cdot\mathbf p^*)\boldsymbol\beta
++
+\gamma E^*\boldsymbol\beta.
+\]</span></p>
+<p>能量为</p>
+<p><span class="math display">\[
+E=\gamma(E^*+\boldsymbol\beta\cdot\mathbf p^*).
+\]</span></p>
+<h3 id="抽象操作-16">抽象操作</h3>
+<pre class="text"><code>local thermal momentum + fluid velocity
+  -&gt; lab-frame particle momentum</code></pre>
+<p>这一层是最终动量各向异性进入 <code>particles.px/py/pz/E</code>
+的地方。</p>
+<h3 id="代码位置-22">代码位置</h3>
+<ul>
+<li><code>src/BlastWaveGeneratorSampling.cpp</code>：<code>lorentzBoost()</code>
+实现三维 Lorentz boost 公式和超光速保护。</li>
+<li><code>src/BlastWaveGeneratorSampling.cpp</code>：<code>sampleFlowVelocity()</code>
+提供 boost 所需的 <span
+class="math inline">\(\boldsymbol\beta\)</span>。</li>
+<li><code>src/BlastWaveGenerator.cpp</code>：<code>generateEvent()</code>
+调用
+<code>sampleThermalMomentum()</code>、<code>sampleFlowVelocity()</code>、<code>lorentzBoost()</code>
+并填充 <code>ParticleRecord</code>。</li>
+<li><code>include/blastwave/BlastWaveGenerator.h</code>：<code>FourMomentum</code>、<code>FlowVelocity</code>
+私有结构和 <code>ParticleRecord</code> 输出契约。</li>
+</ul>
+<h2 id="可选-emission-weight">11. 可选 emission weight</h2>
+<h3 id="数学物理公式-16">数学/物理公式</h3>
+<p>默认</p>
+<p><span class="math display">\[
+w_{\rm emit}=1.
+\]</span></p>
+<p>若启用 <code>cooper-frye-weight = mt-cosh</code>，生成器在已 boost
+的粒子动量上乘一个 <span class="math inline">\(\tau=\)</span> const
+代理权重：</p>
+<p><span class="math display">\[
+m_T=\sqrt{m^2+p_x^2+p_y^2},
+\]</span></p>
+<p><span class="math display">\[
+y=\operatorname{asinh}(p_z/m_T),
+\]</span></p>
+<p><span class="math display">\[
+w_{\rm CF}=m_T\cosh(y-\eta_s).
+\]</span></p>
+<p>最终</p>
+<p><span class="math display">\[
+w_{\rm emit}\leftarrow w_{\rm emit}\,w_{\rm CF}.
+\]</span></p>
+<h3 id="抽象操作-17">抽象操作</h3>
+<p>该权重只作为当前输出和事件级 weighted <code>v2</code>
+的分析权重代理，不代表完整 Cooper-Frye 超曲面积分。</p>
+<h3 id="代码位置-23">代码位置</h3>
+<ul>
+<li><code>include/blastwave/EmissionSampler.h</code>：<code>CooperFryeWeightMode</code>
+和 <code>EmissionSite::emissionWeight</code>。</li>
+<li><code>src/EmissionSampler.cpp</code>：<code>computeSiteEmissionWeight()</code>
+保留 site-level 权重入口，当前两个模式都先返回 1。</li>
+<li><code>src/PhysicsUtils.cpp</code>：<code>computeMtCoshWeight()</code>
+实现 <span class="math inline">\(m_T\cosh(y-\eta_s)\)</span>
+权重代理。</li>
+<li><code>src/BlastWaveGenerator.cpp</code>：<code>generateEvent()</code>
+在粒子 boost 后应用可选 <code>mt-cosh</code> 权重，并用
+<code>emissionWeight</code> 累积事件级 weighted <span
+class="math inline">\(Q_2\)</span>。</li>
+</ul>
+<h2 id="事件级几何和末态观测量">12. 事件级几何和末态观测量</h2>
+<h3 id="代码位置-24">代码位置</h3>
+<ul>
+<li><code>src/BlastWaveGenerator.cpp</code>：<code>generateEvent()</code>
+计算
+<code>r2_0/r2_f/r2_ratio</code>、<code>eps2_f/psi2_f/chi2</code>、<code>Nch</code>、<code>events.v2/v3</code>
+和相对初态平面的投影。</li>
+<li><code>src/PhysicsUtils.cpp</code>：<code>computeMeanRadiusSquared()</code>、<code>computeAzimuth()</code>、<code>computeSecondHarmonicEventV2()</code>、<code>computeRecenteredHarmonicGeometry()</code>
+维护共享观测量约定。</li>
+<li><code>src/FlowFieldGeometry.cpp</code>：<code>computeFlowEllipseInfo()</code>
+被复用来从 accepted final emission cloud 恢复 freeze-out geometry。</li>
+<li><code>include/blastwave/io/RootOutputSchema.h</code>：<code>EventBranches</code>
+定义这些事件级 ROOT branch。</li>
+<li><code>apps/generate_blastwave/RootEventFileWriter.cpp</code>：<code>toEventBranches()</code>
+和 <code>writeEvent()</code> 把事件摘要写入 <code>events</code> tree 和
+QA histograms。</li>
+</ul>
+<h3 id="初末态半径矩">12.1 初末态半径矩</h3>
+<p>对一组横向点 <span class="math inline">\(\{\mathbf
+r_j\}\)</span>，代码使用 centered radius moment：</p>
+<p><span class="math display">\[
+\langle r^2\rangle_{\rm centered}
+=
+\frac{1}{N}\sum_j |\mathbf r_j|^2
+-
+|\bar{\mathbf r}|^2.
+\]</span></p>
+<p>于是</p>
+<p><span class="math display">\[
+r^2_0=\langle r_0^2\rangle_{\rm centered},
+\qquad
+r^2_f=\langle r_f^2\rangle_{\rm centered},
+\]</span></p>
+<p><span class="math display">\[
+r^2_{\rm ratio}=
+\begin{cases}
+r_f^2/r_0^2, &amp; r_0^2&gt;0,\\
+0, &amp; r_0^2=0.
+\end{cases}
+\]</span></p>
+<h4 id="代码位置-25">代码位置</h4>
+<ul>
+<li><code>src/PhysicsUtils.cpp</code>：<code>computeMeanRadiusSquared()</code>
+实现 centered radius moment。</li>
+<li><code>src/BlastWaveGenerator.cpp</code>：<code>generateEvent()</code>
+从 <code>EmissionSite::initialPosition</code> 和
+<code>EmissionSite::position</code> 组装初末态点云并填充
+<code>r2Initial/r2Final/r2Ratio</code>。</li>
+</ul>
+<h3 id="freeze-out-eccentricity-response">12.2 Freeze-out eccentricity
+response</h3>
+<p>最终发射点云可恢复 freeze-out 几何：</p>
+<p><span class="math display">\[
+\epsilon_{2,f},\qquad \Psi_{2,f}.
+\]</span></p>
+<p>响应比定义为</p>
+<p><span class="math display">\[
+\chi_2=
+\begin{cases}
+\epsilon_{2,f}/\epsilon_{2,0}, &amp; \epsilon_{2,0}&gt;0,\\
+0, &amp; \epsilon_{2,0}=0.
+\end{cases}
+\]</span></p>
+<p>注意：</p>
+<ul>
+<li><code>eps2/psi2</code> 是初态 participant geometry。</li>
+<li><code>eps2_f/psi2_f/chi2</code> 是 freeze-out 几何诊断。</li>
+</ul>
+<h4 id="代码位置-26">代码位置</h4>
+<ul>
+<li><code>src/BlastWaveGenerator.cpp</code>：<code>generateEvent()</code>
+在 gradient-response 下从 final emission points 重建
+<code>event.medium.emissionGeometry</code>，并统一填充
+<code>eps2Freezeout/psi2Freezeout/chi2</code>。</li>
+<li><code>src/EventMedium.cpp</code>：<code>buildEventMedium()</code> 在
+<code>affine-gaussian</code> 下预先构造
+<code>emissionGeometry</code>。</li>
+<li><code>src/FlowFieldGeometry.cpp</code>：<code>computeFlowEllipseInfo()</code>
+执行 freeze-out 点云 covariance 几何恢复。</li>
+</ul>
+<h3 id="事件级-events.v2">12.3 事件级 <code>events.v2</code></h3>
+<p>当前生成器按粒子方位角构造 weighted 二阶 Q-vector：</p>
+<p><span class="math display">\[
+\phi_i=\operatorname{atan2}(p_{y,i},p_{x,i}),
+\]</span></p>
+<p><span class="math display">\[
+Q_2=\sum_i w_i e^{2i\phi_i}.
+\]</span></p>
+<p>事件级末态二阶流摘要为</p>
+<p><span class="math display">\[
+v_2^{\rm event}
+=
+\frac{|Q_2|}{\sum_i w_i}.
+\]</span></p>
+<p>默认 <span class="math inline">\(w_i=1\)</span>，此时就是</p>
+<p><span class="math display">\[
+v_2^{\rm event}
+=
+\frac{
+\sqrt{
+\left(\sum_i\cos2\phi_i\right)^2
++
+\left(\sum_i\sin2\phi_i\right)^2
+}
+}{N_{\rm ch}}.
+\]</span></p>
+<h3 id="抽象操作-18">抽象操作</h3>
+<p>事件摘要把逐粒子记录压缩成 ROOT <code>events</code> tree
+的核心字段：</p>
+<pre class="text"><code>participants -&gt; Npart, eps2, psi2, centrality
+emission sites -&gt; r2_0, r2_f, r2_ratio, eps2_f, psi2_f, chi2
+particles -&gt; Nch, weighted event v2/v3 and plane projections</code></pre>
+<h4 id="代码位置-27">代码位置</h4>
+<ul>
+<li><code>src/BlastWaveGenerator.cpp</code>：<code>generateEvent()</code>
+在粒子循环中累积 <code>q2x/q2y/q2Weight</code>，最后写入
+<code>event.info.v2</code>。</li>
+<li><code>src/PhysicsUtils.cpp</code>：<code>computeAzimuth()</code>
+保持 producer、QA 和分析中的方位角定义一致。</li>
+<li><code>apps/qa_blastwave_output.cpp</code>：独立 QA 从
+<code>particles</code> tree 复算 <code>events.v2</code> 并校验。</li>
+</ul>
+<h3 id="初态三阶几何与末态投影">12.4 初态三阶几何与末态投影</h3>
+<p>对加权初态点云先计算中心</p>
+<p><span class="math display">\[
+\bar x=\frac{\sum_i w_i x_i}{\sum_i w_i},\qquad
+\bar y=\frac{\sum_i w_i y_i}{\sum_i w_i}.
+\]</span></p>
+<p>用 recentered 坐标定义</p>
+<p><span class="math display">\[
+r_i=\sqrt{(x_i-\bar x)^2+(y_i-\bar y)^2},\qquad
+\phi_i=\operatorname{atan2}(y_i-\bar y,x_i-\bar x).
+\]</span></p>
+<p>当前三阶 helper 采用显式符号约定：</p>
+<p><span class="math display">\[
+E_n
+=
+-\frac{\sum_i w_i r_i^n e^{in\phi_i}}{\sum_i w_i r_i^n},
+\qquad
+\epsilon_n=|E_n|,
+\qquad
+\Psi_n=\frac{1}{n}\arg(E_n).
+\]</span></p>
+<p><code>events.eps2/psi2</code> 仍然保留 covariance 椭圆语义；新增
+<code>events.eps3/psi3</code> 使用上式的 <span
+class="math inline">\(n=3\)</span>
+结果。<code>events.x_center_init/y_center_init/R_rms_init</code>
+来自同一 recentering helper。</p>
+<p>末态粒子同时累积</p>
+<p><span class="math display">\[
+Q_2=\sum_j w_j e^{2i\varphi_j},\qquad
+Q_3=\sum_j w_j e^{3i\varphi_j}.
+\]</span></p>
+<p>除了</p>
+<p><span class="math display">\[
+v_n=\frac{|Q_n|}{\sum_j w_j},
+\]</span></p>
+<p>还保存相对初态几何平面的投影：</p>
+<p><span class="math display">\[
+v_{2|\Psi_2}
+=
+\frac{\operatorname{Re}(Q_2 e^{-2i\Psi_2})}{\sum_j w_j},
+\qquad
+v_{3|\Psi_3}
+=
+\frac{\operatorname{Re}(Q_3 e^{-3i\Psi_3})}{\sum_j w_j}.
+\]</span></p>
+<p>这些量在 ROOT 中写为 <code>v2_wrt_psi2</code> 和
+<code>v3_wrt_psi3</code>。它们用于 response
+test，因为初态几何平面已知，不需要先做末态 event-plane reconstruction。
+对应的四张 response/cross-talk TH2 使用完整存储范围
+<code>epsilon = 0..1</code>、<code>v_{n|\Psi_n} = -1..1</code>，但默认显示窗口缩到
+<code>epsilon = 0..0.35</code>、<code>v_{n|\Psi_n} = -0.15..0.15</code>，方便直接查看当前
+response-test 的点云密集区。</p>
+<h4 id="代码位置-28">代码位置</h4>
+<ul>
+<li><code>src/PhysicsUtils.cpp</code>：<code>computeRecenteredHarmonicGeometry()</code>
+实现 recentered harmonic geometry 和符号约定。</li>
+<li><code>src/BlastWaveGenerator.cpp</code>：<code>generateEvent()</code>
+填充
+<code>eps3/psi3</code>、<code>v3</code>、<code>v2_wrt_psi2</code>、<code>v3_wrt_psi3</code>。</li>
+<li><code>apps/generate_blastwave/RootEventFileWriter.cpp</code>：写出
+response/cross-talk TH2，并设置紧凑默认显示窗口。</li>
+<li><code>apps/qa_blastwave_output.cpp</code>：从 <code>particles</code>
+tree 复算 <code>Q2/Q3</code> 并校验四个末态摘要。</li>
+</ul>
+<h2 id="差分-v_n2pt-分析">13. 差分 <code>v_n{2}(pT)</code> 分析</h2>
+<h3 id="数学物理公式-17">数学/物理公式</h3>
+<p>该分析是可选 payload，配置 <code>v2pt-bins</code> 会开启 <span
+class="math inline">\(n=2\)</span>，配置 <code>v3pt-bins</code> 会开启
+<span class="math inline">\(n=3\)</span>。生成时可 joint
+analysis，也可用 <code>analyze_blastwave_vnpt</code> 后处理。</p>
+<p>每个事件中，参考粒子是该事件所有粒子。单位 track weight 固定为
+1，当前故意忽略 <code>particles.emission_weight</code>。令</p>
+<p><span class="math display">\[
+Q_n=\sum_{\rm ref} e^{in\phi},\quad n\in\{2,3\}.
+\]</span></p>
+<p>对一个 <span class="math inline">\(p_T\)</span> bin，POI Q-vector
+为</p>
+<p><span class="math display">\[
+P_n(p_T{\rm\ bin})
+=
+\sum_{\rm POI\ in\ bin}e^{in\phi}.
+\]</span></p>
+<p>积分参考 cumulant：</p>
+<p><span class="math display">\[
+c_n\{2\}
+=
+\frac{
+\sum_{\rm events}\left(|Q_n|^2-M\right)
+}{
+\sum_{\rm events}M(M-1)
+},
+\]</span></p>
+<p>其中 <span class="math inline">\(M\)</span> 是事件粒子数。</p>
+<p>差分 cumulant：</p>
+<p><span class="math display">\[
+d_n\{2\}(p_T)
+=
+\frac{
+\sum_{\rm events}
+\left(
+{\rm Re}\left[P_n(p_T)Q_n^*\right]-m_{p_T}
+\right)
+}{
+\sum_{\rm events}m_{p_T}(M-1)
+},
+\]</span></p>
+<p>其中 <span class="math inline">\(m_{p_T}\)</span> 是该事件中落入该
+<span class="math inline">\(p_T\)</span> bin 的 POI 数。</p>
+<p>最终</p>
+<p><span class="math display">\[
+v_n\{2\}(p_T)
+=
+\frac{d_n\{2\}(p_T)}
+{\sqrt{c_n\{2\}}}.
+\]</span></p>
+<p>误差使用 leave-one-event-out jackknife。若共有 <span
+class="math inline">\(N\)</span> 个 jackknife 样本，记第 <span
+class="math inline">\(a\)</span> 个 leave-one-out 结果为 <span
+class="math inline">\(v_a\)</span>，均值为 <span
+class="math inline">\(\bar v\)</span>，则</p>
+<p><span class="math display">\[
+\sigma_v
+=
+\sqrt{
+\frac{N-1}{N}
+\sum_{a=1}^{N}(v_a-\bar v)^2
+}.
+\]</span></p>
+<h3 id="抽象操作-19">抽象操作</h3>
+<pre class="text"><code>particles tree or live particles
+  -&gt; unit-weight Qn and Pn accumulators for enabled n=2/3
+  -&gt; integrated cn{2}
+  -&gt; differential dn{2}(pT)
+  -&gt; v_n{2}(pT) histogram + jackknife errors</code></pre>
+<p>它和 <code>events.v2/events.v3</code> 是不同对象：</p>
+<ul>
+<li><code>events.v2/events.v3</code> 是逐事件 Q-vector
+模长摘要，默认可被 <code>emission_weight</code> 影响。</li>
+<li><code>v2{2}(pT)</code> / <code>v3{2}(pT)</code> 是跨事件二粒子
+cumulant 差分分析，当前固定单位 track weight。</li>
+</ul>
+<h3 id="代码位置-29">代码位置</h3>
+<ul>
+<li><code>include/blastwave/DifferentialFlowCumulant.h</code>：harmonic-aware
+track 输入、结果结构和 <code>DifferentialFlowCumulant</code> 接口。</li>
+<li><code>src/DifferentialFlowCumulant.cpp</code>：<code>addEvent()</code>
+实现 <span class="math inline">\(Q_n\)</span>、<span
+class="math inline">\(P_n\)</span>、self-correlation subtraction
+和事件贡献缓存；<code>finalize()</code> 实现 <span
+class="math inline">\(c_n\{2\}\)</span>、<span
+class="math inline">\(d_n\{2\}\)</span>、<code>v_n{2}(pT)</code> 和
+jackknife error。</li>
+<li><code>include/blastwave/io/DifferentialFlowRootPayload.h</code> 与
+<code>src/DifferentialFlowRootPayload.cpp</code>：按 harmonic 读写
+<code>v2_2_pt_*</code> / <code>v3_2_pt_*</code> ROOT payload。</li>
+<li><code>apps/generate_blastwave/RootEventFileWriter.cpp</code>：生成时
+joint analysis 的 <code>DifferentialFlowCumulant</code> 累积和 payload
+写出。</li>
+<li><code>apps/analyze_blastwave_vnpt.cpp</code>：独立后处理入口，从
+ROOT 文件读 <code>particles</code> 和已存在的 <code>v2_2_pt_edges</code>
+/ <code>v3_2_pt_edges</code> 后写出分析 payload。</li>
+<li><code>apps/qa_blastwave_output.cpp</code>：QA 复算并校验可选
+<code>v2{2}(pT)</code> / <code>v3{2}(pT)</code> payload。</li>
+<li><code>apps/generate_blastwave/RunOptions.cpp</code>：解析
+<code>v2pt-bins</code>、<code>v3pt-bins</code>、<code>flowpt-output-mode</code>
+和 <code>flowpt-output</code>。</li>
+</ul>
+<h2 id="root-输出与数学对象的对应关系">14. ROOT
+输出与数学对象的对应关系</h2>
+<h3 id="事件树-events">事件树 <code>events</code></h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>字段</th>
+<th>数学/物理含义</th>
+<th>抽象来源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>event_id</code></td>
+<td>事件编号</td>
+<td>事件循环</td>
+</tr>
+<tr>
+<td><code>b</code></td>
+<td><span class="math inline">\(b\)</span></td>
+<td>固定冲量参数</td>
+</tr>
+<tr>
+<td><code>Npart</code></td>
+<td><span class="math inline">\(N_{\rm part}\)</span></td>
+<td>participant 判定</td>
+</tr>
+<tr>
+<td><code>eps2</code>, <code>psi2</code></td>
+<td><span class="math inline">\(\epsilon_{2,0},\Psi_{2,0}\)</span></td>
+<td>participant covariance</td>
+</tr>
+<tr>
+<td><code>initial_geometry_mode</code></td>
+<td><code>0=glauber</code>, <code>1=response-test-023</code></td>
+<td>初态几何来源</td>
+</tr>
+<tr>
+<td><code>eps3</code>, <code>psi3</code></td>
+<td><span class="math inline">\(\epsilon_{3,0},\Psi_{3,0}\)</span></td>
+<td>recentered harmonic geometry</td>
+</tr>
+<tr>
+<td><code>x_center_init</code>, <code>y_center_init</code>,
+<code>R_rms_init</code></td>
+<td>初态中心和 RMS 半径</td>
+<td>recentered point-cloud helper</td>
+</tr>
+<tr>
+<td><code>geo_a2</code>, <code>geo_a3</code>, <code>geo_r3</code>,
+<code>geo_sigma3</code></td>
+<td>response-test 模板配置快照</td>
+<td>运行配置</td>
+</tr>
+<tr>
+<td><code>eps2_f</code>, <code>psi2_f</code></td>
+<td><span class="math inline">\(\epsilon_{2,f},\Psi_{2,f}\)</span></td>
+<td>freeze-out geometry</td>
+</tr>
+<tr>
+<td><code>chi2</code></td>
+<td><span
+class="math inline">\(\epsilon_{2,f}/\epsilon_{2,0}\)</span></td>
+<td>几何响应诊断</td>
+</tr>
+<tr>
+<td><code>r2_0</code>, <code>r2_f</code>, <code>r2_ratio</code></td>
+<td>centered source-size moments</td>
+<td>emission site 初末态点云</td>
+</tr>
+<tr>
+<td><code>v2</code></td>
+<td><span class="math inline">\(|\sum w_i e^{2i\phi_i}|/\sum
+w_i\)</span></td>
+<td>末态粒子动量</td>
+</tr>
+<tr>
+<td><code>v3</code></td>
+<td><span class="math inline">\(|\sum w_i e^{3i\phi_i}|/\sum
+w_i\)</span></td>
+<td>末态粒子动量</td>
+</tr>
+<tr>
+<td><code>v2_wrt_psi2</code></td>
+<td><span class="math inline">\(\operatorname{Re}(Q_2
+e^{-2i\Psi_2})/\sum w_i\)</span></td>
+<td>相对初态二阶平面投影</td>
+</tr>
+<tr>
+<td><code>v3_wrt_psi3</code></td>
+<td><span class="math inline">\(\operatorname{Re}(Q_3
+e^{-3i\Psi_3})/\sum w_i\)</span></td>
+<td>相对初态三阶平面投影</td>
+</tr>
+<tr>
+<td><code>centrality</code></td>
+<td><span
+class="math inline">\(\operatorname{clip}(100b/(2R),0,100)\)</span></td>
+<td>固定 <span class="math inline">\(b\)</span> 显示映射</td>
+</tr>
+<tr>
+<td><code>Nch</code></td>
+<td>粒子数</td>
+<td>accepted emission sites</td>
+</tr>
+</tbody>
+</table>
+<h3 id="粒子树-particles">粒子树 <code>particles</code></h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>字段</th>
+<th>数学/物理含义</th>
+<th>抽象来源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>x</code>, <code>y</code></td>
+<td><span class="math inline">\(\mathbf r_f\)</span></td>
+<td>最终横向发射位置</td>
+</tr>
+<tr>
+<td><code>z</code>, <code>t</code></td>
+<td><span
+class="math inline">\(\tau_0\sinh\eta_s,\tau_0\cosh\eta_s\)</span></td>
+<td>longitudinal freeze-out</td>
+</tr>
+<tr>
+<td><code>px</code>, <code>py</code>, <code>pz</code>,
+<code>E</code></td>
+<td>lab-frame 四动量</td>
+<td>thermal momentum + flow boost</td>
+</tr>
+<tr>
+<td><code>eta_s</code></td>
+<td><span class="math inline">\(\eta_s\)</span></td>
+<td>空间快度抽样</td>
+</tr>
+<tr>
+<td><code>source_x</code>, <code>source_y</code></td>
+<td>participant anchor</td>
+<td>发射源锚点</td>
+</tr>
+<tr>
+<td><code>x0</code>, <code>y0</code></td>
+<td><span class="math inline">\(\mathbf r_0\)</span></td>
+<td>marker 初态位置</td>
+</tr>
+<tr>
+<td><code>emission_weight</code></td>
+<td><span class="math inline">\(w_{\rm emit}\)</span></td>
+<td>unit 或 mt-cosh 代理权重</td>
+</tr>
+</tbody>
+</table>
+<h3 id="可选-debuganalysis-对象">可选 debug/analysis 对象</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>对象</th>
+<th>数学/物理含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>flow_ellipse_debug</code></td>
+<td><span class="math inline">\(\Sigma_f\)</span>、主轴、affine
+closure、surface 诊断</td>
+</tr>
+<tr>
+<td><code>density_normal_event_density_x-y</code></td>
+<td>首个有效事件的 <code>emissionDensity</code> 栅格化</td>
+</tr>
+<tr>
+<td><code>affine_effective_density_initial_x-y</code></td>
+<td>affine-effective 首个有效事件的 <span
+class="math inline">\(s_0(x,y)\)</span></td>
+</tr>
+<tr>
+<td><code>affine_effective_density_final_x-y</code></td>
+<td>affine-effective 同一事件的 <span
+class="math inline">\(s_f(x,y)\)</span></td>
+</tr>
+<tr>
+<td><code>initial_geometry_density_x-y</code></td>
+<td>首个有效事件的初态 density map，用于 response-test debug</td>
+</tr>
+<tr>
+<td><code>gradient_s0_x-y</code></td>
+<td>gradient-response 初始密度</td>
+</tr>
+<tr>
+<td><code>gradient_s_em_x-y</code></td>
+<td>marker 密度</td>
+</tr>
+<tr>
+<td><code>gradient_s_dyn_x-y</code></td>
+<td>动力学梯度密度</td>
+</tr>
+<tr>
+<td><code>gradient_s_f_x-y</code></td>
+<td>accepted final emission cloud</td>
+</tr>
+<tr>
+<td><code>v2_2_pt_edges</code></td>
+<td>差分分析 <span class="math inline">\(p_T\)</span> bin metadata</td>
+</tr>
+<tr>
+<td><code>v2_2_pt</code></td>
+<td><span class="math inline">\(v_2\{2\}(p_T)\)</span></td>
+</tr>
+<tr>
+<td><code>v2_2_pt_canvas</code></td>
+<td>差分流图像</td>
+</tr>
+<tr>
+<td><code>v3_2_pt_edges</code></td>
+<td>三阶差分分析 <span class="math inline">\(p_T\)</span> bin
+metadata</td>
+</tr>
+<tr>
+<td><code>v3_2_pt</code></td>
+<td><span class="math inline">\(v_3\{2\}(p_T)\)</span></td>
+</tr>
+<tr>
+<td><code>v3_2_pt_canvas</code></td>
+<td>三阶差分流图像</td>
+</tr>
+</tbody>
+</table>
+<h3 id="代码位置-30">代码位置</h3>
+<ul>
+<li><code>include/blastwave/io/RootOutputSchema.h</code>：ROOT
+tree、branch 和 object name 的常量与 branch 结构。</li>
+<li><code>src/RootOutputSchema.cpp</code>：声明和绑定
+<code>events</code>、<code>participants</code>、<code>particles</code>、<code>flow_ellipse_debug</code>
+branches。</li>
+<li><code>apps/generate_blastwave/RootEventFileWriter.cpp</code>：ROOT
+文件创建、tree/hist/canvas 填充、optional debug payload 和
+<code>finish()</code> 写出顺序。</li>
+<li><code>include/blastwave/io/DifferentialFlowRootPayload.h</code> 与
+<code>src/DifferentialFlowRootPayload.cpp</code>：差分
+<code>v_n{2}(pT)</code> ROOT payload 的 harmonic-aware 读写。</li>
+<li><code>apps/qa_blastwave_output.cpp</code>：独立读取 ROOT 输出并校验
+mandatory 与 optional payload。</li>
+<li><code>apps/analyze_blastwave_vnpt.cpp</code>：独立
+<code>v2/v3{2}(pT)</code> 分析文件或 inplace payload 写出。</li>
+</ul>
+<h2 id="端到端物理抽象总结">15. 端到端物理抽象总结</h2>
+<p>从物理抽象上，当前生成器做的是：</p>
+<ol type="1">
+<li>用 Woods-Saxon + black-disk <span class="math inline">\(NN\)</span>
+碰撞判据得到逐事件 participant 初态。</li>
+<li>用 participant covariance 得到 <span
+class="math inline">\(\epsilon_{2,0}\)</span>、<span
+class="math inline">\(\Psi_{2,0}\)</span>、主轴和广义半径度量。</li>
+<li>用 Gaussian point-cloud 构造连续横向密度。</li>
+<li>根据 <code>density-evolution</code> 把初态密度变成发射阶段密度，或在
+gradient-response 中把演化推到逐粒子响应。</li>
+<li>根据 participant multiplicity 产生 emission sites。</li>
+<li>对每个 site 抽 <span
+class="math inline">\(\eta_s\)</span>、局域热动量和横向流速度。</li>
+<li>用 Lorentz boost 得到 lab-frame 粒子四动量。</li>
+<li>从粒子和发射点云回填事件级几何、源尺寸和末态 flow 摘要。</li>
+<li>把事件、participant、粒子和可选 QA/analysis 对象写入 ROOT。</li>
+</ol>
+<p>因此代码里的核心抽象不是“完整 hydrodynamic evolution”，而是：</p>
+<p><span class="math display">\[
+\text{participant geometry}
+\rightarrow
+\text{event medium}
+\rightarrow
+\text{emission sites}
+\rightarrow
+\text{local thermal momentum + flow boost}
+\rightarrow
+\text{ROOT observables}.
+\]</span></p>
+<h3 id="代码位置-31">代码位置</h3>
+<ul>
+<li><code>apps/generate_blastwave_events.cpp</code>：端到端运行的最外层事件循环。</li>
+<li><code>src/BlastWaveGenerator.cpp</code>：单事件物理链路的核心编排。</li>
+<li><code>apps/generate_blastwave/RootEventFileWriter.cpp</code>：端到端输出契约落盘。</li>
+<li><code>apps/qa_blastwave_output.cpp</code>：端到端输出契约的独立读取和一致性校验。</li>
+</ul>
+<script src="enhance.js?v=20260509g"></script>
+</body>
+</html>

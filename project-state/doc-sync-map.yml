@@ -215,11 +215,57 @@ docs:
 rendered_outputs:
   - path: docs/site/index.html
     source_docs:
+      - docs/site/home.md
+    support_assets:
+      - docs/site/theme.css
+      - docs/site/enhance.js
+      - docs/site/enhance.html
+      - docs/site/build_site.sh
+    generator_command: "bash docs/site/build_site.sh"
+    expected_action: generate
+    tracked: true
+  - path: docs/site/overview.html
+    source_docs:
       - README.md
       - docs/README.md
-      - docs/项目说明.md
-      - docs/数学物理公式流程说明.md
-      - docs/手记文档.md
-    generator_command: "mkdir -p docs/site && pandoc --standalone --toc --metadata title='Blast-Wave Documentation' README.md docs/README.md docs/项目说明.md docs/数学物理公式流程说明.md docs/手记文档.md -o docs/site/index.html"
+    support_assets:
+      - docs/site/theme.css
+      - docs/site/enhance.js
+      - docs/site/enhance.html
+      - docs/site/build_site.sh
+    generator_command: "bash docs/site/build_site.sh"
     expected_action: generate
-    tracked: false
+    tracked: true
+  - path: docs/site/project.html
+    source_docs:
+      - docs/项目说明.md
+    support_assets:
+      - docs/site/theme.css
+      - docs/site/enhance.js
+      - docs/site/enhance.html
+      - docs/site/build_site.sh
+    generator_command: "bash docs/site/build_site.sh"
+    expected_action: generate
+    tracked: true
+  - path: docs/site/formulas.html
+    source_docs:
+      - docs/数学物理公式流程说明.md
+    support_assets:
+      - docs/site/theme.css
+      - docs/site/enhance.js
+      - docs/site/enhance.html
+      - docs/site/build_site.sh
+    generator_command: "bash docs/site/build_site.sh"
+    expected_action: generate
+    tracked: true
+  - path: docs/site/notes.html
+    source_docs:
+      - docs/手记文档.md
+    support_assets:
+      - docs/site/theme.css
+      - docs/site/enhance.js
+      - docs/site/enhance.html
+      - docs/site/build_site.sh
+    generator_command: "bash docs/site/build_site.sh"
+    expected_action: generate
+    tracked: true

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Blast-Wave 简明手记</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <link rel="stylesheet" href="theme.css?v=20260509g" />
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Blast-Wave 简明手记</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#简介" id="toc-简介">简介</a></li>
+<li><a href="#当前主链" id="toc-当前主链">当前主链</a></li>
+<li><a href="#当前默认路径" id="toc-当前默认路径">当前默认路径</a></li>
+<li><a href="#最容易混淆的点"
+id="toc-最容易混淆的点">最容易混淆的点</a></li>
+<li><a href="#运行提醒" id="toc-运行提醒">运行提醒</a></li>
+</ul>
+</nav>
+<h2 id="简介">简介</h2>
+<p>这份手记只保留当前主链和最容易误解的语义。
+详细运行说明、参数解释和完整 ROOT 输出列表以
+<code>docs/项目说明.md</code> 为准。</p>
+<h2 id="当前主链">当前主链</h2>
+<ol type="1">
+<li>默认用 Monte Carlo Glauber 生成逐事例 participant 几何；若设置
+<code>initial-geometry = response-test-023</code>，则改用人工
+<code>0+2+3</code> 横向点云做响应测试。</li>
+<li>按 <code>density-evolution</code> 构造事件介质：
+<ul>
+<li><code>none</code>：participant 直接作为旧对照路径的发射锚点</li>
+<li><code>affine-gaussian</code>：默认路径，用 <code>s0 -&gt; sf</code>
+的仿射膨胀和平滑得到 freeze-out density</li>
+<li><code>gradient-response</code>：V2 opt-in 路径，用 <code>s_em</code>
+抽 marker、用 <code>s_dyn</code> 给位移和横向速度</li>
+</ul></li>
+<li>按当前介质抽横向发射位置，再配上 <code>eta_s</code> 和固定
+<code>tau0</code> 得到时空坐标。</li>
+<li>抽局域静止系热动量，再叠加流体元速度并 boost 到实验室系。</li>
+<li>写出
+<code>events</code>、<code>participants</code>、<code>particles</code>
+和基础 QA 对象。</li>
+<li>如果配置了 <code>v2pt-bins</code> 或
+<code>v3pt-bins</code>，再写对应差分 <code>v_n{2}(pT)</code>
+元数据，或额外生成完整分析载荷。</li>
+</ol>
+<h2 id="当前默认路径">当前默认路径</h2>
+<ul>
+<li>默认介质演化：<code>density-evolution = affine-gaussian</code></li>
+<li>默认横向流方向：<code>flow-velocity-sampler = covariance-ellipse</code></li>
+<li>默认热动量模式：<code>thermal-sampler = maxwell-juttner</code></li>
+<li>默认 V1a 二阶响应旋钮：<code>kappa2</code></li>
+<li><code>affine-effective</code> 是额外的 opt-in
+闭合流场，不替换默认主线；默认子模式是
+<code>affine-effective-mode = additive-rho</code></li>
+<li>V2 <code>gradient-response</code> 仍然是 opt-in，不替换默认主线</li>
+<li><code>response-test-023</code> 也是 opt-in，不替换默认 Glauber
+初态</li>
+</ul>
+<h2 id="最容易混淆的点">最容易混淆的点</h2>
+<ul>
+<li><code>eps2/psi2</code> 是初态 participant geometry。</li>
+<li><code>eps3/psi3</code> 是 recentered
+初态三阶几何；<code>eps2/psi2</code> 仍保留 covariance 语义。</li>
+<li><code>initial-geometry-a2/a3</code> 只是人工模板混合权重，不等同于
+<code>eps2/eps3</code>。</li>
+<li><code>eps2_f/psi2_f/chi2</code> 是 freeze-out
+几何诊断量，不替换初态语义。</li>
+<li><code>source_x/source_y</code>、<code>x0/y0</code>、<code>x/y</code>
+分别是：
+<ul>
+<li>participant 锚点</li>
+<li>marker 初态位置</li>
+<li>最终发射位置</li>
+</ul></li>
+<li><code>events.v2</code> 是事件级末态汇总量。</li>
+<li><code>events.v3</code> 是事件级末态三阶 Q-vector
+模长；<code>v2_wrt_psi2</code> 和 <code>v3_wrt_psi3</code>
+是相对初态几何平面的投影。</li>
+<li><code>v2{2}(pT)</code> / <code>v3{2}(pT)</code>
+是单独的差分分析结果，不替换
+<code>events.v2/events.v3</code>，而且当前固定使用单位 track
+weight。</li>
+<li><code>smear</code> 是旧 hotspot
+发射路径的横向展宽；<code>flow-density-sigma</code> 是 density
+沉积宽度，两者不是一回事。</li>
+<li>横向平均流强和半径 profile 的公开名现在是
+<code>flow-trans-rho0</code> / <code>flow-trans-profile-power</code>；旧
+<code>rho0</code> / <code>flow-power</code> 不再兼容。density-defined
+半径下 <code>flow-trans-rho0</code> 是 covariance-equivalent
+<code>xi_flow = 1</code>
+处的快度尺度，不是全局最大流强，也不是密度边界本身的流强。</li>
+<li><code>flow-trans-direction-gradient-fraction</code>、<code>flow-trans-radius</code>
+和显式 <code>flow-trans-radius-resolution</code> 只属于
+<code>density-normal</code> sampler；resolution 只改变
+density-percentile/level 边界 profile 的数值网格。density-defined 的
+<code>R(phi)</code> 只给角向 shell 几何，主流强使用
+<code>xi_flow = q * xi_shell</code>，其中
+<code>xi_shell = r / R(phi)</code>。</li>
+<li><code>flow-trans-magnitude-mode = shell-gradient-corrected</code> 是
+<code>density-normal + density-percentile/level</code> 专用的 opt-in
+流强修正；默认 <code>radius-profile</code> 使用 sigma-equivalent
+<code>xi_flow</code> 主径向项，显式 <code>flow-trans-gradient-*</code>
+参数不能在默认模式下静默生效；<code>xi_shell &gt; 1</code> 时 correction
+lookup 复用最外层表格值。</li>
+<li><code>density-normal-kappa-compensation</code> 默认关闭，只对
+<code>affine-gaussian + density-normal</code> 有意义。</li>
+<li><code>affine-effective</code> 只允许配
+<code>affine-gaussian</code>；默认 <code>additive-rho</code>
+用密度梯度法向、保留 <code>flow-trans-rho0</code> baseline，并叠加
+affine 几何修正。</li>
+<li><code>affine-effective-mode = full-tensor</code> 是同一 sampler 下的
+opt-in 主轴张量速度场；<code>affine-kappa-aniso</code> 现在只是
+legacy/no-op 兼容解析参数。</li>
+<li><code>affine-effective</code> 输出会额外写首个有效事件的演化前/后
+density map：<code>affine_effective_density_initial_x-y</code> 与
+<code>affine_effective_density_final_x-y</code>，默认用
+<code>LEGO1</code> 查看。</li>
+<li><code>debug-initial-geometry</code> 会写首个有效事件的
+<code>initial_geometry_density_x-y</code>，主要用于查看
+<code>response-test-023</code> 初态模板。</li>
+<li><code>gradient-response</code> 必须同时设置：
+<ul>
+<li><code>density-evolution = gradient-response</code></li>
+<li><code>flow-velocity-sampler = gradient-response</code></li>
+</ul></li>
+<li><code>flowpt-output-mode = separate-file</code>
+时，主结果文件只带启用 harmonic 的 <code>*_2_pt_edges</code>
+也算合法，不代表输出缺失。</li>
+<li>当前 <code>centrality</code> 仍是固定 <code>b</code>
+的简单映射，不应当作完备实验中心度模型来理解。</li>
+</ul>
+<h2 id="运行提醒">运行提醒</h2>
+<ul>
+<li><code>config/test_b8.cfg</code> 是当前规范示例配置。</li>
+<li><code>qa/</code> 目录里保留了多代历史 ROOT
+文件，不应默认把它们当成当前 schema 样本。</li>
+<li>这台机器上的沙箱内 <code>alienv</code> ROOT smoke
+结果不具权威性；若出现 PCM / module 噪声，应改用沙箱外命令复核。</li>
+</ul>
+<script src="enhance.js?v=20260509g"></script>
+</body>
+</html>
