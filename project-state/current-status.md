@@ -2,12 +2,12 @@
 
 ## Snapshot
 
-- Date: 2026-05-07
+- Date: 2026-05-11
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
-- Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in affine-effective closure path with `additive-rho` and `full-tensor` submodes, the opt-in V2 gradient-response path, optional differential `v2/v3{2}(pT)` analysis, the opt-in `response-test-023` initial-geometry response-test path, and the opt-in density-normal `shell-gradient-corrected` transverse-flow magnitude mode.
-- Latest durable verification anchor: 2026-05-07 local build, full local `ctest` with 10/10 tests, focused `test_progress_reporter`, and prior O2Physics `PRIMARY_OK` ROOT generate+QA smokes for density-percentile, density-level, and response-test density-normal paths.
-- Latest user-run-flow update: enabled `generate_blastwave_events` progress now includes a one-second activity heartbeat plus rough ETA while keeping the existing `progress` / `--progress` / `--no-progress` contract unchanged.
-- Latest task implemented the progress heartbeat/ETA update; the latest physics task remains the sigma-equivalent density-defined radius fix from `docs/半径再次修复.md`.
+- Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in affine-effective closure path with `additive-rho` and `full-tensor` submodes, the opt-in V2 gradient-response path, optional differential `v2/v3{2}(pT)` analysis, event-level `v_n`-`epsilon_n` regression notebook analysis, the opt-in `response-test-023` initial-geometry response-test path, and the opt-in density-normal `shell-gradient-corrected` transverse-flow magnitude mode.
+- Latest durable verification anchor: 2026-05-11 full `root_notebook` execution of `notebooks/vn_epsn_regression.ipynb` in multi-file mode over `qa/test_b8_response_023.root`, `qa/test_b8_response_023_mix.root`, and `qa/test_b8_023_newrap.root`, plus prior PyROOT TH2 notebook smoke and O2Physics branch-contract checks; the latest comprehensive generator baseline remains the 2026-05-07 local build, full local `ctest` with 10/10 tests, focused `test_progress_reporter`, and prior O2Physics ROOT generate+QA smokes.
+- Latest user-run-flow update: `notebooks/vn_epsn_regression.ipynb` now supports labelled multi-file event-tree regression comparisons, while `notebooks/vn_epsn_pyroot_th2_fit.ipynb` remains the native PyROOT TH2/profile-fit alternative; the generator progress heartbeat/ETA contract remains unchanged.
+- Latest task added multi-file comparison to the raw event-tree regression notebook and refreshed user-run documentation/state; the latest physics task remains the sigma-equivalent density-defined radius fix from `docs/半径再次修复.md`.
 
 ## Current Runtime Baseline
 
@@ -51,6 +51,8 @@
   - `generate_blastwave_events`
   - `qa_blastwave_output`
   - `analyze_blastwave_vnpt`
+  - `notebooks/vn_epsn_regression.ipynb` for labelled multi-file event-level `v_n`-`epsilon_n` and `v_n`-`epsilon_m` regression comparisons on ROOT result files
+  - `notebooks/vn_epsn_pyroot_th2_fit.ipynb` for native PyROOT `TH2::ProfileX` response/cross-talk fits and cross-file overlays
 - canonical tracked example config:
   - `config/test_b8.cfg`
   - `config/test_b8_affine_effective.cfg`
@@ -142,6 +144,8 @@ Use `project-state/tests.md` for the summarized evidence trail.
 - `events.eps3` / `events.psi3` use the recentered harmonic convention and do not change the covariance `eps2/psi2` contract
 - `response-test-023` is opt-in only; template weights `A2/A3` are not physical eccentricities
 - response/cross-talk TH2 objects keep full storage ranges `epsilon = 0..1` and projected `v = -1..1`, but open with compact default display ranges `epsilon = 0..0.35` and projected `v = -0.15..0.15`
+- event-level `v_n`-`epsilon_n` regression should use `events.v2_wrt_psi2` / `events.v3_wrt_psi3` against `events.eps2` / `events.eps3`; `notebooks/vn_epsn_regression.ipynb` uses `uproot` as the primary reader, supports labelled `INPUT_FILES` multi-file overlays, and keeps PyROOT as optional native ROOT support
+- `notebooks/vn_epsn_pyroot_th2_fit.ipynb` is the native PyROOT comparison path: it fits existing response/cross-talk `TH2` objects through `TH2::ProfileX` and overlays `v_n/epsilon_n` and `v_n/epsilon_m` results from multiple ROOT files
 - `shell_weight` and any `EmissionSite::emissionWeight` restructuring remain intentionally deferred; the current response-test rollout only adds geometry templates and observables
 - older validation ledgers may cite pre-archive response-test config names; current tracked response-test examples use `config/test_023_dense*.cfg`
 

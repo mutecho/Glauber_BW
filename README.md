@@ -18,6 +18,8 @@
   当前的 ROOT-free 单元/回归测试，包括差分 `v2/v3{2}(pT)` cumulant 回归。
 - `config/`
   受版本控制的示例配置文件。
+- `notebooks/`
+  面向 ROOT 结果文件的交互式分析 notebook，例如事件级 `v_n`-`epsilon_n` 线性回归。
 - `scripts/`
   本地运行辅助脚本，不与静态配置混放。
 - `reference/legacy-root-macros/`

@@ -42,6 +42,8 @@
   - ROOT-free 回归测试
 - `config/`
   - 受版本控制的示例配置
+- `notebooks/`
+  - 面向 ROOT 输出文件的交互式分析入口；当前包含事件级 `v_n`-`epsilon_n` 线性回归 notebook
 - `docs/`
   - 当前说明、公式说明、简明手记和历史计划归档
 - `project-state/`

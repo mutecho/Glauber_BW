@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-05-11 Event-Level Multi-File Regression Notebook
+
+- Updated `notebooks/vn_epsn_regression.ipynb` so `INPUT_FILES` accepts labelled ROOT result files and runs the same event-level regression/cuts for each file.
+- Added grouped comparison plots and tables for same-harmonic `v_n/epsilon_n` response and cross-harmonic `v_n/epsilon_m` mixing, with regression still performed on raw `events` tree rows.
+- Validated the notebook in the `root_notebook` environment over the default `response_023`, `dense_mix`, and `newrap` ROOT files.
+
+## 2026-05-11 Native PyROOT TH2 Response-Fit Notebook
+
+- Added `notebooks/vn_epsn_pyroot_th2_fit.ipynb` as a notebook-first analysis path that reads response/cross-talk `TH2` objects directly with PyROOT.
+- The notebook profiles each `TH2` with `TH2::ProfileX`, performs ROOT `TF1` fits with free-intercept and through-origin forms, and compares multiple ROOT files in grouped `v_n/epsilon_n` and `v_n/epsilon_m` canvases.
+- No generator code, ROOT output schema, config contract, or QA schema changed.
+
 ## 2026-05-09 Documentation Routing And Historical Plan Archive
 
 - Added `project-state/doc-sync-map.yml` as the local `sync-project-knowledge` routing manifest.

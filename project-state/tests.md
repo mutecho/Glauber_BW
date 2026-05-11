@@ -23,6 +23,36 @@ Long command transcripts and repeated smoke-command variants were intentionally 
 - authoritative outside-sandbox `analyze_blastwave_vnpt ...`
 - ROOT key inspection through the shared inspector scripts when payload placement needs confirmation
 
+## T-030 Native PyROOT TH2 Response-Fit Notebook
+
+- Status: passed for default single-file smoke on 2026-05-11
+- Evidence:
+  - `notebooks/vn_epsn_pyroot_th2_fit.ipynb` JSON parsed successfully and all code cells parsed with Python `ast`
+  - notebook code is structured around native PyROOT `TFile`, `TH2::ProfileX`, `TProfile::Fit`, `TF1`, `TCanvas`, and `TLegend` calls
+  - local PyROOT import was confirmed in the `root_notebook` conda environment with ROOT 6.38.04
+  - executing all code cells from the Blast_wave repo root with `root_notebook` against `qa/test_b8_response_023.root` completed 4 TH2 profile fits and wrote smoke artifacts under `/private/tmp/vn_epsn_pyroot_th2_fit_smoke`
+  - O2Physics executor PyROOT remains ABI-mismatched for Python execution (`ROOT was built for Python 3.14.4`, shell `python3` is 3.9.6), so notebook runtime execution should use the PyROOT-capable conda kernel
+- Locked conclusions:
+  - the notebook does not read the `events` tree and does not depend on `uproot`
+  - same-harmonic `v_n/epsilon_n` and cross-harmonic `v_n/epsilon_m` fits are grouped separately, with multi-file overlay support through labelled `INPUT_FILES` entries
+  - default single-file execution is validated; multi-file overlay behavior is structurally covered by the same grouped result container but should be re-run with the intended comparison file list for physics conclusions
+  - no generator code, ROOT output schema, config contract, or QA schema changed
+
+## T-029 Event-Level `v_n`-`epsilon_n` Regression Notebook
+
+- Status: passed for multi-file notebook smoke on 2026-05-11
+- Evidence:
+  - `notebooks/vn_epsn_regression.ipynb` JSON parsed successfully and all code cells parsed with Python `ast`
+  - executing all code cells from the Blast_wave repo root with the `root_notebook` environment completed labelled multi-file comparison over `qa/test_b8_response_023.root`, `qa/test_b8_response_023_mix.root`, and `qa/test_b8_023_newrap.root`
+  - each default input contributed 5000 selected events and produced same-harmonic `v_n/epsilon_n` plus cross-harmonic `v_n/epsilon_m` regression rows
+  - optional PyROOT inspection in the same run found the four response/cross-talk `TH2F` objects in each default input file
+  - O2Physics ROOT executor returned `STATUS: PRIMARY_OK` for an earlier input-contract check of `qa/test_b8_response_023.root`
+- Locked conclusions:
+  - the notebook targets current event-level ROOT schema and uses the participant-plane projected response branches for regression
+  - regression is performed on raw `events` tree rows for each labelled input file; binned means in the plots are visual guides only
+  - `uproot` is the primary notebook reader; PyROOT remains optional native ROOT object inspection support
+  - no generator code, ROOT output schema, config contract, or QA schema changed
+
 ## T-028 Progress Heartbeat And ETA
 
 - Status: passed on 2026-05-07
