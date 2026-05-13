@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-05-13 Uproot-Only Notebook Environment
+
+- Narrowed the `root_notebook` conda recipe to the `uproot`-based Python analysis stack and removed the `root`/PyROOT dependency.
+- Removed the PyROOT-only `notebooks/vn_epsn_pyroot_th2_fit.ipynb` path.
+- Kept `notebooks/vn_epsn_regression.ipynb` as the maintained multi-file event-tree regression notebook.
+
 ## 2026-05-11 Event-Level Multi-File Regression Notebook
 
 - Updated `notebooks/vn_epsn_regression.ipynb` so `INPUT_FILES` accepts labelled ROOT result files and runs the same event-level regression/cuts for each file.

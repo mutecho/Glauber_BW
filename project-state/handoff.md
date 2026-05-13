@@ -44,13 +44,12 @@
 - `shell-gradient-corrected` clamps only correction-table lookup to the outer shell for `xi_shell > 1`; the base `rhoRaw` uses `xi_flow`
 - `shell-gradient-corrected` does not add ROOT debug maps or schema objects in this packet
 - authoritative ROOT validation on this machine still comes from the O2Physics executor path
-- event-level `v_n`-`epsilon_n` regression lives in `notebooks/vn_epsn_regression.ipynb`; it reads `events.eps2/eps3` and `events.v2_wrt_psi2/v3_wrt_psi3`, uses `uproot` for the main tree read, supports labelled `INPUT_FILES` multi-file overlays, and keeps PyROOT as optional object inspection support
-- native PyROOT TH2/profile-fit comparison lives in `notebooks/vn_epsn_pyroot_th2_fit.ipynb`; it reads response/cross-talk `TH2` objects directly and overlays grouped `v_n/epsilon_n` and `v_n/epsilon_m` fits from labelled input files
+- event-level `v_n`-`epsilon_n` regression lives in `notebooks/vn_epsn_regression.ipynb`; it reads `events.eps2/eps3` and `events.v2_wrt_psi2/v3_wrt_psi3`, uses `uproot`, supports labelled `INPUT_FILES` multi-file overlays, and no longer depends on PyROOT
 - `shell_weight` and `EmissionSite::emissionWeight` restructuring remain intentionally deferred
 
 ## Remaining Follow-Up
 
-- if direct PyROOT use from the O2Physics environment is required, repair or provide a Python runtime matching the ROOT build before relying on `import ROOT`; use the `root_notebook` conda environment or another ROOT/Python-matched kernel for `notebooks/vn_epsn_pyroot_th2_fit.ipynb`
+- if direct PyROOT analysis is needed again, add it as a separate opt-in environment/notebook path instead of putting ROOT/PyROOT back into the maintained `root_notebook` recipe
 - for physics conclusions from shell-gradient scans, run larger-statistics response-test or Glauber scans and compare \(p_T\), `v2`, `v3`, and geometry-plane projections against radius-profile controls
 - if future work needs to inspect correction internals, add an explicit ROOT-free or optional-debug payload design first; this packet intentionally kept ROOT schema unchanged
 - if the active code worktree changes physics, config parsing, schema, QA behavior, or operator flow again, use `project-state/doc-sync-map.yml` to refresh the required current docs and relevant `project-state/` files in the same patch
@@ -58,9 +57,9 @@
 
 ## Verification Status
 
-- latest notebook packet: `verified for notebook smoke` on 2026-05-11 with `root_notebook` execution of `notebooks/vn_epsn_regression.ipynb` in multi-file mode over `response_023`, `dense_mix`, and `newrap`, plus prior PyROOT TH2 notebook smoke and O2Physics branch-contract checks
+- latest notebook packet: `checked after maintenance` on 2026-05-13 for the `uproot`-only `root_notebook` recipe and maintained `notebooks/vn_epsn_regression.ipynb`; the latest full notebook execution evidence remains the 2026-05-11 multi-file regression smoke over `response_023`, `dense_mix`, and `newrap`
 - durable generator baseline remains `verified` on 2026-05-07
-- full event-tree notebook execution is verified in the existing `root_notebook` environment; create `notebooks/environment-vn-epsn.yml` only if a narrower dedicated regression kernel is still desired
+- full event-tree notebook execution was last verified in the existing `root_notebook` environment before the recipe was narrowed; recreate/update it from `notebooks/environment-notebook_with_root.yml` to use the current `uproot`-only stack
 - local `cmake --build /Users/allenzhou/Research_software/Blast_wave/build -j4` passed
 - local full `ctest --test-dir /Users/allenzhou/Research_software/Blast_wave/build --output-on-failure` passed with 9/9 tests
 - focused `/Users/allenzhou/Research_software/Blast_wave/bin/test_flow_field_model` passed

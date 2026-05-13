@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - python=3.11
-  - root
+  # Keep this notebook kernel uproot-only; do not pull in conda-forge ROOT/PyROOT.
   - uproot
   - numpy
   - pandas
