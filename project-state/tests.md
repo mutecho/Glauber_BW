@@ -23,6 +23,46 @@ Long command transcripts and repeated smoke-command variants were intentionally 
 - authoritative outside-sandbox `analyze_blastwave_vnpt ...`
 - ROOT key inspection through the shared inspector scripts when payload placement needs confirmation
 
+## T-033 Mode-Local Config Cleanup
+
+- Status: passed on 2026-05-19
+- Evidence:
+  - removed active cfg entries that were unused by their selected mode combination, including response-test template knobs in Glauber configs, affine-evolution knobs outside `affine-gaussian`, affine-effective knobs outside `affine-effective`, gradient-response knobs outside paired `gradient-response`, shell-gradient knobs outside `shell-gradient-corrected`, and legacy/no-op `affine-kappa-aniso`
+  - `git diff --check` passed after config cleanup
+  - O2Physics ROOT executor generated 1000-event `/private/tmp/blastwave_cfg_cleanup_*.root` outputs for all 18 workspace `config/*.cfg` files; the first batch returned `STATUS: COMMAND_FAILED` only after `config/test_b8_gradient.cfg` exposed an inline-comment parse issue, and the fixed continuation returned `STATUS: PRIMARY_OK`
+  - O2Physics ROOT executor QA passed for every generated `/private/tmp/blastwave_cfg_cleanup_*.root` output, reporting `validation_passed events=1000` for all 18 cfg files
+- Locked conclusions:
+  - workspace cfg examples are mode-local and executable after cleanup
+  - no public config key, parser behavior, generator code, ROOT schema, QA schema, or physics algorithm changed
+
+## T-032 Run Script Self-Reentry Path
+
+- Status: passed on 2026-05-19
+- Evidence:
+  - `bash -n` passed for `scripts/run_example_config.sh`, `scripts/run_test.sh`, `scripts/run_newrep_test.sh`, and `scripts/run_b8_v3.sh`
+  - a copied temporary probe script resolved `script_path` to its own copied filename through the same `BASH_SOURCE[0]` pattern
+  - `git diff --check` passed after the script and project-state updates
+- Locked conclusions:
+  - copied `scripts/run_*.sh` entrypoints re-enter the O2Physics runtime through their own script path instead of a hard-coded source script
+  - no generator code, public config key, ROOT schema, QA schema, or physics behavior changed
+
+## T-031 Glauber Mirror Configs For Response-Test Comparisons
+
+- Status: passed on 2026-05-19
+- Evidence:
+  - `git diff --check` passed after adding the mirror configs and project-state updates
+  - new configs preserve their source config values except for the explanatory header, `initial-geometry = glauber`, and the `_glauber.root` output filename
+  - O2Physics ROOT executor returned `STATUS: PRIMARY_OK` for `config/test_023_dense_mix_glauber.cfg --nevents 1000`, writing `/private/tmp/blastwave_test_023_dense_mix_glauber.root`
+  - O2Physics ROOT executor QA passed for `/private/tmp/blastwave_test_023_dense_mix_glauber.root`, reporting `validation_passed events=1000`
+  - O2Physics ROOT executor returned `STATUS: PRIMARY_OK` for `config/test_023_dense_newrap_glauber.cfg --nevents 1000`, writing `/private/tmp/blastwave_test_023_dense_newrap_glauber.root`
+  - O2Physics ROOT executor QA passed for `/private/tmp/blastwave_test_023_dense_newrap_glauber.root`, reporting `validation_passed events=1000`
+  - O2Physics ROOT executor returned `STATUS: PRIMARY_OK` for `config/test_023_ellipse_glauber.cfg --nevents 1000`, writing `/private/tmp/blastwave_test_023_ellipse_glauber.root`
+  - O2Physics ROOT executor QA passed for `/private/tmp/blastwave_test_023_ellipse_glauber.root`, reporting `validation_passed events=1000`
+- Locked conclusions:
+  - the three Glauber mirror configs are executable comparison inputs for the corresponding response-test settings
+  - low-stat 1-event and 20-event attempts are not useful validators for these configs because differential cumulant analysis can fail before enough events accumulate
+  - no public config key, ROOT schema, QA schema, or generator code changed
+
 ## T-030 Retired Native PyROOT TH2 Response-Fit Notebook
 
 - Status: retired on 2026-05-13

@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-05-19 Mode-Local Config Cleanup
+
+- Removed inactive mode-specific entries from workspace `config/*.cfg` files so examples no longer carry unused response-test, affine-effective, affine-evolution, gradient-response, or shell-gradient knobs outside their selected mode combinations.
+- Kept public config keys, parser behavior, generator code, ROOT schema, QA schema, and physics algorithms unchanged.
+- Validated all 18 workspace cfg files with O2Physics ROOT executor 1000-event generate+QA smokes.
+
+## 2026-05-19 Run Script Self-Reentry Path
+
+- Updated run scripts under `scripts/` except `cmake.sh` so their alienv re-entry `script_path` is derived from `BASH_SOURCE[0]`.
+- Fixed copied run scripts such as `scripts/run_b8_v3.sh` so they re-enter themselves instead of a hard-coded source script.
+- Kept generator code, config keys, ROOT schema, QA schema, and physics behavior unchanged.
+
 ## 2026-05-13 Uproot-Only Notebook Environment
 
 - Narrowed the `root_notebook` conda recipe to the `uproot`-based Python analysis stack and removed the `root`/PyROOT dependency.

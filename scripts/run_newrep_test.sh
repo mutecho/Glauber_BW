@@ -2,8 +2,10 @@
 
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-script_path="${repo_root}/scripts/run_newrep_test.sh"
+# Resolve the entry script from BASH_SOURCE so copied run scripts re-enter themselves.
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd "${script_dir}/.." && pwd)"
+script_path="${script_dir}/$(basename "${BASH_SOURCE[0]}")"
 build_dir="${repo_root}/build"
 cache_path="${build_dir}/CMakeCache.txt"
 generator_path="${repo_root}/bin/generate_blastwave_events"
@@ -12,7 +14,9 @@ generator_path="${repo_root}/bin/generate_blastwave_events"
 # config_path="${repo_root}/config/test_b8.cfg"
 # config_path="${repo_root}/config/test_b8_pdf.cfg"
 # config_path="${repo_root}/config/test_b8_response_023_dense.cfg"
-config_path="${repo_root}/config/test_023_dense_newrap.cfg"
+# config_path="${repo_root}/config/test_023_dense_newrap.cfg"
+config_path="${repo_root}/config/test_023_dense_mix.cfg"
+# config_path="${repo_root}/config/test_023_ellipse.cfg"
 # config_path="${repo_root}/config/test_023_dense_newrap_finegrid.cfg"
 # config_path="${repo_root}/config/test_b8_pdf_evo.cfg"
 # output_path="${repo_root}/qa/test_b8_5000.root"

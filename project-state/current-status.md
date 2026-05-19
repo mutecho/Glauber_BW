@@ -2,11 +2,11 @@
 
 ## Snapshot
 
-- Date: 2026-05-13
+- Date: 2026-05-19
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
 - Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in affine-effective closure path with `additive-rho` and `full-tensor` submodes, the opt-in V2 gradient-response path, optional differential `v2/v3{2}(pT)` analysis, event-level `v_n`-`epsilon_n` regression notebook analysis, the opt-in `response-test-023` initial-geometry response-test path, and the opt-in density-normal `shell-gradient-corrected` transverse-flow magnitude mode.
-- Latest durable verification anchor: 2026-05-13 notebook maintenance converted the `root_notebook` conda recipe to an `uproot`-only analysis stack, removed the PyROOT-only TH2/profile-fit notebook, and kept the existing 2026-05-11 multi-file event-tree regression smoke as the latest full notebook execution evidence; the latest comprehensive generator baseline remains the 2026-05-07 local build, full local `ctest` with 10/10 tests, focused `test_progress_reporter`, and prior O2Physics ROOT generate+QA smokes.
-- Latest user-run-flow update: `notebooks/vn_epsn_regression.ipynb` is now the maintained notebook entrypoint for labelled multi-file event-tree regression comparisons using `uproot`; the generator progress heartbeat/ETA contract remains unchanged.
+- Latest durable verification anchor: 2026-05-19 cleaned workspace `config/*.cfg` files so each example only carries knobs used by its active mode combination, then O2Physics ROOT executor generate+QA smokes passed for all 18 cfg files at 1000 events; the latest comprehensive generator baseline remains the 2026-05-07 local build, full local `ctest` with 10/10 tests, focused `test_progress_reporter`, and prior O2Physics ROOT generate+QA smokes.
+- Latest user-run-flow update: workspace cfg examples no longer carry inactive response-test, affine-effective, affine-evolution, gradient-response, or shell-gradient knobs outside their selected mode combinations; copied `scripts/run_*.sh` entrypoints now self-resolve their re-entry `script_path`; the maintained notebook entrypoint remains `notebooks/vn_epsn_regression.ipynb`.
 - Latest task narrowed the notebook environment and analysis path to `uproot` only, deleting the PyROOT-only comparison notebook; the latest physics task remains the sigma-equivalent density-defined radius fix from `docs/半径再次修复.md`.
 
 ## Current Runtime Baseline
@@ -56,6 +56,9 @@
   - `config/test_b8.cfg`
   - `config/test_b8_affine_effective.cfg`
   - `config/test_023_dense.cfg`
+  - `config/test_023_dense_mix_glauber.cfg`
+  - `config/test_023_dense_newrap_glauber.cfg`
+  - `config/test_023_ellipse_glauber.cfg`
   - `config/test_b8_flowpt.cfg`
   - `config/test_b8_density_normal_flow_trans.cfg`
   - `config/test_b8_density_normal_flow_trans_gradient.cfg`

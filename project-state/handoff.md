@@ -31,6 +31,8 @@
 
 - default runtime path remains V1a `affine-gaussian + covariance-ellipse`
 - default initial geometry remains `glauber`; `response-test-023` is opt-in only
+- Glauber mirror configs exist for the response-test comparison settings: `config/test_023_dense_mix_glauber.cfg`, `config/test_023_dense_newrap_glauber.cfg`, and `config/test_023_ellipse_glauber.cfg`
+- workspace cfg examples are intentionally mode-local: do not re-add inactive response-test, affine-effective, affine-evolution, gradient-response, or shell-gradient knobs unless the selected mode combination uses them
 - affine-effective remains opt-in and only valid for `affine-gaussian`
 - V2 `gradient-response` remains opt-in and coupled across medium and flow selection
 - `flow-trans-rho0` and `flow-trans-profile-power` are the current transverse rapidity baseline/profile names; `rho0` and `flow-power` are rejected
@@ -44,6 +46,7 @@
 - `shell-gradient-corrected` clamps only correction-table lookup to the outer shell for `xi_shell > 1`; the base `rhoRaw` uses `xi_flow`
 - `shell-gradient-corrected` does not add ROOT debug maps or schema objects in this packet
 - authoritative ROOT validation on this machine still comes from the O2Physics executor path
+- copied `scripts/run_*.sh` entrypoints self-resolve `script_path` from `BASH_SOURCE[0]`, so new run-script copies do not need a manual re-entry path edit
 - event-level `v_n`-`epsilon_n` regression lives in `notebooks/vn_epsn_regression.ipynb`; it reads `events.eps2/eps3` and `events.v2_wrt_psi2/v3_wrt_psi3`, uses `uproot`, supports labelled `INPUT_FILES` multi-file overlays, and no longer depends on PyROOT
 - `shell_weight` and `EmissionSite::emissionWeight` restructuring remain intentionally deferred
 
@@ -68,4 +71,8 @@
 - O2Physics ROOT executor generate + QA passed for `config/test_b8_density_normal_flow_trans.cfg --flow-trans-radius density-level:1.0e-3 --nevents 20`, written to `/private/tmp/blastwave_radius_sigma_level.root`
 - O2Physics ROOT executor generate + QA passed for `config/test_b8_response_023_dense_mix.cfg --nevents 1000`, written to `/private/tmp/blastwave_response_023_dense_mix_sigma.root`; current tracked equivalent path is `config/test_023_dense_mix.cfg`
 - O2Physics ROOT executor generate + QA passed for `config/test_b8_023_dense_newrap.cfg --nevents 1000`, written to `/private/tmp/blastwave_response_023_dense_newrap_sigma.root`; current tracked equivalent path is `config/test_023_dense_newrap.cfg`
+- O2Physics ROOT executor generate + QA passed for `config/test_023_dense_mix_glauber.cfg --nevents 1000`, written to `/private/tmp/blastwave_test_023_dense_mix_glauber.root`
+- O2Physics ROOT executor generate + QA passed for `config/test_023_dense_newrap_glauber.cfg --nevents 1000`, written to `/private/tmp/blastwave_test_023_dense_newrap_glauber.root`
+- O2Physics ROOT executor generate + QA passed for `config/test_023_ellipse_glauber.cfg --nevents 1000`, written to `/private/tmp/blastwave_test_023_ellipse_glauber.root`
+- O2Physics ROOT executor generate + QA passed for every workspace `config/*.cfg` file after config cleanup, using `--nevents 1000 --no-progress` and `/private/tmp/blastwave_cfg_cleanup_*.root`
 - ROOT metric extraction reported `dense_mix meanPt=1.041669379 psi2_proj=0.022560737` and `newrap meanPt=1.067941944 psi2_proj=0.022885878`

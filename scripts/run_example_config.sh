@@ -2,8 +2,10 @@
 
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-script_path="${repo_root}/scripts/run_example_config.sh"
+# Resolve the entry script from BASH_SOURCE so copied run scripts re-enter themselves.
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd "${script_dir}/.." && pwd)"
+script_path="${script_dir}/$(basename "${BASH_SOURCE[0]}")"
 build_dir="${repo_root}/build"
 cache_path="${build_dir}/CMakeCache.txt"
 generator_path="${repo_root}/bin/generate_blastwave_events"
