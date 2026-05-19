@@ -112,6 +112,9 @@ id="toc-blast-wave-项目说明">Blast-Wave 项目说明</a>
 <li><a href="#做-qa-校验" id="toc-做-qa-校验">2. 做 QA 校验</a></li>
 <li><a href="#独立做-v_n2pt-分析" id="toc-独立做-v_n2pt-分析">3. 独立做
 <code>v_n{2}(pT)</code> 分析</a></li>
+<li><a href="#做事件级-v_n-epsilon_n-线性回归"
+id="toc-做事件级-v_n-epsilon_n-线性回归">4. 做事件级
+<code>v_n</code>-<code>epsilon_n</code> 线性回归</a></li>
 </ul></li>
 <li><a href="#运行参数" id="toc-运行参数">运行参数</a></li>
 <li><a href="#代码接口" id="toc-代码接口">代码接口</a>
@@ -314,6 +317,40 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="
 <p>默认情况下，不传 <code>--output</code> 且不使用
 <code>--inplace</code> 时，程序会写同目录兄弟文件
 <code>&lt;input-stem&gt;_flowpt.root</code>。</p>
+<h3 id="做事件级-v_n-epsilon_n-线性回归">4. 做事件级
+<code>v_n</code>-<code>epsilon_n</code> 线性回归</h3>
+<p>交互式分析可使用
+<code>notebooks/vn_epsn_regression.ipynb</code>。推荐先创建
+<code>root_notebook</code> conda 环境：</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> env create <span class="at">-f</span> notebooks/environment-notebook_with_root.yml</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> activate root_notebook</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> <span class="at">-m</span> ipykernel install <span class="at">--user</span> <span class="at">--name</span> root_notebook <span class="at">--display-name</span> <span class="st">&quot;root_notebook&quot;</span></span></code></pre></div>
+<p>notebook 的 <code>INPUT_FILES</code> 支持多文件比较，每项写成
+<code>(ROOT 文件路径, 图例标签)</code>。默认会尝试读取
+<code>qa/test_b8_response_023.root</code>、<code>qa/test_b8_response_023_mix.root</code>
+和 <code>qa/test_b8_023_newrap.root</code> 中当前存在且 schema
+合格的文件；也可以在第一段路径配置里改成任意当前 schema 的 Blast_wave
+ROOT 结果文件列表。主分析量是：</p>
+<ul>
+<li><code>events.eps2</code> 对
+<code>events.v2_wrt_psi2</code>，用于同阶 <code>v_n/epsilon_n</code>
+response</li>
+<li><code>events.eps3</code> 对
+<code>events.v3_wrt_psi3</code>，用于同阶 <code>v_n/epsilon_n</code>
+response</li>
+<li><code>events.eps3</code> 对
+<code>events.v2_wrt_psi2</code>、<code>events.eps2</code> 对
+<code>events.v3_wrt_psi3</code>，用于交叉阶 <code>v_n/epsilon_m</code>
+mixing 检查</li>
+</ul>
+<p>这里使用相对 participant plane 的带符号投影 <code>v2_wrt_psi2</code>
+/ <code>v3_wrt_psi3</code>，而不是非负模长 <code>v2</code> /
+<code>v3</code>，因为前者更直接对应线性响应斜率
+<code>kappa_n</code>。回归直接使用 <code>events</code> tree 的原始 event
+rows；图中的 binned mean 只作为视觉辅助，不参与拟合。环境文件现在只要求
+<code>uproot</code> 与常规 Python 分析栈，不再安装完整 PyROOT；如需检查
+ROOT 对象结构，优先用 <code>uproot</code> 打开文件和列出对象。</p>
 <h2 id="运行参数">运行参数</h2>
 <p>生成器程序 <code>generate_blastwave_events</code>
 现在支持三种等价入口：</p>
@@ -536,10 +573,13 @@ class="math inline">\(\delta\)</span>，最终因子为
 <code>0 &lt;= value &lt; 1</code>。它不是快度加法项上限；显式设置时也要求
 <code>shell-gradient-corrected</code>。</li>
 <li><code>--flow-trans-direction-gradient-fraction &lt;0..1&gt;</code>
-<code>density-normal</code> 专用方向混合系数。<code>0</code>
-表示纯几何径向方向，<code>1</code>
-表示纯发射密度梯度外向方向，中间值按向量混合后归一化；若在其他 sampler
-下显式配置会报错。</li>
+<code>density-normal</code> 专用梯度响应份额。<code>0</code>
+表示纯几何膨胀方向，<code>1</code>
+表示纯局域发射密度梯度方向；<code>0&lt;f&lt;1</code>
+时，局域梯度方向必须至少保留 <code>1-f</code>
+的全局外向投影，若热点导致梯度过度向内或横向则投影到这个外向 cone
+的边界。它不引入手调各向异性系数，也不强行规定椭圆或三角形状；若在其他
+sampler 下显式配置会报错。</li>
 <li><code>--flow-trans-radius &lt;covariance|density-percentile:p|density-level:fraction&gt;</code>
 <code>density-normal</code> 专用横向半径定义。<code>covariance</code>
 使用协方差椭圆半径；<code>density-percentile:p</code>
@@ -1231,8 +1271,12 @@ gradient；在平坦或退化区域回退到 <code>emissionGeometry</code>
 <li><code>rhoRaw = flowTransRho0 * pow(rTilde, flowTransProfilePower) * exp(2 * kappa2 * eps2_initial * cos(2 * (phiB - psi2_initial)))</code></li>
 </ul></li>
 <li>若显式配置 <code>flow-trans-direction-gradient-fraction</code> 或
-<code>flow-trans-radius</code>，方向按“几何径向 + density-gradient
-外向”混合后归一化，半径按
+<code>flow-trans-radius</code>，方向仍由 density-gradient
+给出自然形状，但中间值 <code>0&lt;f&lt;1</code> 会施加全局膨胀
+cone：梯度方向相对几何径向的投影不得小于
+<code>1-f</code>，否则保留梯度的切向符号并投影到 cone
+边界。<code>flow-trans-direction-gradient-fraction = 0</code>
+是纯几何膨胀方向，<code>1</code> 是纯局域梯度方向。半径按
 <code>covariance</code>、<code>density-percentile:&lt;p&gt;</code> 或
 <code>density-level:&lt;fraction&gt;</code> 定义。density-defined
 半径只给出角向几何边界 <code>R_density(phi)</code>；主流强使用
@@ -1240,8 +1284,12 @@ gradient；在平坦或退化区域回退到 <code>emissionGeometry</code>
 <code>xi_shell = r / R_density(phi)</code>，<code>density-percentile:p</code>
 的
 <code>q = sqrt(-2*log(1-p))</code>，<code>density-level:fraction</code>
-的 <code>q = sqrt(-2*log(fraction))</code>。默认流强写成
-<code>rhoRaw = flowTransRho0 * pow(xiFlow, flowTransProfilePower)</code>。最终横向速度仍由
+的 <code>q = sqrt(-2*log(fraction))</code>。默认
+<code>radius-profile</code> 流强保持
+<code>rhoRaw = flowTransRho0 * pow(xiFlow, flowTransProfilePower)</code>；<code>f</code>
+只约束方向，不削弱总 baseline，也不引入手调各向异性系数。若启用
+<code>shell-gradient-corrected</code>，梯度修正写作
+<code>delta = f * flowTransGradientStrength * (tildeA - shellMean)</code>。最终横向速度仍由
 <code>betaT = tanh(max(0, rhoRaw))</code> 并保留 <code>0.95</code>
 上限保护。<code>flow-trans-radius-resolution</code> 只选择
 density-defined 参考半径 profile
@@ -1254,7 +1302,7 @@ density-defined 参考半径 profile
 s_f\cdot\hat e_\phi/\max(s_f,f_{\rm floor}s_{\rm
 scale}))\)</span>，做事件级 RMS 归一化，再扣除相同 lookup
 壳层的角向平均，得到
-<code>delta = flowTransGradientStrength * (tildeA - shellMean)</code>。<code>delta</code>
+<code>delta = flowTransDirectionGradientFraction * flowTransGradientStrength * (tildeA - shellMean)</code>。<code>delta</code>
 被截断到
 <code>[-flowTransGradientMaxFactorDelta,+flowTransGradientMaxFactorDelta]</code>；基础
 <code>rhoRaw</code> 使用 <code>xi_flow</code>，但 correction table 只在

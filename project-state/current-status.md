@@ -5,9 +5,9 @@
 - Date: 2026-05-19
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
 - Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in affine-effective closure path with `additive-rho` and `full-tensor` submodes, the opt-in V2 gradient-response path, optional differential `v2/v3{2}(pT)` analysis, event-level `v_n`-`epsilon_n` regression notebook analysis, the opt-in `response-test-023` initial-geometry response-test path, and the opt-in density-normal `shell-gradient-corrected` transverse-flow magnitude mode.
-- Latest durable verification anchor: 2026-05-19 cleaned workspace `config/*.cfg` files so each example only carries knobs used by its active mode combination, then O2Physics ROOT executor generate+QA smokes passed for all 18 cfg files at 1000 events; the latest comprehensive generator baseline remains the 2026-05-07 local build, full local `ctest` with 10/10 tests, focused `test_progress_reporter`, and prior O2Physics ROOT generate+QA smokes.
+- Latest durable verification anchor: 2026-05-19 corrected `flow-trans-direction-gradient-fraction` semantics so `0<f<1` applies a global-expansion outward cone to the local density-gradient direction instead of uniformly blending in geometric flow; local build and full `ctest` passed with 10/10 tests, O2Physics ROOT executor regenerated 5000-event ellipse/densemix/newrap Glauber outputs to `/private/tmp`, QA passed for all five checked files including `f=1.0` controls, and `f=0.8` was not phi/v2 suppressed relative to `f=1.0` (`newrap` `v2_2_pt` RMSE `0.0207931` vs `0.0210139`, `densemix` RMSE `0.0225366` vs `0.022872`). The latest all-config smoke remains the same-day mode-local config cleanup over all 18 cfg files at 1000 events.
 - Latest user-run-flow update: workspace cfg examples no longer carry inactive response-test, affine-effective, affine-evolution, gradient-response, or shell-gradient knobs outside their selected mode combinations; copied `scripts/run_*.sh` entrypoints now self-resolve their re-entry `script_path`; the maintained notebook entrypoint remains `notebooks/vn_epsn_regression.ipynb`.
-- Latest task narrowed the notebook environment and analysis path to `uproot` only, deleting the PyROOT-only comparison notebook; the latest physics task remains the sigma-equivalent density-defined radius fix from `docs/半径再次修复.md`.
+- Latest task narrowed the notebook environment and analysis path to `uproot` only, deleting the PyROOT-only comparison notebook; the latest physics task is the density-normal gradient-fraction expansion-compensation fix recorded in DEC-022.
 
 ## Current Runtime Baseline
 
@@ -37,6 +37,7 @@
 - density-normal high-order transverse-flow path:
   - `flow-velocity-sampler = density-normal`
   - `flow-trans-direction-gradient-fraction = 0..1`
+  - `flow-trans-direction-gradient-fraction = 0` is pure geometric expansion, `1` is pure density-gradient direction, and `0<f<1` requires the gradient direction to keep at least `1-f` outward projection
   - `flow-trans-radius = covariance | density-percentile:<p> | density-level:<fraction>`
   - `flow-trans-radius-resolution = balanced | precise | fast` for density-defined profile construction only
   - density-defined `R_density(phi)` is a geometry boundary; `xi_shell = r / R_density(phi)` is used for shell lookup
@@ -132,6 +133,8 @@
   - `chi2` TH1 contract
   - ROOT-free third-harmonic helper and response-template generator coverage
   - default Glauber generation + QA with the expanded third-harmonic schema
+  - tuned `config/test_023_dense_newrap_glauber.cfg` 5000-event generation + QA, plus ROOT metric comparison against `dense_mix_glauber` and `ellipse_glauber`
+  - `flow-trans-direction-gradient-fraction = 0.8` Glauber generation + QA for ellipse/densemix/newrap, with `f=1.0` densemix/newrap controls showing the cone constraint does not suppress `phi` or `v2{2}(pT)` metrics
   - `response-test-023` generation + QA with optional `initial_geometry_density_x-y`
   - four-point `A3 = 0, 0.05, 0.10, 0.15` response-test scan showing increasing `mean(v3_wrt_psi3)`
 

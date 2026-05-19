@@ -1266,17 +1266,52 @@ flow 的 ROOT-free 回归测试。</li>
 \right].
 \]</span></p>
 <p>若显式配置 <code>flow-trans-direction-gradient-fraction = f_g</code>
-或 <code>flow-trans-radius</code>，则方向先由几何径向方向 <span
-class="math inline">\(\hat{\mathbf n}_{r}\)</span> 与 density-gradient
-外向方向 <span class="math inline">\(\hat{\mathbf n}_{s}\)</span>
-混合：</p>
+或 <code>flow-trans-radius</code>，则 <span
+class="math inline">\(f_g\)</span>
+表示局域梯度响应相对全局膨胀约束的份额。椭圆、三角和 hotspot 形状仍由
+density-gradient 外向方向 <span class="math inline">\(\hat{\mathbf
+n}_{s}\)</span>
+给出；全局膨胀只作为外向投影下限，抑制热点造成的反向流。</p>
+<p>先定义几何径向单位矢量</p>
 <p><span class="math display">\[
-\hat{\mathbf n}_{\rm mix}
+\hat{\mathbf n}_{r}
 =
-\frac{(1-f_g)\hat{\mathbf n}_r+f_g\hat{\mathbf n}_s}
-{|(1-f_g)\hat{\mathbf n}_r+f_g\hat{\mathbf n}_s|},
-\qquad 0\le f_g\le 1.
+\frac{\mathbf r-\mathbf c}{|\mathbf r-\mathbf c|},
 \]</span></p>
+<p>以及梯度相对几何径向的投影</p>
+<p><span class="math display">\[
+c=\hat{\mathbf n}_{s}\cdot\hat{\mathbf n}_{r},\qquad
+c_{\min}=1-f_g.
+\]</span></p>
+<p>显式 flow-trans 方向为</p>
+<p><span class="math display">\[
+\hat{\mathbf n}_{\rm flow}
+=
+\begin{cases}
+\hat{\mathbf n}_{r}, &amp; f_g=0 \ \text{且几何径向有效},\\
+\hat{\mathbf n}_{s}, &amp; f_g=1 \ \text{且 density gradient 有效},\\
+\hat{\mathbf n}_{s}, &amp; 0&lt;f_g&lt;1,\ c\ge c_{\min},\\
+c_{\min}\hat{\mathbf n}_{r}
++\sqrt{1-c_{\min}^2}\,\hat{\mathbf t}, &amp; 0&lt;f_g&lt;1,\
+c&lt;c_{\min},\\
+\hat{\mathbf n}_{r}, &amp; \text{density gradient
+或切向方向退化但几何径向有效},\\
+\hat{\mathbf n}_{\Sigma}, &amp; \text{上述方向均退化时的 covariance
+normal fallback}.
+\end{cases}
+\]</span></p>
+<p>其中</p>
+<p><span class="math display">\[
+\hat{\mathbf t}
+=
+\frac{\hat{\mathbf n}_{s}-c\hat{\mathbf n}_{r}}
+{|\hat{\mathbf n}_{s}-c\hat{\mathbf n}_{r}|}.
+\]</span></p>
+<p>因此 <span class="math inline">\(1-f_g\)</span>
+不是一个会均匀稀释各向异性流的方向混合权重，而是一个最小外向投影；只有当局域梯度方向太向内或太横向时才把它投影到全局膨胀
+cone 的边界。默认 <code>radius-profile</code> 模式下总 baseline <span
+class="math inline">\(\rho_{\rm trans}\xi_{\rm flow}^{\alpha}\)</span>
+保持不变。</p>
 <p>半径变量拆成 density shell 坐标和主流强坐标。对 covariance 半径，</p>
 <p><span class="math display">\[
 \xi_{\rm flow}=\tilde r.
@@ -1373,7 +1408,7 @@ e}_\phi}
 壳层扣除角向平均，得到乘法修正：</p>
 <p><span class="math display">\[
 \delta=
-\lambda_A
+f_g\lambda_A
 \left[
 \tilde A(\phi,s_{\rm lookup})-\langle\tilde A\rangle_{s_{\rm lookup}}
 \right],
@@ -1386,6 +1421,8 @@ e}_\phi}
 \rho_{\rm trans}\xi_{\rm flow}^{\alpha}(1+\delta).
 \]</span></p>
 <p>其中 <span
+class="math inline">\(f_g=\texttt{flow-trans-direction-gradient-fraction}\)</span>，
+<span
 class="math inline">\(\lambda_A=\texttt{flow-trans-gradient-strength}\)</span>，
 <span class="math inline">\(f_{\rm
 floor}=\texttt{flow-trans-gradient-density-floor-fraction}\)</span>，
@@ -1395,7 +1432,9 @@ class="math inline">\(\delta_{\max}=\texttt{flow-trans-gradient-max-factor-delta
 correction cache 无效时，该模式退回主径向项。</p>
 <h3 id="抽象操作-13">抽象操作</h3>
 <pre class="text"><code>emissionDensity gradient
-  -&gt; optional geometric/density-gradient direction mix
+  -&gt; pure geometric-expansion direction at gradient share = 0
+  -&gt; pure density-gradient direction at gradient share = 1
+  -&gt; density-gradient direction projected into the global-expansion outward cone for 0 &lt; share &lt; 1
   -&gt; covariance normal fallback if flat
   -&gt; density-defined xi_shell and sigma-equivalent xi_flow if requested
   -&gt; optional shell-gradient correction at clamped xi_shell table lookup
@@ -1410,7 +1449,10 @@ correction cache 无效时，该模式退回主径向项。</p>
 查询 <code>emissionDensity</code> 的 <span class="math inline">\(-\nabla
 s\)</span> 并在平坦区 fallback 到 covariance normal。</li>
 <li><code>src/FlowFieldModel.cpp</code>：<code>sampleConfiguredDensityNormalDirection()</code>
-实现几何径向与 density-gradient 外向方向的连续混合和 fallback 链。</li>
+实现 <span class="math inline">\(0&lt;f_g&lt;1\)</span> 的全局外向 cone
+约束，保留 cone 内的 density-gradient
+方向，并在梯度或切向方向退化时进入几何径向 / covariance normal fallback
+链。</li>
 <li><code>src/FlowFieldModel.cpp</code>：<code>getFlowTransRadiusProfile()</code>、<code>computeDensityDefinedXiShell()</code>
 与 <code>computeDensityDefinedScale()</code> 实现
 <code>density-percentile</code> / <code>density-level</code>

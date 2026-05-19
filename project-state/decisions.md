@@ -442,3 +442,25 @@
   - future closeout work should first check `project-state/doc-sync-map.yml`
   - residual hits in `docs/PLAN/` are reported as historical unless the user explicitly asks to edit archived plans
   - current docs should integrate new facts into existing sections instead of appending patch-note fragments
+
+## DEC-022 Interpret Density-Normal Gradient Fraction As A Global-Expansion Cone
+
+- Status: accepted
+- Date: 2026-05-19
+- Context:
+  - `flow-trans-direction-gradient-fraction` was intended to represent the split between local gradient response and global expansion compensation
+  - the previous explicit flow-trans path used the split as a direction-vector blend between geometric radial direction and density-gradient direction
+  - reducing the fraction from `1.0` to values such as `0.8` therefore rotated local boosts away from the density-gradient shape and suppressed final-state `phi` anisotropy and `v2{2}(pT)` in Glauber densemix/newrap comparisons
+  - the desired physical interpretation is that ellipse, triangle, and hotspot structure remain determined by the local density gradient, while the non-gradient share suppresses nonphysical inward or overly transverse hotspot-driven boosts through global expansion
+- Decision:
+  - keep `flow-trans-direction-gradient-fraction` as the public key and valid range `0..1`
+  - keep `flow-trans-direction-gradient-fraction = 0` as the pure geometric-expansion direction limit and `1` as the pure density-gradient direction limit
+  - for explicit density-normal flow-trans sampling with `0<f<1`, keep the density-gradient direction when its projection on the geometric radial direction is at least `1-f`
+  - when the local gradient projection is below `1-f`, project the direction onto that outward cone boundary while preserving the gradient tangential sign; fall back to geometric radial only when the gradient or tangent is degenerate
+  - in `radius-profile` mode, keep the total baseline `rhoRaw = flowTransRho0 * pow(xiFlow, flowTransProfilePower)` independent of the fraction
+  - in `shell-gradient-corrected` mode, scale only the gradient correction as `delta = f * flowTransGradientStrength * (tildeA - shellMean)` before applying the existing max-factor clamp
+  - keep public config keys, ROOT schema, and QA schema unchanged
+- Consequences:
+  - lowering the fraction to `0.8` no longer applies a uniform geometric-direction blend that washes out all gradient-driven anisotropy
+  - `1-f` is a physical minimum outward projection for global expansion, not a hand-tuned anisotropy coefficient and not a prescribed ellipse or triangle shape
+  - tests now cover the pure geometric limit, preservation of already-outward density-gradient directions, inward-gradient cone enforcement, and gradient-fraction scaling of the shell-gradient correction

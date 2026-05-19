@@ -114,17 +114,18 @@ weight。</li>
 处的快度尺度，不是全局最大流强，也不是密度边界本身的流强。</li>
 <li><code>flow-trans-direction-gradient-fraction</code>、<code>flow-trans-radius</code>
 和显式 <code>flow-trans-radius-resolution</code> 只属于
-<code>density-normal</code> sampler；resolution 只改变
-density-percentile/level 边界 profile 的数值网格。density-defined 的
-<code>R(phi)</code> 只给角向 shell 几何，主流强使用
-<code>xi_flow = q * xi_shell</code>，其中
-<code>xi_shell = r / R(phi)</code>。</li>
+<code>density-normal</code> sampler；<code>f=0</code>
+是纯几何膨胀方向，<code>f=1</code> 是纯局域 density-gradient
+方向，<code>0&lt;f&lt;1</code> 用 <code>1-f</code>
+作为最小全局外向投影来抑制 hotspot
+造成的反向流，椭圆/三角形状仍由梯度自然生成。</li>
 <li><code>flow-trans-magnitude-mode = shell-gradient-corrected</code> 是
 <code>density-normal + density-percentile/level</code> 专用的 opt-in
 流强修正；默认 <code>radius-profile</code> 使用 sigma-equivalent
 <code>xi_flow</code> 主径向项，显式 <code>flow-trans-gradient-*</code>
 参数不能在默认模式下静默生效；<code>xi_shell &gt; 1</code> 时 correction
-lookup 复用最外层表格值。</li>
+lookup 复用最外层表格值，修正强度会再乘
+<code>flow-trans-direction-gradient-fraction</code>。</li>
 <li><code>density-normal-kappa-compensation</code> 默认关闭，只对
 <code>affine-gaussian + density-normal</code> 有意义。</li>
 <li><code>affine-effective</code> 只允许配

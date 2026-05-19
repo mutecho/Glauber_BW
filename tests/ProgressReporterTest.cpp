@@ -22,7 +22,7 @@ namespace {
     const blastwave::app::ProgressRenderSnapshot snapshot{10, 0, 0, std::chrono::seconds(0)};
     const std::string line = blastwave::app::formatProgressLine(snapshot);
 
-    requireContains(line, "[>-------------------] 0%", "Initial progress line should show zero percent.");
+    requireContains(line, "[>-------------------------------------------------] 0%", "Initial progress line should show zero percent.");
     requireContains(line, "| / |", "Initial progress line should show an activity frame.");
     requireContains(line, "ETA --:--", "ETA should be unknown before the first completed event.");
   }
@@ -52,7 +52,7 @@ namespace {
     const blastwave::app::ProgressRenderSnapshot snapshot{5, 5, 2, std::chrono::seconds(125)};
     const std::string line = blastwave::app::formatProgressLine(snapshot);
 
-    requireContains(line, "[====================] 100%", "Finished progress line should render a full bar.");
+    requireContains(line, "[==================================================] 100%", "Finished progress line should render a full bar.");
     requireContains(line, "ETA 00:00", "Finished progress line should show zero remaining time.");
   }
 

@@ -363,28 +363,102 @@ namespace {
     requireDirectionNear(sample, expectedX, expectedY, 1.0e-12, "flow-trans gradient fraction 0 should use geometric radial direction.");
   }
 
-  void runFlowTransIntermediateDirectionIsNormalizedBlendTest() {
+  void runFlowTransOutwardGradientKeepsDensityGradientShapeTest() {
     const blastwave::EventMedium medium = buildTriangularHotspotMedium(0.35);
-    const double probeX = 1.4;
-    const double probeY = 0.35;
-    const double gradientFraction = 0.35;
+    const double gradientFraction = 0.8;
+    const double outwardFloor = 1.0 - gradientFraction;
     const blastwave::FlowFieldParameters parameters = makeDensityNormalFlowTransParameters(
         0.7, 0.0, 1.0, gradientFraction, blastwave::FlowTransRadiusMode::Covariance, 0.0);
-    const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(medium, probeX, probeY, parameters);
 
-    double radialX = probeX - medium.emissionGeometry.centerX;
-    double radialY = probeY - medium.emissionGeometry.centerY;
-    normalizeExpectedDirection(radialX, radialY, "Radial direction should be valid for mixed-direction test.");
+    bool foundOutwardGradient = false;
+    for (double x = medium.emissionGeometry.centerX - 1.2; x <= medium.emissionGeometry.centerX + 1.6 && !foundOutwardGradient; x += 0.1) {
+      for (double y = medium.emissionGeometry.centerY - 1.2; y <= medium.emissionGeometry.centerY + 1.2 && !foundOutwardGradient; y += 0.1) {
+        double radialX = x - medium.emissionGeometry.centerX;
+        double radialY = y - medium.emissionGeometry.centerY;
+        const double radialNorm = std::hypot(radialX, radialY);
+        if (!std::isfinite(radialNorm) || radialNorm <= 1.0e-6) {
+          continue;
+        }
+        radialX /= radialNorm;
+        radialY /= radialNorm;
 
-    const blastwave::DensityFieldSample densitySample = blastwave::evaluateDensityField(medium.emissionDensity, probeX, probeY);
-    double gradientX = -densitySample.gradientX;
-    double gradientY = -densitySample.gradientY;
-    normalizeExpectedDirection(gradientX, gradientY, "Gradient direction should be valid for mixed-direction test.");
+        const blastwave::DensityFieldSample densitySample = blastwave::evaluateDensityField(medium.emissionDensity, x, y);
+        double gradientX = -densitySample.gradientX;
+        double gradientY = -densitySample.gradientY;
+        const double gradientNorm = std::hypot(gradientX, gradientY);
+        if (!std::isfinite(gradientNorm) || gradientNorm <= 1.0e-9) {
+          continue;
+        }
+        gradientX /= gradientNorm;
+        gradientY /= gradientNorm;
+        if (gradientX * radialX + gradientY * radialY < outwardFloor + 0.1) {
+          continue;
+        }
 
-    double expectedX = (1.0 - gradientFraction) * radialX + gradientFraction * gradientX;
-    double expectedY = (1.0 - gradientFraction) * radialY + gradientFraction * gradientY;
-    normalizeExpectedDirection(expectedX, expectedY, "Mixed direction should be normalizable.");
-    requireDirectionNear(sample, expectedX, expectedY, 1.0e-9, "flow-trans mixed direction should follow normalized blend.");
+        const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(medium, x, y, parameters);
+        requireDirectionNear(sample, gradientX, gradientY, 1.0e-9, "outward gradient should remain density-gradient shaped.");
+        foundOutwardGradient = true;
+      }
+    }
+    require(foundOutwardGradient, "Outward-gradient test should find a point already inside the global-expansion cone.");
+  }
+
+  void runFlowTransGradientFractionConstrainsInwardGradientTest() {
+    const blastwave::EventMedium medium = blastwave::buildEventMedium({
+                                                                          {-1.0, 0.0, 1.0},
+                                                                          {0.0, -1.0, 1.0},
+                                                                          {0.0, 1.0, 1.0},
+                                                                          {1.0, 0.0, 1.0},
+                                                                          {2.0, 0.6, 8.0},
+                                                                      },
+                                                                      {blastwave::DensityEvolutionMode::None, 0.35});
+    const double gradientFraction = 0.8;
+    const double outwardFloor = 1.0 - gradientFraction;
+    const blastwave::FlowFieldParameters parameters = makeDensityNormalFlowTransParameters(
+        0.7, 0.0, 1.0, gradientFraction, blastwave::FlowTransRadiusMode::Covariance, 0.0);
+
+    bool foundInwardGradient = false;
+    for (double x = medium.emissionGeometry.centerX - 0.2; x <= medium.emissionGeometry.centerX + 1.0 && !foundInwardGradient; x += 0.1) {
+      for (double y = medium.emissionGeometry.centerY - 0.6; y <= medium.emissionGeometry.centerY + 0.8 && !foundInwardGradient; y += 0.1) {
+        double radialX = x - medium.emissionGeometry.centerX;
+        double radialY = y - medium.emissionGeometry.centerY;
+        if (!std::isfinite(std::hypot(radialX, radialY)) || std::hypot(radialX, radialY) <= 1.0e-6) {
+          continue;
+        }
+        normalizeExpectedDirection(radialX, radialY, "Radial direction should be valid while searching inward gradients.");
+
+        const blastwave::DensityFieldSample densitySample = blastwave::evaluateDensityField(medium.emissionDensity, x, y);
+        double gradientX = -densitySample.gradientX;
+        double gradientY = -densitySample.gradientY;
+        const double gradientNorm = std::hypot(gradientX, gradientY);
+        if (!std::isfinite(gradientNorm) || gradientNorm <= 1.0e-9) {
+          continue;
+        }
+        gradientX /= gradientNorm;
+        gradientY /= gradientNorm;
+        const double gradientProjection = gradientX * radialX + gradientY * radialY;
+        if (gradientProjection >= -0.2) {
+          continue;
+        }
+        const double tangentX = gradientX - gradientProjection * radialX;
+        const double tangentY = gradientY - gradientProjection * radialY;
+        const double tangentNorm = std::hypot(tangentX, tangentY);
+        if (!std::isfinite(tangentNorm) || tangentNorm <= 1.0e-9) {
+          continue;
+        }
+
+        const blastwave::FlowFieldSample sample = blastwave::evaluateFlowField(medium, x, y, parameters);
+        require(sample.betaT > 0.0, "Constrained inward-gradient sample should produce non-zero flow.");
+        const double sampleProjection = (sample.betaX / sample.betaT) * radialX + (sample.betaY / sample.betaT) * radialY;
+        const double tangentProjection = std::sqrt(std::max(0.0, 1.0 - outwardFloor * outwardFloor));
+        const double expectedX = outwardFloor * radialX + tangentProjection * tangentX / tangentNorm;
+        const double expectedY = outwardFloor * radialY + tangentProjection * tangentY / tangentNorm;
+        requireNear(sampleProjection, outwardFloor, 1.0e-9, "Constrained gradient should land on the cone boundary.");
+        requireDirectionNear(sample, expectedX, expectedY, 1.0e-9, "Global expansion cone should preserve the gradient tangential direction.");
+        foundInwardGradient = true;
+      }
+    }
+    require(foundInwardGradient, "Inward-gradient cone test should find a hotspot-induced inward gradient.");
   }
 
   void runFlowTransDensityRadiiAreAngleIndependentForCircularFieldTest() {
@@ -695,6 +769,54 @@ namespace {
       foundCappedProbe = foundCappedProbe || std::abs(factor - 1.0) > 5.0e-3;
     }
     require(foundCappedProbe, "High shell-gradient strength should hit the max-factor cap for at least one asymmetric probe.");
+  }
+
+  void runShellGradientCorrectedGradientFractionScalesCorrectionTest() {
+    blastwave::EventMedium radiusMedium = buildTriangularHotspotMedium(0.25);
+    blastwave::EventMedium fullGradientMedium = buildTriangularHotspotMedium(0.25);
+    blastwave::EventMedium partialGradientMedium = buildTriangularHotspotMedium(0.25);
+    const blastwave::FlowFieldParameters radiusParameters = makeDensityNormalFlowTransParameters(
+        0.7, 0.0, 1.0, 1.0, blastwave::FlowTransRadiusMode::DensityPercentile, 0.95);
+    blastwave::FlowFieldParameters fullGradientParameters = makeShellGradientFlowTransParameters(0.7, 1.0, 0.2, 0.5);
+    blastwave::FlowFieldParameters partialGradientParameters = fullGradientParameters;
+    partialGradientParameters.flowTransDirectionGradientFraction = 0.5;
+
+    static_cast<void>(blastwave::evaluateFlowField(radiusMedium, 1.0, 0.0, radiusParameters));
+    const blastwave::FlowTransRadiusProfile profile = radiusMedium.flowTransRadiusProfile;
+    require(profile.valid && profile.angularSamples > 40, "Gradient-fraction scaling test needs a valid density-defined radius profile.");
+
+    bool foundScaledCorrection = false;
+    for (int iAngle = 0; iAngle < profile.angularSamples; iAngle += 10) {
+      const double boundaryRadius = profile.boundaryRadii[static_cast<std::size_t>(iAngle)];
+      if (!std::isfinite(boundaryRadius) || boundaryRadius <= 0.0) {
+        continue;
+      }
+
+      const double angle = 2.0 * std::acos(-1.0) * static_cast<double>(iAngle) / static_cast<double>(profile.angularSamples);
+      const double radius = 0.65 * boundaryRadius;
+      const double x = profile.centerX + radius * std::cos(angle);
+      const double y = profile.centerY + radius * std::sin(angle);
+      const blastwave::FlowFieldSample baseSample = blastwave::evaluateFlowField(radiusMedium, x, y, radiusParameters);
+      const blastwave::FlowFieldSample fullSample = blastwave::evaluateFlowField(fullGradientMedium, x, y, fullGradientParameters);
+      const blastwave::FlowFieldSample partialSample = blastwave::evaluateFlowField(partialGradientMedium, x, y, partialGradientParameters);
+      requireFiniteFlowFieldSample(baseSample, "Gradient-fraction base sample should stay finite.");
+      requireFiniteFlowFieldSample(fullSample, "Gradient-fraction full sample should stay finite.");
+      requireFiniteFlowFieldSample(partialSample, "Gradient-fraction partial sample should stay finite.");
+      if (baseSample.rhoRaw <= 0.0) {
+        continue;
+      }
+
+      const double fullFactor = fullSample.rhoRaw / baseSample.rhoRaw;
+      if (std::abs(fullFactor - 1.0) <= 1.0e-4) {
+        continue;
+      }
+      const double partialFactor = partialSample.rhoRaw / baseSample.rhoRaw;
+      const double expectedPartialFactor = 1.0 + 0.5 * (fullFactor - 1.0);
+      requireNear(partialFactor, expectedPartialFactor, 1.0e-9, "Gradient fraction should scale only the shell-gradient correction.");
+      foundScaledCorrection = true;
+      break;
+    }
+    require(foundScaledCorrection, "Gradient-fraction scaling test should find a non-trivial correction sample.");
   }
 
   void runShellGradientCorrectedDegeneratePathStaysFiniteTest() {
@@ -1158,7 +1280,8 @@ int main() {
     runDensityNormalIgnoresKappa2Test();
     runFlowTransCovarianceRadiusMatchesDensityNormalBaselineTest();
     runFlowTransGradientFractionZeroUsesGeometricRadialDirectionTest();
-    runFlowTransIntermediateDirectionIsNormalizedBlendTest();
+    runFlowTransOutwardGradientKeepsDensityGradientShapeTest();
+    runFlowTransGradientFractionConstrainsInwardGradientTest();
     runFlowTransDensityRadiiAreAngleIndependentForCircularFieldTest();
     runFlowTransRadiusProfileResolutionCacheKeyTest();
     runFlowTransResolutionStabilityTest();
@@ -1171,6 +1294,7 @@ int main() {
     runShellGradientCorrectedCircularMediumTest();
     runShellGradientCorrectedAsymmetricMediumTest();
     runShellGradientCorrectedMaxFactorCapTest();
+    runShellGradientCorrectedGradientFractionScalesCorrectionTest();
     runShellGradientCorrectedDegeneratePathStaysFiniteTest();
     runAffineFlowResponseTest();
     runAffineDensityNormalCompensationTest();

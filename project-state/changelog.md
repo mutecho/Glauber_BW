@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-05-19 Density-Normal Gradient-Fraction Expansion Compensation
+
+- Changed explicit density-normal flow-trans semantics so `flow-trans-direction-gradient-fraction` is no longer a uniform vector blend; `0<f<1` now constrains the local density-gradient direction to a global-expansion cone with minimum outward projection `1-f`.
+- Scaled only the `shell-gradient-corrected` multiplicative gradient correction by `flow-trans-direction-gradient-fraction`; default `radius-profile` baseline flow strength remains unchanged.
+- Set densemix/newrap Glauber comparison configs to `flow-trans-direction-gradient-fraction = 0.8` and updated active docs, generated site pages, tests, and `project-state/`.
+- Validated local build, full 10/10 CTest, O2Physics ROOT 5000-event generate+QA for ellipse/densemix/newrap, and `f=1.0` densemix/newrap controls showing the new `0.8` configs are not phi/v2 suppressed.
+
+## 2026-05-19 Newrap Glauber Response Retuning
+
+- Retuned `config/test_023_dense_newrap_glauber.cfg` for the current three-way Glauber comparison so newrap uses density-normal flow with covariance radius, pure density-gradient direction, `flow-trans-rho0 = 1.2`, `flow-trans-profile-power = 1.0`, matched `smear = 0.5`, and `v2/v3{2}(pT)` bins through 7 GeV.
+- Kept densemix unchanged because its current `phi` and `v2{2}(pT)` behavior was already close to the ellipse reference.
+- Regenerated `qa/test_023_newrap_glauber.root` at 5000 events and recorded QA plus ROOT metric evidence showing improved `phi` and `v2_2_pt` agreement with `qa/test_023_ellipse_glauber.root`.
+- Kept generator code, public config keys, ROOT schema, and QA schema unchanged.
+
 ## 2026-05-19 Mode-Local Config Cleanup
 
 - Removed inactive mode-specific entries from workspace `config/*.cfg` files so examples no longer carry unused response-test, affine-effective, affine-evolution, gradient-response, or shell-gradient knobs outside their selected mode combinations.

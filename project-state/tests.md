@@ -23,6 +23,41 @@ Long command transcripts and repeated smoke-command variants were intentionally 
 - authoritative outside-sandbox `analyze_blastwave_vnpt ...`
 - ROOT key inspection through the shared inspector scripts when payload placement needs confirmation
 
+## T-035 Density-Normal Gradient Fraction Expansion Compensation
+
+- Status: passed on 2026-05-19
+- Evidence:
+  - local `cmake --build build -j4` passed after changing `src/FlowFieldModel.cpp`, `tests/FlowFieldModelTest.cpp`, and the stale progress reporter assertion
+  - local `ctest --test-dir build --output-on-failure` passed with 10/10 tests
+  - `test_flow_field_model` now covers the pure geometric `f=0` limit, preservation of density-gradient directions already inside the global-expansion cone, cone-boundary projection for hotspot-induced inward gradients with preserved tangential direction, and `shell-gradient-corrected` scaling only the gradient correction by the fraction
+  - O2Physics ROOT executor first returned `STATUS: ESCALATION_REQUIRED` inside the sandbox; rerunning the same executor command outside the sandbox returned `STATUS: PRIMARY_OK`
+  - O2Physics ROOT executor generated 5000-event `/private/tmp/test_023_ellipse_glauber.root`, `/private/tmp/test_023_dense_mix_glauber.root`, and `/private/tmp/test_023_newrap_glauber.root`
+  - QA passed for all three regenerated files with `validation_passed events=5000`
+  - ROOT metric comparison reported ellipse `phiA2=0.0576875`, `mean(v2)=0.0878417`, `mean(v2_wrt_psi2)=0.038566`
+  - the same comparison reported densemix `f=0.8` `phiA2=0.0311146`, `mean(v2)=0.0764014`, `mean(v2_wrt_psi2)=0.0190202`, and `v2_2_pt` RMSE to ellipse `0.0225366`
+  - the same comparison reported newrap `f=0.8` `phiA2=0.0378503`, `mean(v2)=0.0883567`, `mean(v2_wrt_psi2)=0.0229422`, and `v2_2_pt` RMSE to ellipse `0.0207931`
+  - explicit densemix/newrap `--flow-trans-direction-gradient-fraction 1.0` controls reported densemix `phiA2=0.0309274`, `mean(v2)=0.0761202`, `mean(v2_wrt_psi2)=0.0189164`, RMSE `0.022872`; newrap `phiA2=0.0374482`, `mean(v2)=0.0877322`, `mean(v2_wrt_psi2)=0.0226999`, RMSE `0.0210139`
+- Locked conclusions:
+  - the old suppression came from treating `1-f` as a direction-vector blend with geometric expansion, which diluted density-gradient shape
+  - the current contract uses density gradients for ellipse/triangle/hotspot shape and treats `1-f` as a minimum outward projection for global expansion, not a manual anisotropy coefficient
+  - lowering densemix/newrap Glauber configs to `flow-trans-direction-gradient-fraction = 0.8` no longer suppresses their `radius-profile` phi/v2 metrics relative to the `1.0` controls
+
+## T-034 Newrap Glauber Phi And `v2{2}(pT)` Retuning
+
+- Status: passed on 2026-05-19
+- Evidence:
+  - compared current 5000-event `qa/test_023_newrap_glauber.root`, `qa/test_023_dense_mix_glauber.root`, and `qa/test_023_ellipse_glauber.root` with an O2Physics ROOT macro over `phi`, `events`, and `v2_2_pt`
+  - baseline `newrap` before tuning had `phi` second-harmonic amplitude `0.012003353`, `mean(v2)=0.057891413`, `mean(v2_wrt_psi2)=0.0073743805`, and `v2_2_pt` RMSE to ellipse `0.05471767` over the common 9 bins
+  - 1000-event candidate scans showed the best interpretable newrap direction was density-normal with covariance radius, pure density-gradient direction, `flow-trans-rho0 = 1.2`, `flow-trans-profile-power = 1.0`, `smear = 0.5`, and matched `v2/v3{2}(pT)` bins through 7 GeV
+  - regenerated `qa/test_023_newrap_glauber.root` from `config/test_023_dense_newrap_glauber.cfg` with O2Physics ROOT executor `STATUS: PRIMARY_OK`, writing 5000 events
+  - `qa_blastwave_output --input qa/test_023_newrap_glauber.root --expect-nevents 5000` returned `validation_passed events=5000`
+  - final tuned `newrap` reported `phi` second-harmonic amplitude `0.037448246`, `mean(v2)=0.087732208`, `mean(v2_wrt_psi2)=0.02269988`, and 11-bin `v2_2_pt` RMSE to ellipse `0.02101393`
+  - the same final comparison reported `densemix` 11-bin `v2_2_pt` RMSE to ellipse `0.02287196` and ellipse `phi` second-harmonic amplitude `0.057687497`
+- Locked conclusions:
+  - tuned `config/test_023_dense_newrap_glauber.cfg` moves both final-state `phi` and differential `v2{2}(pT)` toward the ellipse reference without changing generator code, public config keys, ROOT schema, or QA schema
+  - the tuning keeps the model interpretable as density-normal flow, but uses the covariance radius scale for direct comparison with the ellipse reference and raises `flow-trans-rho0` because `density-normal + none` does not consume the explicit `kappa2` modulation
+  - densemix remained unchanged because its existing behavior was already close to the ellipse reference
+
 ## T-033 Mode-Local Config Cleanup
 
 - Status: passed on 2026-05-19

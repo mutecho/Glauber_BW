@@ -162,6 +162,39 @@ namespace {
     return normalizeDirection(directionX, directionY);
   }
 
+  // Apply the non-gradient expansion share as an outward cone constraint. This
+  // leaves ordinary gradient-driven shape untouched, but prevents local hot
+  // spots from turning a positive-expansion fluid element into an inward boost.
+  bool applyGlobalExpansionCone(double gradientX,
+                                double gradientY,
+                                double radialX,
+                                double radialY,
+                                double minOutwardProjection,
+                                double &directionX,
+                                double &directionY) {
+    const double projection = gradientX * radialX + gradientY * radialY;
+    const double outwardFloor = std::clamp(minOutwardProjection, 0.0, 1.0);
+    if (projection >= outwardFloor) {
+      directionX = gradientX;
+      directionY = gradientY;
+      return true;
+    }
+
+    const double tangentX = gradientX - projection * radialX;
+    const double tangentY = gradientY - projection * radialY;
+    const double tangentNorm = std::hypot(tangentX, tangentY);
+    if (!std::isfinite(tangentNorm) || tangentNorm <= kDirectionTolerance || outwardFloor >= 1.0) {
+      directionX = radialX;
+      directionY = radialY;
+      return true;
+    }
+
+    const double tangentProjection = std::sqrt(std::max(0.0, 1.0 - outwardFloor * outwardFloor));
+    directionX = outwardFloor * radialX + tangentProjection * tangentX / tangentNorm;
+    directionY = outwardFloor * radialY + tangentProjection * tangentY / tangentNorm;
+    return normalizeDirection(directionX, directionY);
+  }
+
   bool hasDensityNormalFlowTransOverrides(const blastwave::FlowFieldParameters &parameters) {
     return parameters.flowTransMagnitudeMode == blastwave::FlowTransMagnitudeMode::ShellGradientCorrected
            || parameters.hasFlowTransDirectionGradientFraction || parameters.hasFlowTransRadius;
@@ -430,7 +463,10 @@ namespace {
     return profile;
   }
 
-  // Resolve the configured fallback chain for mixed density-normal direction.
+  // Resolve the configured direction by letting the density gradient shape the
+  // flow inside a global-expansion cone. The non-gradient share sets only the
+  // minimum outward projection, so it suppresses inward hotspot artifacts
+  // without uniformly pulling physical anisotropic gradients toward radial flow.
   bool sampleConfiguredDensityNormalDirection(const blastwave::EventMedium &medium,
                                               double x,
                                               double y,
@@ -447,18 +483,12 @@ namespace {
     const bool hasGradientDirection = sampleDensityGradientDirection(medium, x, y, gradientX, gradientY);
 
     const double gradientFraction = parameters.flowTransDirectionGradientFraction;
-    if (hasGeometricDirection && hasGradientDirection) {
-      const double geometricWeight = 1.0 - gradientFraction;
-      double mixedX = geometricWeight * geometricX + gradientFraction * gradientX;
-      double mixedY = geometricWeight * geometricY + gradientFraction * gradientY;
-      if (normalizeDirection(mixedX, mixedY)) {
-        normalX = mixedX;
-        normalY = mixedY;
+    if (gradientFraction > 0.0 && gradientFraction < 1.0 && hasGradientDirection && hasGeometricDirection) {
+      if (applyGlobalExpansionCone(gradientX, gradientY, geometricX, geometricY, 1.0 - gradientFraction, normalX, normalY)) {
         return true;
       }
     }
-
-    if (hasGradientDirection) {
+    if (gradientFraction > 0.0 && hasGradientDirection) {
       normalX = gradientX;
       normalY = gradientY;
       return true;
@@ -466,6 +496,11 @@ namespace {
     if (hasGeometricDirection) {
       normalX = geometricX;
       normalY = geometricY;
+      return true;
+    }
+    if (hasGradientDirection) {
+      normalX = gradientX;
+      normalY = gradientY;
       return true;
     }
     if (metric.valid) {
@@ -884,8 +919,8 @@ namespace {
     return sample;
   }
 
-  // Sample density-normal flow with legacy behavior by default and a
-  // configured mixed-direction plus density-defined radius path when enabled.
+  // Sample density-normal flow with legacy behavior by default and a configured
+  // gradient-shape plus density-defined radius path when enabled.
   blastwave::FlowFieldSample evaluateDensityNormalFlow(const blastwave::EventMedium &medium, double x, double y, const blastwave::FlowFieldParameters &parameters) {
     blastwave::FlowFieldSample sample;
     const EllipseMetricSample metric = sampleEllipseMetric(medium.emissionGeometry, x, y);
@@ -964,7 +999,7 @@ namespace {
       if (hasSampleDirection
           && sampleFlowTransGradientCorrectionValue(gradientProfile, radialDirectionX, radialDirectionY, xiShell, tildeA, shellMean)
           && std::isfinite(parameters.flowTransGradientStrength)) {
-        correctionDelta = parameters.flowTransGradientStrength * (tildeA - shellMean);
+        correctionDelta = parameters.flowTransDirectionGradientFraction * parameters.flowTransGradientStrength * (tildeA - shellMean);
         correctionDelta = std::clamp(correctionDelta, -parameters.flowTransGradientMaxFactorDelta, parameters.flowTransGradientMaxFactorDelta);
       }
     }

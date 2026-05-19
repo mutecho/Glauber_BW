@@ -126,6 +126,7 @@
 
 - `flowpt-output-mode = separate-file` 时，主结果文件只有启用 harmonic 的 `*_2_pt_edges` 也是合法状态。
 - `flow-trans-direction-gradient-fraction`、`flow-trans-radius` 与显式 `flow-trans-radius-resolution` 只允许 `flow-velocity-sampler = density-normal`，不能在其他 sampler 下静默配置。
+- `flow-trans-direction-gradient-fraction = 0` 是纯几何膨胀方向，`1` 是纯 density-gradient 方向，`0<f<1` 用 `1-f` 作为全局外向投影下限；它只约束反向或过横向的热点梯度，不手动指定各向异性系数或形状。
 - `flow-trans-magnitude-mode = shell-gradient-corrected` 必须使用 density-defined radius；`flow-trans-gradient-max-factor-delta` 限制乘法因子偏离量，不是快度加法上限；`xi_shell > 1` 时只复用 correction table 的最外层壳，基础 `rhoRaw` 使用 sigma-equivalent `xi_flow`。
 - `response-test-023` 是 opt-in response/closure test；默认 `initial-geometry = glauber` 不变。
 - `initial-geometry-a2/a3` 是模板权重，不是实际 `eps2/eps3`。
