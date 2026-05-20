@@ -149,7 +149,7 @@ Use `project-state/tests.md` for the summarized evidence trail.
 - `events.eps3` / `events.psi3` use the recentered harmonic convention and do not change the covariance `eps2/psi2` contract
 - `response-test-023` is opt-in only; template weights `A2/A3` are not physical eccentricities
 - response/cross-talk TH2 objects keep full storage ranges `epsilon = 0..1` and projected `v = -1..1`, but open with compact default display ranges `epsilon = 0..0.35` and projected `v = -0.15..0.15`
-- event-level `v_n`-`epsilon_n` regression should use `events.v2_wrt_psi2` / `events.v3_wrt_psi3` against `events.eps2` / `events.eps3`; `notebooks/vn_epsn_regression.ipynb` uses `uproot`, supports labelled `INPUT_FILES` multi-file overlays, and no longer depends on PyROOT
+- event-level `v_n`-`epsilon_n` regression should use `events.v2_wrt_psi2` / `events.v3_wrt_psi3` against `events.eps2` / `events.eps3`; `notebooks/vn_epsn_regression.ipynb` uses `uproot`, supports labelled `INPUT_FILES` multi-file overlays, keeps same-harmonic free-intercept plus through-origin response fits, uses free-intercept-only fits for cross-harmonic `v2/eps3` and `v3/eps2` mixing checks, and no longer depends on PyROOT
 - `shell_weight` and any `EmissionSite::emissionWeight` restructuring remain intentionally deferred; the current response-test rollout only adds geometry templates and observables
 - older validation ledgers may cite pre-archive response-test config names; current tracked response-test examples use `config/test_023_dense*.cfg`
 

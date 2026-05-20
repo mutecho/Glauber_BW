@@ -45,7 +45,7 @@
 - `shell-gradient-corrected` does not add ROOT debug maps or schema objects in this packet
 - authoritative ROOT validation on this machine still comes from the O2Physics executor path
 - copied `scripts/run_*.sh` entrypoints self-resolve `script_path` from `BASH_SOURCE[0]`, so new run-script copies do not need a manual re-entry path edit
-- event-level `v_n`-`epsilon_n` regression lives in `notebooks/vn_epsn_regression.ipynb`; it reads `events.eps2/eps3` and `events.v2_wrt_psi2/v3_wrt_psi3`, uses `uproot`, supports labelled `INPUT_FILES` multi-file overlays, and no longer depends on PyROOT
+- event-level `v_n`-`epsilon_n` regression lives in `notebooks/vn_epsn_regression.ipynb`; it reads `events.eps2/eps3` and `events.v2_wrt_psi2/v3_wrt_psi3`, uses `uproot`, supports labelled `INPUT_FILES` multi-file overlays, keeps through-origin fits only for same-harmonic response summaries, and no longer depends on PyROOT
 - `shell_weight` and `EmissionSite::emissionWeight` restructuring remain intentionally deferred
 
 ## Remaining Follow-Up

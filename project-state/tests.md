@@ -111,8 +111,9 @@ Long command transcripts and repeated smoke-command variants were intentionally 
 
 ## T-029 Event-Level `v_n`-`epsilon_n` Regression Notebook
 
-- Status: passed for multi-file notebook smoke on 2026-05-11; maintained as `uproot`-only on 2026-05-13
+- Status: passed for multi-file notebook smoke on 2026-05-11; maintained as `uproot`-only on 2026-05-13; source-checked after cross-harmonic fit-scope maintenance on 2026-05-20
 - Evidence:
+  - 2026-05-20 source-level check: `jq empty notebooks/vn_epsn_regression.ipynb` passed, and all 11 code cells parsed with Python `ast`
   - `notebooks/vn_epsn_regression.ipynb` JSON parsed successfully and all code cells parsed with Python `ast`
   - executing all code cells from the Blast_wave repo root with the `root_notebook` environment completed labelled multi-file comparison over `qa/test_b8_response_023.root`, `qa/test_b8_response_023_mix.root`, and `qa/test_b8_023_newrap.root`
   - each default input contributed 5000 selected events and produced same-harmonic `v_n/epsilon_n` plus cross-harmonic `v_n/epsilon_m` regression rows

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-05-20 Cross-Harmonic Notebook Fit Scope
+
+- Updated `notebooks/vn_epsn_regression.ipynb` so cross-harmonic `v2_wrt_psi2` versus `eps3` and `v3_wrt_psi3` versus `eps2` mixing checks use only free-intercept linear fits.
+- Kept same-harmonic `v_n/epsilon_n` response summaries on the existing free-intercept plus through-origin fit contract.
+- No generator code, public config keys, ROOT output schema, or QA schema changed.
+
 ## 2026-05-19 Density-Normal Gradient-Fraction Expansion Compensation
 
 - Changed explicit density-normal flow-trans semantics so `flow-trans-direction-gradient-fraction` is no longer a uniform vector blend; `0<f<1` now constrains the local density-gradient direction to a global-expansion cone with minimum outward projection `1-f`.
