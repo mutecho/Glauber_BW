@@ -23,6 +23,28 @@ Long command transcripts and repeated smoke-command variants were intentionally 
 - authoritative outside-sandbox `analyze_blastwave_vnpt ...`
 - ROOT key inspection through the shared inspector scripts when payload placement needs confirmation
 
+## T-037 `response-test-023` One-Harmonic Fluctuation Cross-Checks
+
+- Status: passed on 2026-06-03 as a diagnostic audit; the decorrelation condition was not satisfied
+- Evidence:
+  - added complete Chinese control configs `config/test_023_dense_eps2_only_fluct.cfg` and `config/test_023_dense_eps3_only_fluct.cfg`
+  - both configs keep `initial-geometry-fluctuate=true`, fix `source-count=600`, fix all shape ranges except the named template weight, and use `density-normal + none` to match the current response-test chain used in the notebook studies
+  - O2Physics ROOT executor generated 5000-event `/private/tmp/blastwave_eps3_only_fluct.root` from `config/test_023_dense_eps3_only_fluct.cfg` with `STATUS: PRIMARY_OK`
+  - O2Physics ROOT executor QA passed for `/private/tmp/blastwave_eps3_only_fluct.root`, reporting `validation_passed events=5000`, `mean_eps2=0.163558`, and `mean_eps3=0.0941824`
+  - O2Physics ROOT executor generated 5000-event `/private/tmp/blastwave_eps2_only_fluct.root` from `config/test_023_dense_eps2_only_fluct.cfg` with `STATUS: PRIMARY_OK`
+  - O2Physics ROOT executor QA passed for `/private/tmp/blastwave_eps2_only_fluct.root`, reporting `validation_passed events=5000`, `mean_eps2=0.170858`, and `mean_eps3=0.0770006`
+  - local `ctest --test-dir /Users/allenzhou/Research_software/Blast_wave/build --output-on-failure` passed with 10/10 tests after adding the control cfgs and documentation/project-state updates
+  - ROOT event-stat extraction on the broad fluctuating reference `qa/test_023_dense_fluct.root` reported `corr(eps2,eps3)=-0.234245`, `corr(v2_wrt_psi2,eps3)=-0.179649`, and `corr(v3_wrt_psi3,eps2)=-0.191409`
+  - the `eps3_only` control still reported `corr(eps2,eps3)=-0.195345`, which fails the `|corr(eps2,eps3)| < 0.08` decorrelation target, and also reported `corr(eps2,geoA3)=-0.461106`
+  - the `eps3_only` control reported a small conditional `partial corr(v2_wrt_psi2,eps3|eps2)=-0.033979`, while `partial corr(v3_wrt_psi3,eps2|eps3)=-0.096976` remained non-negligible
+  - the `eps2_only` control reduced but did not cleanly eliminate geometry coupling, with `corr(eps2,eps3)=-0.080169` and `corr(eps3,geoA2)=-0.095056`
+  - two-predictor fits on `eps3_only` gave `v2_wrt_psi2 = -0.002099 + 0.214405 eps2 -0.019839 eps3` and `v3_wrt_psi3 = 0.013180 + 0.180670 eps3 -0.061759 eps2`
+- Locked conclusions:
+  - the control tests do not satisfy the "cross correlation disappears" branch required for immediately adding stratified-independent sampling
+  - the dominant observed issue is not a notebook regression-scope mistake: `eps3_only` still changes measured `events.eps2` because the current template allocates one fixed total source pool according to approximate fractions `1:A2:A3`
+  - increasing `A3` steals relative weight from the circular background and elliptic component and changes the second-moment denominator, so independent `A2/A3` random numbers do not imply independent measured `eps2/eps3`
+  - the next algorithmic fix, if requested, should be an explicit independent-component or stratified-matched sampling mode with a post-generation acceptance target on `corr(eps2,eps3)`, not further widening of the existing joint-uniform `A2/A3` ranges
+
 ## T-036 Fluctuating `response-test-023` Broad-Distribution Geometry
 
 - Status: passed on 2026-06-03

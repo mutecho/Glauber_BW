@@ -2,16 +2,14 @@
 
 ## Latest Durable Handoff
 
-- Stage completed: fluctuating `response-test-023` broad-distribution geometry rollout
+- Stage completed: `response-test-023` one-harmonic fluctuation cross-check audit
 - What changed:
-  - added `initial-geometry-fluctuate` as an opt-in switch that is valid only with `initial-geometry = response-test-023`
-  - added complete min/max range controls for event-local response-test source count, `A2/A3`, `r2x/r2y`, `r3`, and `sigma3`
-  - kept fixed 023 as the closure baseline when `initial-geometry-fluctuate=false`
-  - changed response-test generation so each event samples one template-parameter packet and writes the actual event-local values into `EventInfo`
-  - extended ROOT `events` schema and QA with `geo_r2x` and `geo_r2y`
-  - added `config/test_023_fluctuating.cfg` as the complete Chinese broad-distribution response-test cfg
-  - updated active docs, ROOT-free parser/generator tests, and `project-state/`
-  - validated local build, full `ctest`, O2Physics ROOT 5000-event generate+QA, and broad-distribution p95 metrics against fixed 023
+  - added `config/test_023_dense_eps2_only_fluct.cfg` and `config/test_023_dense_eps3_only_fluct.cfg` as complete Chinese control configs
+  - generated and QA-validated 5000-event ROOT controls for both configs through the O2Physics executor
+  - extracted event-level cross statistics for the current broad fluctuating reference and both one-harmonic controls
+  - found that the `eps3_only` control still has `corr(eps2,eps3)=-0.195345` and `corr(eps2,geoA3)=-0.461106`
+  - concluded that the current cross correlation did not disappear under the control test, so the conditional branch for immediately implementing stratified-independent sampling was not taken
+  - updated active docs and `project-state/` with the mechanism: current fixed-total `1:A2:A3` source allocation couples measured `events.eps2/eps3`
 - Current documentation ownership:
   - documentation index and role map: `docs/README.md`
   - detailed runtime and physics explanation: `docs/项目说明.md`
@@ -31,6 +29,8 @@
 - fixed `response-test-023` remains the closure baseline; fluctuating `response-test-023` is the broad-distribution response-test path
 - `initial-geometry-fluctuate=true` requires all response-test range keys and is invalid under Glauber
 - `events.geo_a2/geo_a3/geo_r2x/geo_r2y/geo_r3/geo_sigma3` are event-local template-parameter snapshots, not measured eccentricities
+- `A2/A3` are mixed through one fixed total source pool with approximate fractions `1:A2:A3`; independent template-weight random numbers do not guarantee independent measured `events.eps2/eps3`
+- use `config/test_023_dense_eps2_only_fluct.cfg` and `config/test_023_dense_eps3_only_fluct.cfg` for one-harmonic-open cross-correlation controls before interpreting broad fluctuating `v2/eps3` or `v3/eps2` slopes
 - Glauber mirror configs exist for the response-test comparison settings: `config/test_023_dense_mix_glauber.cfg`, `config/test_023_dense_newrap_glauber.cfg`, and `config/test_023_ellipse_glauber.cfg`
 - workspace cfg examples are intentionally mode-local: do not re-add inactive response-test, affine-effective, affine-evolution, gradient-response, or shell-gradient knobs unless the selected mode combination uses them
 - affine-effective remains opt-in and only valid for `affine-gaussian`
@@ -53,6 +53,7 @@
 
 ## Remaining Follow-Up
 
+- if the goal is to remove the induced `eps2/eps3` geometry correlation, add an explicit sampling mode with independent component source pools or post-sampled stratified matching, then require a generated control sample with `|corr(eps2,eps3)| < 0.08`
 - if direct PyROOT analysis is needed again, add it as a separate opt-in environment/notebook path instead of putting ROOT/PyROOT back into the maintained `root_notebook` recipe
 - for physics conclusions from shell-gradient scans, run larger-statistics response-test or Glauber scans and compare \(p_T\), `v2`, `v3`, and geometry-plane projections against radius-profile controls
 - if future work needs to inspect correction internals, add an explicit ROOT-free or optional-debug payload design first; this packet intentionally kept ROOT schema unchanged
@@ -61,6 +62,9 @@
 
 ## Verification Status
 
+- latest one-harmonic cross-check packet is `verified` diagnostically on 2026-06-03
+- O2Physics ROOT executor generated and QA-validated `/private/tmp/blastwave_eps3_only_fluct.root` with 5000 events, `STATUS: PRIMARY_OK`; final event-stat extraction reported `corr(eps2,eps3)=-0.195345` and `corr(eps2,geoA3)=-0.461106`
+- O2Physics ROOT executor generated and QA-validated `/private/tmp/blastwave_eps2_only_fluct.root` with 5000 events, `STATUS: PRIMARY_OK`; final event-stat extraction reported `corr(eps2,eps3)=-0.080169`
 - latest fluctuating response-test packet is `verified` on 2026-06-03
 - local `cmake --build /Users/allenzhou/Research_software/Blast_wave/build -j4` passed after the fluctuating 023 rollout
 - local full `ctest --test-dir /Users/allenzhou/Research_software/Blast_wave/build --output-on-failure` passed with 10/10 tests

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-06-03 `response-test-023` One-Harmonic Cross-Check Configs
+
+- Added `config/test_023_dense_eps2_only_fluct.cfg` and `config/test_023_dense_eps3_only_fluct.cfg` as complete Chinese control configs that isolate one open template-weight fluctuation at a time.
+- Generated and QA-validated 5000-event ROOT controls for both configs through the O2Physics executor.
+- Recorded ROOT event-stat evidence showing the `eps3_only` control still has `corr(eps2,eps3)=-0.195345` and `corr(eps2,geoA3)=-0.461106`, so the broad-fluctuation cross correlation does not disappear under the one-harmonic control.
+- Updated docs and `project-state/` to state the current mechanism: the fixed-total `1:A2:A3` source allocation couples the measured `events.eps2/eps3`; independent template-weight random numbers are not enough to guarantee decorrelated measured eccentricities.
+- No generator code, public config keys, ROOT output schema, QA schema, or notebook code changed.
+
 ## 2026-06-03 Fluctuating `response-test-023` Broad Geometry
 
 - Added opt-in `initial-geometry-fluctuate` for `response-test-023`, with complete `source-count/a2/a3/r2x/r2y/r3/sigma3` min/max ranges and validation.
