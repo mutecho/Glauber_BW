@@ -47,6 +47,45 @@ namespace blastwave {
     if (config_.initialGeometryMode != InitialGeometryMode::Glauber && config_.initialGeometryMode != InitialGeometryMode::ResponseTest023) {
       throw std::invalid_argument("initial-geometry must be 'glauber' or 'response-test-023'.");
     }
+    if (config_.initialGeometryFluctuate && config_.initialGeometryMode != InitialGeometryMode::ResponseTest023) {
+      throw std::invalid_argument("initial-geometry-fluctuate requires initial-geometry=response-test-023.");
+    }
+
+    if (config_.initialGeometryFluctuate) {
+      const bool hasAllSourceCountRange = config_.hasInitialGeometrySourceCountMin && config_.hasInitialGeometrySourceCountMax;
+      const bool hasAllA2Range = config_.hasInitialGeometryA2Min && config_.hasInitialGeometryA2Max;
+      const bool hasAllA3Range = config_.hasInitialGeometryA3Min && config_.hasInitialGeometryA3Max;
+      const bool hasAllR2xRange = config_.hasInitialGeometryR2xMin && config_.hasInitialGeometryR2xMax;
+      const bool hasAllR2yRange = config_.hasInitialGeometryR2yMin && config_.hasInitialGeometryR2yMax;
+      const bool hasAllR3Range = config_.hasInitialGeometryR3Min && config_.hasInitialGeometryR3Max;
+      const bool hasAllSigma3Range = config_.hasInitialGeometrySigma3Min && config_.hasInitialGeometrySigma3Max;
+      if (!hasAllSourceCountRange || !hasAllA2Range || !hasAllA3Range || !hasAllR2xRange || !hasAllR2yRange || !hasAllR3Range
+          || !hasAllSigma3Range) {
+        throw std::invalid_argument(
+            "initial-geometry-fluctuate=true requires all initial-geometry-* range options to be configured: source-count-min/max, a2-min/max, a3-min/max,"
+            + std::string(" r2x-min/max, r2y-min/max, r3-min/max, sigma3-min/max."));
+      }
+
+      if (config_.initialGeometrySourceCountMin <= 0 || config_.initialGeometrySourceCountMax <= 0
+          || config_.initialGeometrySourceCountMin > config_.initialGeometrySourceCountMax) {
+        throw std::invalid_argument("initial-geometry-source-count range must be positive and satisfy min <= max.");
+      }
+
+      auto validateFiniteNonNegativeDoubleRange = [&](double minValue, double maxValue, const std::string &name, bool allowZero) {
+        if (!isFinite(minValue) || !isFinite(maxValue) || minValue < 0.0 || (!allowZero && minValue <= 0.0)
+            || (!allowZero && maxValue <= 0.0) || maxValue < minValue) {
+          throw std::invalid_argument(name + " range must be finite with " + (allowZero ? "min >= 0" : "min > 0") + ", max > 0, and min <= max.");
+        }
+      };
+
+      validateFiniteNonNegativeDoubleRange(config_.initialGeometryA2Min, config_.initialGeometryA2Max, "initial-geometry-a2", true);
+      validateFiniteNonNegativeDoubleRange(config_.initialGeometryA3Min, config_.initialGeometryA3Max, "initial-geometry-a3", true);
+      validateFiniteNonNegativeDoubleRange(config_.initialGeometryR2xMin, config_.initialGeometryR2xMax, "initial-geometry-r2x", false);
+      validateFiniteNonNegativeDoubleRange(config_.initialGeometryR2yMin, config_.initialGeometryR2yMax, "initial-geometry-r2y", false);
+      validateFiniteNonNegativeDoubleRange(config_.initialGeometryR3Min, config_.initialGeometryR3Max, "initial-geometry-r3", false);
+      validateFiniteNonNegativeDoubleRange(config_.initialGeometrySigma3Min, config_.initialGeometrySigma3Max, "initial-geometry-sigma3", false);
+    }
+
     if (config_.initialGeometrySourceCount <= 0) {
       throw std::invalid_argument("initial-geometry-source-count must be positive.");
     }

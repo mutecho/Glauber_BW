@@ -23,6 +23,7 @@
 - 可选三阶响应测试初态：
   - `initial-geometry = response-test-023`
   - 人工 `0+2+3` 点云，`participants.nucleus_id = -1`
+  - `initial-geometry-fluctuate = true` 为宽分布 response test；默认关闭，固定 023 仍是 closure baseline
 - 可选差分分析：
   - 配置 `v2pt-bins`
   - 配置 `v3pt-bins`
@@ -63,6 +64,7 @@
   - `config/test_b8.cfg`
   - `config/test_b8_affine_effective.cfg`
   - `config/test_023_dense.cfg`
+  - `config/test_023_fluctuating.cfg`
   - `config/test_b8_flowpt.cfg`
   - `config/test_b8_density_normal_flow_trans.cfg`
   - `config/test_b8_density_normal_flow_trans_gradient.cfg`
@@ -72,6 +74,7 @@
   - `particles`
   - 事件级 `centrality`、`v2`、`eps2_f/psi2_f/chi2`、`r2_0/r2_f/r2_ratio`
   - 三阶响应摘要 `eps3/psi3`、`v3`、`v2_wrt_psi2`、`v3_wrt_psi3`
+  - response-test 模板快照 `geo_a2/geo_a3/geo_r2x/geo_r2y/geo_r3/geo_sigma3`
   - response/cross-talk TH2 默认以紧凑显示窗口打开，但保留完整物理存储范围
   - 粒子级 `x0/y0/emission_weight`
 - 当前可选载荷：
@@ -130,5 +133,6 @@
 - `flow-trans-magnitude-mode = shell-gradient-corrected` 必须使用 density-defined radius；`flow-trans-gradient-max-factor-delta` 限制乘法因子偏离量，不是快度加法上限；`xi_shell > 1` 时只复用 correction table 的最外层壳，基础 `rhoRaw` 使用 sigma-equivalent `xi_flow`。
 - `response-test-023` 是 opt-in response/closure test；默认 `initial-geometry = glauber` 不变。
 - `initial-geometry-a2/a3` 是模板权重，不是实际 `eps2/eps3`。
+- `initial-geometry-fluctuate` 只允许用于 `response-test-023`；固定 023 用于 closure baseline，fluctuating 023 用于宽 `events.eps2/eps3` 分布测试。
 - `qa/` 目录中存在旧 schema ROOT 文件；复用前先确认是否匹配当前契约。
 - 在这台机器上，沙箱内 `alienv` ROOT smoke 若出现 PCM / module 噪声，不应当作权威结果；权威验证依旧来自沙箱外 O2Physics 路径。

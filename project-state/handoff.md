@@ -2,16 +2,16 @@
 
 ## Latest Durable Handoff
 
-- Stage completed: density-normal gradient-fraction expansion-compensation fix for Glauber densemix/newrap comparison
+- Stage completed: fluctuating `response-test-023` broad-distribution geometry rollout
 - What changed:
-  - changed `src/FlowFieldModel.cpp` so `flow-trans-direction-gradient-fraction` no longer blends every local gradient with a geometric direction that washes out shape
-  - kept `flow-trans-direction-gradient-fraction = 0` as the pure geometric-expansion scan limit and `1` as the pure local density-gradient limit
-  - for `0<f<1`, imposed a global-expansion cone: the gradient direction must keep at least `1-f` outward projection relative to geometric radial flow, otherwise it is projected to the cone boundary while preserving the gradient tangential direction
-  - changed `shell-gradient-corrected` to scale only the gradient correction by `flow-trans-direction-gradient-fraction`, leaving the `radius-profile` baseline unchanged
-  - set `config/test_023_dense_mix_glauber.cfg` and `config/test_023_dense_newrap_glauber.cfg` to `flow-trans-direction-gradient-fraction = 0.8`
-  - kept newrap on density-normal flow with covariance radius, `flow-trans-rho0 = 1.2`, `flow-trans-profile-power = 1.0`, matched `smear = 0.5`, and matched `v2/v3{2}(pT)` bins through 7 GeV
-  - updated config comments, active docs, generated site pages, flow-field tests, and `project-state/`
-  - kept public config keys, ROOT schema, and QA schema unchanged
+  - added `initial-geometry-fluctuate` as an opt-in switch that is valid only with `initial-geometry = response-test-023`
+  - added complete min/max range controls for event-local response-test source count, `A2/A3`, `r2x/r2y`, `r3`, and `sigma3`
+  - kept fixed 023 as the closure baseline when `initial-geometry-fluctuate=false`
+  - changed response-test generation so each event samples one template-parameter packet and writes the actual event-local values into `EventInfo`
+  - extended ROOT `events` schema and QA with `geo_r2x` and `geo_r2y`
+  - added `config/test_023_fluctuating.cfg` as the complete Chinese broad-distribution response-test cfg
+  - updated active docs, ROOT-free parser/generator tests, and `project-state/`
+  - validated local build, full `ctest`, O2Physics ROOT 5000-event generate+QA, and broad-distribution p95 metrics against fixed 023
 - Current documentation ownership:
   - documentation index and role map: `docs/README.md`
   - detailed runtime and physics explanation: `docs/项目说明.md`
@@ -28,6 +28,9 @@
 
 - default runtime path remains V1a `affine-gaussian + covariance-ellipse`
 - default initial geometry remains `glauber`; `response-test-023` is opt-in only
+- fixed `response-test-023` remains the closure baseline; fluctuating `response-test-023` is the broad-distribution response-test path
+- `initial-geometry-fluctuate=true` requires all response-test range keys and is invalid under Glauber
+- `events.geo_a2/geo_a3/geo_r2x/geo_r2y/geo_r3/geo_sigma3` are event-local template-parameter snapshots, not measured eccentricities
 - Glauber mirror configs exist for the response-test comparison settings: `config/test_023_dense_mix_glauber.cfg`, `config/test_023_dense_newrap_glauber.cfg`, and `config/test_023_ellipse_glauber.cfg`
 - workspace cfg examples are intentionally mode-local: do not re-add inactive response-test, affine-effective, affine-evolution, gradient-response, or shell-gradient knobs unless the selected mode combination uses them
 - affine-effective remains opt-in and only valid for `affine-gaussian`
@@ -45,7 +48,7 @@
 - `shell-gradient-corrected` does not add ROOT debug maps or schema objects in this packet
 - authoritative ROOT validation on this machine still comes from the O2Physics executor path
 - copied `scripts/run_*.sh` entrypoints self-resolve `script_path` from `BASH_SOURCE[0]`, so new run-script copies do not need a manual re-entry path edit
-- event-level `v_n`-`epsilon_n` regression lives in `notebooks/vn_epsn_regression.ipynb`; it reads `events.eps2/eps3` and `events.v2_wrt_psi2/v3_wrt_psi3`, uses `uproot`, supports labelled `INPUT_FILES` multi-file overlays, keeps through-origin fits only for same-harmonic response summaries, and no longer depends on PyROOT
+- event-level `v_n`-`epsilon_n` regression lives in `notebooks/vn_epsn_regression.ipynb`; it reads `events.eps2/eps3` and `events.v2_wrt_psi2/v3_wrt_psi3`, uses `uproot`, supports grouped `INPUT_FILE_GROUPS` multi-file overlays, keeps Glauber-direct, fixed manual third-order response-test, and 023 random-fluctuation response-test inputs in separate plot groups, keeps through-origin fits only for same-harmonic response summaries, and no longer depends on PyROOT
 - `shell_weight` and `EmissionSite::emissionWeight` restructuring remain intentionally deferred
 
 ## Remaining Follow-Up
@@ -58,7 +61,12 @@
 
 ## Verification Status
 
-- latest notebook packet: `checked after maintenance` on 2026-05-13 for the `uproot`-only `root_notebook` recipe and maintained `notebooks/vn_epsn_regression.ipynb`; the latest full notebook execution evidence remains the 2026-05-11 multi-file regression smoke over `response_023`, `dense_mix`, and `newrap`
+- latest fluctuating response-test packet is `verified` on 2026-06-03
+- local `cmake --build /Users/allenzhou/Research_software/Blast_wave/build -j4` passed after the fluctuating 023 rollout
+- local full `ctest --test-dir /Users/allenzhou/Research_software/Blast_wave/build --output-on-failure` passed with 10/10 tests
+- O2Physics ROOT executor generated and QA-validated `/private/tmp/test_023_fluctuating.root` with 5000 events, `STATUS: PRIMARY_OK`
+- final ROOT metric extraction reported fluctuating `eps2 p95=0.362610`, `eps3 p95=0.297453`, and fixed 023 comparison `eps2 p95=0.242961`, `eps3 p95=0.148330`
+- latest notebook packet: full `root_notebook` execution on 2026-06-03 passed for grouped `glauber_direct`, `manual_third_order`, and `response_023_fluct` analyses, each with `dense_mix`, `newrap`, and `ellipse`
 - latest density-normal gradient-fraction expansion-compensation fix is `verified` on 2026-05-19
 - durable generator baseline remains `verified` on 2026-05-07
 - O2Physics ROOT executor regenerated 5000-event `/private/tmp/test_023_ellipse_glauber.root`, `/private/tmp/test_023_dense_mix_glauber.root`, and `/private/tmp/test_023_newrap_glauber.root` from the three Glauber configs with `STATUS: PRIMARY_OK`

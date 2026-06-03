@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-06-03 Fluctuating `response-test-023` Broad Geometry
+
+- Added opt-in `initial-geometry-fluctuate` for `response-test-023`, with complete `source-count/a2/a3/r2x/r2y/r3/sigma3` min/max ranges and validation.
+- Kept fixed 023 as the closure baseline while adding `config/test_023_fluctuating.cfg` for broad-distribution response tests.
+- Extended event metadata and ROOT schema with `geo_r2x` and `geo_r2y`, and updated QA to validate the new branches when present.
+- Added ROOT-free parser/validation and generator response tests for default-off, cfg/CLI parsing, override, invalid contracts, event-local ranges, fixed-seed reproducibility, and fixed-mode regression.
+- Validated local build, full 10/10 CTest, O2Physics ROOT generate+QA for 5000 fluctuating events, and ROOT metric extraction showing fluctuating `eps2 p95=0.362610`, `eps3 p95=0.297453`, wider than fixed 023.
+
+## 2026-06-03 Grouped Fluctuating 023 Notebook Inputs
+
+- Added `response_023_fluct` as a separate `notebooks/vn_epsn_regression.ipynb` input group for the three `*_fluct.root` QA files.
+- Kept the 023 random-fluctuation results separate from both Glauber-direct and fixed manual third-order groups in tables, plots, and saved figure names.
+- Validated JSON parsing, code-cell AST parsing, and full `root_notebook` execution over nine 5000-event ROOT files.
+- No generator code, public config keys, ROOT output schema, or QA schema changed.
+
+## 2026-06-03 Grouped Manual Third-Order Notebook Inputs
+
+- Updated `notebooks/vn_epsn_regression.ipynb` so default analysis uses grouped `INPUT_FILE_GROUPS` instead of one shared file list.
+- Kept Glauber-direct ROOT inputs and manual third-order response-test ROOT inputs in separate analysis and plot groups, with shared event cuts and regression helpers.
+- Validated JSON parsing, code-cell AST parsing, and full `root_notebook` execution over six 5000-event ROOT files.
+- No generator code, public config keys, ROOT output schema, or QA schema changed.
+
 ## 2026-05-20 Cross-Harmonic Notebook Fit Scope
 
 - Updated `notebooks/vn_epsn_regression.ipynb` so cross-harmonic `v2_wrt_psi2` versus `eps3` and `v3_wrt_psi3` versus `eps2` mixing checks use only free-intercept linear fits.

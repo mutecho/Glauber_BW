@@ -29,6 +29,8 @@ namespace blastwave::io {
   inline constexpr char kV3HistogramName[] = "v3";
   inline constexpr char kV2WrtPsi2HistogramName[] = "v2_wrt_psi2";
   inline constexpr char kV3WrtPsi3HistogramName[] = "v3_wrt_psi3";
+  inline constexpr char kGeoR2XBranchName[] = "geo_r2x";
+  inline constexpr char kGeoR2YBranchName[] = "geo_r2y";
   inline constexpr char kV3WrtPsi3VsEps3HistogramName[] = "v3_wrt_psi3_vs_eps3";
   inline constexpr char kV2WrtPsi2VsEps2HistogramName[] = "v2_wrt_psi2_vs_eps2";
   inline constexpr char kV3WrtPsi3VsEps2HistogramName[] = "v3_wrt_psi3_vs_eps2";
@@ -76,6 +78,8 @@ namespace blastwave::io {
     Double_t rRmsInit = 0.0;
     Double_t geoA2 = 0.0;
     Double_t geoA3 = 0.0;
+    Double_t geoR2x = 0.0;
+    Double_t geoR2y = 0.0;
     Double_t geoR3 = 0.0;
     Double_t geoSigma3 = 0.0;
     Double_t chi2 = 0.0;

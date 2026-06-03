@@ -346,7 +346,7 @@ response/closure test，不用于替代真实初态模型。</p>
 \]</span></p>
 <p>这里 <span class="math inline">\(A_2,A_3\)</span>
 只是模板混合权重，不等同于实际 <span
-class="math inline">\(\epsilon_2,\epsilon_3\)</span>。当前实现按
+class="math inline">\(\epsilon_2,\epsilon_3\)</span>。固定模板模式按
 <code>1:A2:A3</code> 把 <code>initial-geometry-source-count</code>
 个离散源点分配到三类分量：</p>
 <ul>
@@ -369,6 +369,28 @@ R_3(\cos(\Phi_3+2\pi k/3),\sin(\Phi_3+2\pi k/3)),\quad k=0,1,2
 tree 中使用 <code>nucleus_id=-1</code>，随后仍走同一个
 <code>buildEventMedium()</code>、<code>EmissionSampler</code>、flow 和
 ROOT 输出链。</p>
+<p>当 <code>initial-geometry-fluctuate = true</code>
+时，<code>response-test-023</code> 在每个事件开始时抽样 event-local
+模板参数：</p>
+<p><span class="math display">\[
+N_{\rm src}\sim U_{\mathbb{Z}}(N_{\min},N_{\max}),\quad
+A_2\sim U(A_{2,\min},A_{2,\max}),\quad
+A_3\sim U(A_{3,\min},A_{3,\max}),
+\]</span></p>
+<p><span class="math display">\[
+R_{2x}\sim U(R_{2x,\min},R_{2x,\max}),\quad
+R_{2y}\sim U(R_{2y,\min},R_{2y,\max}),\quad
+R_3\sim U(R_{3,\min},R_{3,\max}),\quad
+\sigma_3\sim U(\sigma_{3,\min},\sigma_{3,\max}).
+\]</span></p>
+<p><code>r0</code>、<code>phi2</code>、<code>phi3</code>
+第一版不随机化。随机化只作用于
+<code>response-test-023</code>，用于构造比固定 closure baseline
+更宽的人工 <code>events.eps2/eps3</code> 分布；Glauber
+不读取这些范围。ROOT <code>events.geo_*</code>
+字段保存每个事件实际抽到的模板参数，因此分析时应使用
+<code>events.eps2/eps3</code> 判断几何响应，而不是把配置范围或 <span
+class="math inline">\(A_2,A_3\)</span> 解释成物理 eccentricity。</p>
 <h4 id="代码位置-2">代码位置</h4>
 <ul>
 <li><code>include/blastwave/BlastWaveGenerator.h</code>：<code>InitialGeometryMode</code>
@@ -380,6 +402,8 @@ ROOT 输出链。</p>
 <code>initial-geometry*</code> 和
 <code>debug-initial-geometry</code>。</li>
 <li><code>config/test_023_dense.cfg</code>：完整中文说明的三阶响应测试配置。</li>
+<li><code>config/test_023_fluctuating.cfg</code>：完整中文说明的逐事件宽分布
+response-test 配置。</li>
 </ul>
 <h2 id="participant-初态几何epsilon_2psi_2-与-epsilon_3psi_3">2.
 Participant 初态几何：<span
@@ -2040,10 +2064,10 @@ ROOT 文件读 <code>particles</code> 和已存在的 <code>v2_2_pt_edges</code>
 <td>recentered point-cloud helper</td>
 </tr>
 <tr>
-<td><code>geo_a2</code>, <code>geo_a3</code>, <code>geo_r3</code>,
-<code>geo_sigma3</code></td>
-<td>response-test 模板配置快照</td>
-<td>运行配置</td>
+<td><code>geo_a2</code>, <code>geo_a3</code>, <code>geo_r2x</code>,
+<code>geo_r2y</code>, <code>geo_r3</code>, <code>geo_sigma3</code></td>
+<td>response-test 事件级模板参数快照</td>
+<td>固定配置或逐事件抽样</td>
 </tr>
 <tr>
 <td><code>eps2_f</code>, <code>psi2_f</code></td>

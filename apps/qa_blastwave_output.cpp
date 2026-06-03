@@ -276,6 +276,12 @@ int main(int argc, char **argv) {
       }
     }
 
+    const bool hasGeoR2xBranch = eventsTree->GetBranch(blastwave::io::kGeoR2XBranchName) != nullptr;
+    const bool hasGeoR2yBranch = eventsTree->GetBranch(blastwave::io::kGeoR2YBranchName) != nullptr;
+    if (hasGeoR2xBranch != hasGeoR2yBranch) {
+      throw std::runtime_error("events tree must contain geo_r2x and geo_r2y together.");
+    }
+
     blastwave::io::EventBranches eventBranches;
     blastwave::io::ParticipantBranches participantBranches;
     blastwave::io::ParticleBranches particleBranches;
@@ -613,6 +619,12 @@ int main(int argc, char **argv) {
       }
       if (!isFinite(eventBranches.rRmsInit) || eventBranches.rRmsInit < 0.0) {
         throw std::runtime_error("R_rms_init must be finite and non-negative.");
+      }
+      if (hasGeoR2xBranch && (!isFinite(eventBranches.geoR2x) || eventBranches.geoR2x <= 0.0)) {
+        throw std::runtime_error("geo_r2x must be finite and positive.");
+      }
+      if (hasGeoR2yBranch && (!isFinite(eventBranches.geoR2y) || eventBranches.geoR2y <= 0.0)) {
+        throw std::runtime_error("geo_r2y must be finite and positive.");
       }
       if (!isFinite(eventBranches.geoA2) || eventBranches.geoA2 < 0.0) {
         throw std::runtime_error("geo_a2 must be finite and non-negative.");

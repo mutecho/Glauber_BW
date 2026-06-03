@@ -19,9 +19,39 @@ namespace blastwave {
   // transverse collision criterion implied by the configured NN cross section.
   std::vector<BlastWaveGenerator::Nucleon> BlastWaveGenerator::sampleParticipants() {
     if (config_.initialGeometryMode == InitialGeometryMode::ResponseTest023) {
-      return sampleResponseTest023Participants();
+      const ResponseTest023EventGeometry eventGeometry = sampleResponseTest023EventGeometry();
+      return sampleResponseTest023Participants(eventGeometry);
     }
     return sampleGlauberParticipants();
+  }
+
+  // Resolve one per-event set of response-test-023 template parameters. In non-fluctuating mode,
+  // this falls back to the fixed config values so closure behavior stays unchanged.
+  BlastWaveGenerator::ResponseTest023EventGeometry BlastWaveGenerator::sampleResponseTest023EventGeometry() {
+    if (!config_.initialGeometryFluctuate) {
+      return {config_.initialGeometrySourceCount,
+              config_.initialGeometryA2,
+              config_.initialGeometryA3,
+              config_.initialGeometryR2x,
+              config_.initialGeometryR2y,
+              config_.initialGeometryR3,
+              config_.initialGeometrySigma3};
+    }
+
+    const auto sampleInt = [this](int minValue, int maxValue) {
+      return std::uniform_int_distribution<int>(minValue, maxValue)(rng_);
+    };
+    const auto sampleReal = [this](double minValue, double maxValue) {
+      return std::uniform_real_distribution<double>(minValue, maxValue)(rng_);
+    };
+
+    return {sampleInt(config_.initialGeometrySourceCountMin, config_.initialGeometrySourceCountMax),
+            sampleReal(config_.initialGeometryA2Min, config_.initialGeometryA2Max),
+            sampleReal(config_.initialGeometryA3Min, config_.initialGeometryA3Max),
+            sampleReal(config_.initialGeometryR2xMin, config_.initialGeometryR2xMax),
+            sampleReal(config_.initialGeometryR2yMin, config_.initialGeometryR2yMax),
+            sampleReal(config_.initialGeometryR3Min, config_.initialGeometryR3Max),
+            sampleReal(config_.initialGeometrySigma3Min, config_.initialGeometrySigma3Max)};
   }
 
   // Default Glauber geometry keeps the existing sampled nuclei logic unchanged.
@@ -67,10 +97,13 @@ namespace blastwave {
 
   // Build the response-test source cloud from three components with explicit 1:A2:A3
   // allocation and then recenter to remove artificial dipoles in the synthetic template.
-  std::vector<BlastWaveGenerator::Nucleon> BlastWaveGenerator::sampleResponseTest023Participants() {
-    const int targetCount = std::max(1, config_.initialGeometrySourceCount);
-    const double rawA2 = std::max(0.0, config_.initialGeometryA2);
-    const double rawA3 = std::max(0.0, config_.initialGeometryA3);
+  std::vector<BlastWaveGenerator::Nucleon> BlastWaveGenerator::sampleResponseTest023Participants(
+      const ResponseTest023EventGeometry &eventParameters) {
+    // Use sampled per-event template parameters so one config can produce a stochastic
+    // geometry template population while preserving the same 1:A2:A3 allocation logic.
+    const int targetCount = std::max(1, eventParameters.sourceCount);
+    const double rawA2 = std::max(0.0, eventParameters.a2);
+    const double rawA3 = std::max(0.0, eventParameters.a3);
     const double rawA0 = 1.0;
 
     auto allocateCounts = [](int total, const std::array<double, 3> &weights) {
@@ -146,9 +179,9 @@ namespace blastwave {
     const double cosPhi2 = std::cos(config_.initialGeometryPhi2);
     const double sinPhi2 = std::sin(config_.initialGeometryPhi2);
     std::normal_distribution<double> backgroundDistX(0.0, config_.initialGeometryR0);
-    std::normal_distribution<double> ellipseDistX(0.0, config_.initialGeometryR2x);
-    std::normal_distribution<double> ellipseDistY(0.0, config_.initialGeometryR2y);
-    std::normal_distribution<double> triangleDist(0.0, config_.initialGeometrySigma3);
+    std::normal_distribution<double> ellipseDistX(0.0, eventParameters.r2x);
+    std::normal_distribution<double> ellipseDistY(0.0, eventParameters.r2y);
+    std::normal_distribution<double> triangleDist(0.0, eventParameters.sigma3);
     std::vector<WeightedTransversePoint> sourcePoints;
     sourcePoints.reserve(static_cast<std::size_t>(targetCount));
 
@@ -163,7 +196,7 @@ namespace blastwave {
 
     const int nForEachPeak = componentCounts[2] / 3;
     const int tailPeaks = componentCounts[2] % 3;
-    const double r3 = std::max(0.0, config_.initialGeometryR3);
+    const double r3 = std::max(0.0, eventParameters.r3);
     for (int peak = 0; peak < 3; ++peak) {
       const int nForPeak = nForEachPeak + (peak < tailPeaks ? 1 : 0);
       const double peakPhi = config_.initialGeometryPhi3 + kTwoPi * static_cast<double>(peak) / 3.0;

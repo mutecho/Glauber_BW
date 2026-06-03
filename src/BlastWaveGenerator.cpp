@@ -19,17 +19,37 @@ namespace blastwave {
   // Orchestrate one event by composing geometry, source sampling, flow, and
   // final record materialization without letting the app layer touch internals.
   GeneratedEvent BlastWaveGenerator::generateEvent(int eventId) {
-    std::vector<Nucleon> participants = sampleParticipants();
+    // Compute response-test template geometry once per event so geometry metadata
+    // written into event info exactly matches the sampled source cloud.
+    std::vector<Nucleon> participants;
+    ResponseTest023EventGeometry responseEventGeometry;
+    if (config_.initialGeometryMode == InitialGeometryMode::ResponseTest023) {
+      responseEventGeometry = sampleResponseTest023EventGeometry();
+      participants = sampleResponseTest023Participants(responseEventGeometry);
+    } else {
+      participants = sampleGlauberParticipants();
+    }
 
     EventInfo info;
     info.eventId = eventId;
     info.impactParameter = config_.impactParameter;
     info.nParticipants = static_cast<int>(participants.size());
     info.initialGeometryMode = config_.initialGeometryMode == InitialGeometryMode::ResponseTest023 ? 1 : 0;
-    info.geoA2 = config_.initialGeometryA2;
-    info.geoA3 = config_.initialGeometryA3;
-    info.geoR3 = config_.initialGeometryR3;
-    info.geoSigma3 = config_.initialGeometrySigma3;
+    if (config_.initialGeometryMode == InitialGeometryMode::ResponseTest023) {
+      info.geoA2 = responseEventGeometry.a2;
+      info.geoA3 = responseEventGeometry.a3;
+      info.geoR2x = responseEventGeometry.r2x;
+      info.geoR2y = responseEventGeometry.r2y;
+      info.geoR3 = responseEventGeometry.r3;
+      info.geoSigma3 = responseEventGeometry.sigma3;
+    } else {
+      info.geoA2 = config_.initialGeometryA2;
+      info.geoA3 = config_.initialGeometryA3;
+      info.geoR2x = config_.initialGeometryR2x;
+      info.geoR2y = config_.initialGeometryR2y;
+      info.geoR3 = config_.initialGeometryR3;
+      info.geoSigma3 = config_.initialGeometrySigma3;
+    }
 
     const EventMedium medium = buildMedium(participants);
     info.eps2 = medium.participantGeometry.eps2;

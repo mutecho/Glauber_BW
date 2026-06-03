@@ -2,10 +2,10 @@
 
 ## Snapshot
 
-- Date: 2026-05-19
+- Date: 2026-06-03
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
-- Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in affine-effective closure path with `additive-rho` and `full-tensor` submodes, the opt-in V2 gradient-response path, optional differential `v2/v3{2}(pT)` analysis, event-level `v_n`-`epsilon_n` regression notebook analysis, the opt-in `response-test-023` initial-geometry response-test path, and the opt-in density-normal `shell-gradient-corrected` transverse-flow magnitude mode.
-- Latest durable verification anchor: 2026-05-19 corrected `flow-trans-direction-gradient-fraction` semantics so `0<f<1` applies a global-expansion outward cone to the local density-gradient direction instead of uniformly blending in geometric flow; local build and full `ctest` passed with 10/10 tests, O2Physics ROOT executor regenerated 5000-event ellipse/densemix/newrap Glauber outputs to `/private/tmp`, QA passed for all five checked files including `f=1.0` controls, and `f=0.8` was not phi/v2 suppressed relative to `f=1.0` (`newrap` `v2_2_pt` RMSE `0.0207931` vs `0.0210139`, `densemix` RMSE `0.0225366` vs `0.022872`). The latest all-config smoke remains the same-day mode-local config cleanup over all 18 cfg files at 1000 events.
+- Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in affine-effective closure path with `additive-rho` and `full-tensor` submodes, the opt-in V2 gradient-response path, optional differential `v2/v3{2}(pT)` analysis, event-level `v_n`-`epsilon_n` regression notebook analysis, the opt-in fixed and fluctuating `response-test-023` initial-geometry response-test paths, and the opt-in density-normal `shell-gradient-corrected` transverse-flow magnitude mode.
+- Latest durable verification anchor: 2026-06-03 added opt-in per-event `response-test-023` template fluctuation for source count and `A2/A3/r2x/r2y/r3/sigma3`, extended ROOT `events` with `geo_r2x/geo_r2y`, and added `config/test_023_fluctuating.cfg`. Local build and full `ctest` passed with 10/10 tests; O2Physics ROOT executor generated and QA-validated 5000-event `/private/tmp/test_023_fluctuating.root` with `STATUS: PRIMARY_OK`; final ROOT metric extraction reported fluctuating `eps2 p95=0.362610`, `eps3 p95=0.297453`, both inside the planned broad-distribution window and wider than fixed 023 (`eps2 p95=0.242961`, `eps3 p95=0.148330`).
 - Latest user-run-flow update: workspace cfg examples no longer carry inactive response-test, affine-effective, affine-evolution, gradient-response, or shell-gradient knobs outside their selected mode combinations; copied `scripts/run_*.sh` entrypoints now self-resolve their re-entry `script_path`; the maintained notebook entrypoint remains `notebooks/vn_epsn_regression.ipynb`.
 - Latest task narrowed the notebook environment and analysis path to `uproot` only, deleting the PyROOT-only comparison notebook; the latest physics task is the density-normal gradient-fraction expansion-compensation fix recorded in DEC-022.
 
@@ -29,6 +29,8 @@
   - `initial-geometry = response-test-023`
   - recentered synthetic `0+2+3` transverse point cloud
   - participant records use `nucleus_id = -1`
+  - default fixed mode remains the closure baseline
+  - optional `initial-geometry-fluctuate = true` samples event-local `source-count`, `A2/A3`, `r2x/r2y`, `r3`, and `sigma3` ranges for broad-distribution response tests
 - optional differential-flow path:
   - configure `v2pt-bins`
   - configure `v3pt-bins`
@@ -52,7 +54,7 @@
   - `generate_blastwave_events`
   - `qa_blastwave_output`
   - `analyze_blastwave_vnpt`
-  - `notebooks/vn_epsn_regression.ipynb` for labelled multi-file event-level `v_n`-`epsilon_n` and `v_n`-`epsilon_m` regression comparisons on ROOT result files through `uproot`
+  - `notebooks/vn_epsn_regression.ipynb` for grouped labelled multi-file event-level `v_n`-`epsilon_n` and `v_n`-`epsilon_m` regression comparisons on ROOT result files through `uproot`
 - canonical tracked example config:
   - `config/test_b8.cfg`
   - `config/test_b8_affine_effective.cfg`
@@ -60,6 +62,7 @@
   - `config/test_023_dense_mix_glauber.cfg`
   - `config/test_023_dense_newrap_glauber.cfg`
   - `config/test_023_ellipse_glauber.cfg`
+  - `config/test_023_fluctuating.cfg`
   - `config/test_b8_flowpt.cfg`
   - `config/test_b8_density_normal_flow_trans.cfg`
   - `config/test_b8_density_normal_flow_trans_gradient.cfg`
@@ -79,6 +82,8 @@
   - `events.v2_wrt_psi2`
   - `events.v3_wrt_psi3`
   - `events.initial_geometry_mode`
+  - `events.geo_r2x`
+  - `events.geo_r2y`
   - `events.eps2_f`
   - `events.psi2_f`
   - `events.chi2`
@@ -148,8 +153,9 @@ Use `project-state/tests.md` for the summarized evidence trail.
 - `events.eps2` / `events.psi2` remain initial-state observables, while `eps2_f` / `psi2_f` / `chi2` remain freeze-out diagnostics
 - `events.eps3` / `events.psi3` use the recentered harmonic convention and do not change the covariance `eps2/psi2` contract
 - `response-test-023` is opt-in only; template weights `A2/A3` are not physical eccentricities
+- `initial-geometry-fluctuate` is also opt-in and only valid for `response-test-023`; fixed 023 and fluctuating 023 have different roles, with fixed as closure baseline and fluctuating as broad-distribution response test
 - response/cross-talk TH2 objects keep full storage ranges `epsilon = 0..1` and projected `v = -1..1`, but open with compact default display ranges `epsilon = 0..0.35` and projected `v = -0.15..0.15`
-- event-level `v_n`-`epsilon_n` regression should use `events.v2_wrt_psi2` / `events.v3_wrt_psi3` against `events.eps2` / `events.eps3`; `notebooks/vn_epsn_regression.ipynb` uses `uproot`, supports labelled `INPUT_FILES` multi-file overlays, keeps same-harmonic free-intercept plus through-origin response fits, uses free-intercept-only fits for cross-harmonic `v2/eps3` and `v3/eps2` mixing checks, and no longer depends on PyROOT
+- event-level `v_n`-`epsilon_n` regression should use `events.v2_wrt_psi2` / `events.v3_wrt_psi3` against `events.eps2` / `events.eps3`; `notebooks/vn_epsn_regression.ipynb` uses `uproot`, supports grouped `INPUT_FILE_GROUPS` overlays, keeps Glauber-direct, fixed manual third-order response-test, and 023 random-fluctuation response-test inputs in separate plot groups, keeps same-harmonic free-intercept plus through-origin response fits, uses free-intercept-only fits for cross-harmonic `v2/eps3` and `v3/eps2` mixing checks, and no longer depends on PyROOT
 - `shell_weight` and any `EmissionSite::emissionWeight` restructuring remain intentionally deferred; the current response-test rollout only adds geometry templates and observables
 - older validation ledgers may cite pre-archive response-test config names; current tracked response-test examples use `config/test_023_dense*.cfg`
 

@@ -134,6 +134,69 @@ namespace {
     require(threw, message);
   }
 
+  // Build a complete fluctuating response-test config for validation matrix cases.
+  blastwave::BlastWaveConfig makeValidFluctuating023Config() {
+    blastwave::BlastWaveConfig config;
+    config.initialGeometryMode = blastwave::InitialGeometryMode::ResponseTest023;
+    config.initialGeometryFluctuate = true;
+    config.initialGeometrySourceCountMin = 11;
+    config.initialGeometrySourceCountMax = 17;
+    config.initialGeometryA2Min = 0.1;
+    config.initialGeometryA2Max = 0.8;
+    config.initialGeometryA3Min = 0.2;
+    config.initialGeometryA3Max = 0.6;
+    config.initialGeometryR2xMin = 1.8;
+    config.initialGeometryR2xMax = 3.2;
+    config.initialGeometryR2yMin = 0.9;
+    config.initialGeometryR2yMax = 1.8;
+    config.initialGeometryR3Min = 1.4;
+    config.initialGeometryR3Max = 3.0;
+    config.initialGeometrySigma3Min = 0.45;
+    config.initialGeometrySigma3Max = 1.3;
+    config.hasInitialGeometrySourceCountMin = true;
+    config.hasInitialGeometrySourceCountMax = true;
+    config.hasInitialGeometryA2Min = true;
+    config.hasInitialGeometryA2Max = true;
+    config.hasInitialGeometryA3Min = true;
+    config.hasInitialGeometryA3Max = true;
+    config.hasInitialGeometryR2xMin = true;
+    config.hasInitialGeometryR2xMax = true;
+    config.hasInitialGeometryR2yMin = true;
+    config.hasInitialGeometryR2yMax = true;
+    config.hasInitialGeometryR3Min = true;
+    config.hasInitialGeometryR3Max = true;
+    config.hasInitialGeometrySigma3Min = true;
+    config.hasInitialGeometrySigma3Max = true;
+    return config;
+  }
+
+  // Check the full response-test fluctuation range contract after parsing.
+  void requireFluctuatingRangeValues(const blastwave::BlastWaveConfig &config, const std::string &messagePrefix) {
+    require(config.initialGeometryFluctuate, messagePrefix + " should enable initial-geometry-fluctuate.");
+    require(config.hasInitialGeometrySourceCountMin && config.hasInitialGeometrySourceCountMax,
+            messagePrefix + " should mark source-count range explicit.");
+    require(config.hasInitialGeometryA2Min && config.hasInitialGeometryA2Max, messagePrefix + " should mark a2 range explicit.");
+    require(config.hasInitialGeometryA3Min && config.hasInitialGeometryA3Max, messagePrefix + " should mark a3 range explicit.");
+    require(config.hasInitialGeometryR2xMin && config.hasInitialGeometryR2xMax, messagePrefix + " should mark r2x range explicit.");
+    require(config.hasInitialGeometryR2yMin && config.hasInitialGeometryR2yMax, messagePrefix + " should mark r2y range explicit.");
+    require(config.hasInitialGeometryR3Min && config.hasInitialGeometryR3Max, messagePrefix + " should mark r3 range explicit.");
+    require(config.hasInitialGeometrySigma3Min && config.hasInitialGeometrySigma3Max, messagePrefix + " should mark sigma3 range explicit.");
+    require(config.initialGeometrySourceCountMin == 180 && config.initialGeometrySourceCountMax == 700,
+            messagePrefix + " source-count range mismatch.");
+    requireNear(config.initialGeometryA2Min, 0.0, 1.0e-12, messagePrefix + " a2-min mismatch.");
+    requireNear(config.initialGeometryA2Max, 1.0, 1.0e-12, messagePrefix + " a2-max mismatch.");
+    requireNear(config.initialGeometryA3Min, 0.0, 1.0e-12, messagePrefix + " a3-min mismatch.");
+    requireNear(config.initialGeometryA3Max, 0.7, 1.0e-12, messagePrefix + " a3-max mismatch.");
+    requireNear(config.initialGeometryR2xMin, 1.8, 1.0e-12, messagePrefix + " r2x-min mismatch.");
+    requireNear(config.initialGeometryR2xMax, 3.2, 1.0e-12, messagePrefix + " r2x-max mismatch.");
+    requireNear(config.initialGeometryR2yMin, 0.9, 1.0e-12, messagePrefix + " r2y-min mismatch.");
+    requireNear(config.initialGeometryR2yMax, 1.8, 1.0e-12, messagePrefix + " r2y-max mismatch.");
+    requireNear(config.initialGeometryR3Min, 1.4, 1.0e-12, messagePrefix + " r3-min mismatch.");
+    requireNear(config.initialGeometryR3Max, 3.0, 1.0e-12, messagePrefix + " r3-max mismatch.");
+    requireNear(config.initialGeometrySigma3Min, 0.45, 1.0e-12, messagePrefix + " sigma3-min mismatch.");
+    requireNear(config.initialGeometrySigma3Max, 1.3, 1.0e-12, messagePrefix + " sigma3-max mismatch.");
+  }
+
   void requireParseFailureContains(const std::vector<std::string> &arguments, const std::string &expectedText, const std::string &message) {
     bool threw = false;
     try {
@@ -786,6 +849,21 @@ namespace {
     const ParsedRunOptions parsed = parseArguments({});
     require(parsed.runOptions.config.initialGeometryMode == blastwave::InitialGeometryMode::Glauber,
             "Default initial-geometry should remain Glauber.");
+    require(!parsed.runOptions.config.initialGeometryFluctuate, "Default initial-geometry-fluctuate should be false.");
+    require(!parsed.runOptions.config.hasInitialGeometrySourceCountMin && !parsed.runOptions.config.hasInitialGeometrySourceCountMax,
+            "Default source-count fluctuation range should stay implicit.");
+    require(!parsed.runOptions.config.hasInitialGeometryA2Min && !parsed.runOptions.config.hasInitialGeometryA2Max,
+            "Default a2 fluctuation range should stay implicit.");
+    require(!parsed.runOptions.config.hasInitialGeometryA3Min && !parsed.runOptions.config.hasInitialGeometryA3Max,
+            "Default a3 fluctuation range should stay implicit.");
+    require(!parsed.runOptions.config.hasInitialGeometryR2xMin && !parsed.runOptions.config.hasInitialGeometryR2xMax,
+            "Default r2x fluctuation range should stay implicit.");
+    require(!parsed.runOptions.config.hasInitialGeometryR2yMin && !parsed.runOptions.config.hasInitialGeometryR2yMax,
+            "Default r2y fluctuation range should stay implicit.");
+    require(!parsed.runOptions.config.hasInitialGeometryR3Min && !parsed.runOptions.config.hasInitialGeometryR3Max,
+            "Default r3 fluctuation range should stay implicit.");
+    require(!parsed.runOptions.config.hasInitialGeometrySigma3Min && !parsed.runOptions.config.hasInitialGeometrySigma3Max,
+            "Default sigma3 fluctuation range should stay implicit.");
     require(parsed.runOptions.config.initialGeometrySourceCount == 600, "Default initial-geometry-source-count should be 600.");
     requireNear(parsed.runOptions.config.initialGeometryR0, 1.2, 1.0e-12, "Default initial-geometry-r0 mismatch.");
     requireNear(parsed.runOptions.config.initialGeometryA2, 0.0, 1.0e-12, "Default initial-geometry-a2 should be zero.");
@@ -835,6 +913,109 @@ namespace {
     require(parsed.runOptions.config.debugInitialGeometry, "CLI debug-initial-geometry should be enabled.");
   }
 
+  // Verify CLI parsing for every response-test fluctuation range key.
+  void runInitialGeometryFluctuationCliParseTest() {
+    const ParsedRunOptions parsed = parseArguments({"--initial-geometry",
+                                                   "response-test-023",
+                                                   "--initial-geometry-fluctuate",
+                                                   "--initial-geometry-source-count-min",
+                                                   "180",
+                                                   "--initial-geometry-source-count-max",
+                                                   "700",
+                                                   "--initial-geometry-a2-min",
+                                                   "0.0",
+                                                   "--initial-geometry-a2-max",
+                                                   "1.0",
+                                                   "--initial-geometry-a3-min",
+                                                   "0.0",
+                                                   "--initial-geometry-a3-max",
+                                                   "0.7",
+                                                   "--initial-geometry-r2x-min",
+                                                   "1.8",
+                                                   "--initial-geometry-r2x-max",
+                                                   "3.2",
+                                                   "--initial-geometry-r2y-min",
+                                                   "0.9",
+                                                   "--initial-geometry-r2y-max",
+                                                   "1.8",
+                                                   "--initial-geometry-r3-min",
+                                                   "1.4",
+                                                   "--initial-geometry-r3-max",
+                                                   "3.0",
+                                                   "--initial-geometry-sigma3-min",
+                                                   "0.45",
+                                                   "--initial-geometry-sigma3-max",
+                                                   "1.3"});
+    require(parsed.runOptions.config.initialGeometryMode == blastwave::InitialGeometryMode::ResponseTest023,
+            "CLI fluctuation parse should keep response-test-023 mode.");
+    requireFluctuatingRangeValues(parsed.runOptions.config, "CLI fluctuation parse");
+    requireGeneratorValidationSuccess(parsed.runOptions.config, "Complete CLI fluctuation config should pass validation.");
+  }
+
+  // Verify config-file parsing for every response-test fluctuation range key.
+  void runInitialGeometryFluctuationConfigParseTest() {
+    const TemporaryConfigFile configFile(
+        "initial-geometry = response-test-023\n"
+        "initial-geometry-fluctuate = true\n"
+        "initial-geometry-source-count-min = 180\n"
+        "initial-geometry-source-count-max = 700\n"
+        "initial-geometry-a2-min = 0.0\n"
+        "initial-geometry-a2-max = 1.0\n"
+        "initial-geometry-a3-min = 0.0e0\n"
+        "initial-geometry-a3-max = 7.0e-1\n"
+        "initial-geometry-r2x-min = 1.8\n"
+        "initial-geometry-r2x-max = 3.2\n"
+        "initial-geometry-r2y-min = 0.9\n"
+        "initial-geometry-r2y-max = 1.8\n"
+        "initial-geometry-r3-min = 1.4\n"
+        "initial-geometry-r3-max = 3.0\n"
+        "initial-geometry-sigma3-min = 0.45\n"
+        "initial-geometry-sigma3-max = 1.3\n");
+    const ParsedRunOptions parsed = parseArguments({configFile.path().string()});
+    requireFluctuatingRangeValues(parsed.runOptions.config, "Config fluctuation parse");
+    requireGeneratorValidationSuccess(parsed.runOptions.config, "Complete config-file fluctuation config should pass validation.");
+  }
+
+  // Verify CLI values override config-file fluctuation settings.
+  void runInitialGeometryFluctuationCliOverrideTest() {
+    const TemporaryConfigFile configFile(
+        "initial-geometry = response-test-023\n"
+        "initial-geometry-fluctuate = true\n"
+        "initial-geometry-source-count-min = 20\n"
+        "initial-geometry-source-count-max = 30\n"
+        "initial-geometry-a2-min = 0.2\n"
+        "initial-geometry-a2-max = 0.3\n"
+        "initial-geometry-a3-min = 0.2\n"
+        "initial-geometry-a3-max = 0.3\n"
+        "initial-geometry-r2x-min = 2.0\n"
+        "initial-geometry-r2x-max = 2.1\n"
+        "initial-geometry-r2y-min = 1.0\n"
+        "initial-geometry-r2y-max = 1.1\n"
+        "initial-geometry-r3-min = 1.8\n"
+        "initial-geometry-r3-max = 1.9\n"
+        "initial-geometry-sigma3-min = 0.5\n"
+        "initial-geometry-sigma3-max = 0.6\n");
+    const ParsedRunOptions parsed =
+        parseArguments({configFile.path().string(),
+                        "--no-initial-geometry-fluctuate",
+                        "--initial-geometry-source-count-min",
+                        "180",
+                        "--initial-geometry-source-count-max",
+                        "700",
+                        "--initial-geometry-a2-min",
+                        "0.0",
+                        "--initial-geometry-a2-max",
+                        "1.0"});
+    require(!parsed.runOptions.config.initialGeometryFluctuate, "CLI --no-initial-geometry-fluctuate should override config true.");
+    require(parsed.runOptions.config.initialGeometrySourceCountMin == 180 && parsed.runOptions.config.initialGeometrySourceCountMax == 700,
+            "CLI source-count range should override config.");
+    requireNear(parsed.runOptions.config.initialGeometryA2Min, 0.0, 1.0e-12, "CLI a2-min should override config.");
+    requireNear(parsed.runOptions.config.initialGeometryA2Max, 1.0, 1.0e-12, "CLI a2-max should override config.");
+    requireNear(parsed.runOptions.config.initialGeometryA3Min, 0.2, 1.0e-12, "Unspecified a3-min should stay from config.");
+    requireNear(parsed.runOptions.config.initialGeometryR2xMax, 2.1, 1.0e-12, "Unspecified r2x-max should stay from config.");
+    requireGeneratorValidationSuccess(parsed.runOptions.config, "Disabled fluctuation config should ignore configured ranges and validate.");
+  }
+
   void runInitialGeometryConfigAndOverrideTest() {
     const TemporaryConfigFile configFile(
         "initial-geometry = response-test-023\n"
@@ -871,6 +1052,50 @@ namespace {
 
     const ParsedRunOptions zeroR0 = parseArguments({"--initial-geometry", "response-test-023", "--initial-geometry-source-count", "10", "--initial-geometry-r0", "0.0"});
     requireGeneratorValidationFailure(zeroR0.runOptions.config, "Initial-geometry-r0 must be positive.");
+  }
+
+  // Reject incomplete, reversed, negative, or wrong-mode fluctuation contracts.
+  void runInitialGeometryFluctuationValidationRejectsTest() {
+    blastwave::BlastWaveConfig missingA2Max = makeValidFluctuating023Config();
+    missingA2Max.hasInitialGeometryA2Max = false;
+    requireGeneratorValidationFailureContains(missingA2Max, "a2-min/max", "Missing a2 max range should fail validation.");
+
+    blastwave::BlastWaveConfig missingSourceMin = makeValidFluctuating023Config();
+    missingSourceMin.hasInitialGeometrySourceCountMin = false;
+    requireGeneratorValidationFailureContains(missingSourceMin, "source-count-min/max", "Missing source-count min range should fail validation.");
+
+    blastwave::BlastWaveConfig reversedSourceCount = makeValidFluctuating023Config();
+    reversedSourceCount.initialGeometrySourceCountMin = 18;
+    reversedSourceCount.initialGeometrySourceCountMax = 17;
+    requireGeneratorValidationFailureContains(reversedSourceCount, "source-count", "Reversed source-count range should fail validation.");
+
+    blastwave::BlastWaveConfig reversedA2 = makeValidFluctuating023Config();
+    reversedA2.initialGeometryA2Min = 0.9;
+    reversedA2.initialGeometryA2Max = 0.1;
+    requireGeneratorValidationFailureContains(reversedA2, "initial-geometry-a2", "Reversed a2 range should fail validation.");
+
+    blastwave::BlastWaveConfig reversedR2x = makeValidFluctuating023Config();
+    reversedR2x.initialGeometryR2xMin = 3.3;
+    reversedR2x.initialGeometryR2xMax = 3.2;
+    requireGeneratorValidationFailureContains(reversedR2x, "initial-geometry-r2x", "Reversed r2x range should fail validation.");
+
+    blastwave::BlastWaveConfig negativeSourceCount = makeValidFluctuating023Config();
+    negativeSourceCount.initialGeometrySourceCountMin = -1;
+    requireGeneratorValidationFailureContains(negativeSourceCount, "source-count", "Negative source-count min should fail validation.");
+
+    blastwave::BlastWaveConfig negativeA3 = makeValidFluctuating023Config();
+    negativeA3.initialGeometryA3Min = -0.1;
+    requireGeneratorValidationFailureContains(negativeA3, "initial-geometry-a3", "Negative a3 min should fail validation.");
+
+    blastwave::BlastWaveConfig zeroSigma3 = makeValidFluctuating023Config();
+    zeroSigma3.initialGeometrySigma3Min = 0.0;
+    requireGeneratorValidationFailureContains(zeroSigma3, "initial-geometry-sigma3", "Zero sigma3 min should fail validation.");
+
+    blastwave::BlastWaveConfig glauberFluctuate = makeValidFluctuating023Config();
+    glauberFluctuate.initialGeometryMode = blastwave::InitialGeometryMode::Glauber;
+    requireGeneratorValidationFailureContains(glauberFluctuate,
+                                              "initial-geometry=response-test-023",
+                                              "Glauber with initial-geometry-fluctuate should fail validation.");
   }
 
   void runDensityNormalKappaCompensationConfigParseTest() {
@@ -1092,6 +1317,10 @@ int main() {
     runFlowTransValidationRejectsTest();
     runDensityNormalFlowTransValidationSuccessTest();
     runInitialGeometryDefaultParseTest();
+    runInitialGeometryFluctuationCliParseTest();
+    runInitialGeometryFluctuationConfigParseTest();
+    runInitialGeometryFluctuationCliOverrideTest();
+    runInitialGeometryFluctuationValidationRejectsTest();
     runCliSamplerAndDensityEvolutionParseTest();
     runInitialGeometryParseAndOverrideTest();
     runInitialGeometryConfigAndOverrideTest();

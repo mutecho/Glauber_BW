@@ -24,6 +24,35 @@ namespace blastwave {
     double impactParameter = 8.0;      // fm
     InitialGeometryMode initialGeometryMode = InitialGeometryMode::Glauber;
     int initialGeometrySourceCount = 600;
+    bool initialGeometryFluctuate = false;
+    int initialGeometrySourceCountMin = 600;
+    int initialGeometrySourceCountMax = 600;
+    double initialGeometryA2Min = 0.0;
+    double initialGeometryA2Max = 0.0;
+    double initialGeometryA3Min = 0.0;
+    double initialGeometryA3Max = 0.0;
+    double initialGeometryR2xMin = 1.8;
+    double initialGeometryR2xMax = 1.8;
+    double initialGeometryR2yMin = 1.8;
+    double initialGeometryR2yMax = 1.8;
+    double initialGeometryR3Min = 1.8;
+    double initialGeometryR3Max = 1.8;
+    double initialGeometrySigma3Min = 0.6;
+    double initialGeometrySigma3Max = 0.6;
+    bool hasInitialGeometrySourceCountMin = false;
+    bool hasInitialGeometrySourceCountMax = false;
+    bool hasInitialGeometryA2Min = false;
+    bool hasInitialGeometryA2Max = false;
+    bool hasInitialGeometryA3Min = false;
+    bool hasInitialGeometryA3Max = false;
+    bool hasInitialGeometryR2xMin = false;
+    bool hasInitialGeometryR2xMax = false;
+    bool hasInitialGeometryR2yMin = false;
+    bool hasInitialGeometryR2yMax = false;
+    bool hasInitialGeometryR3Min = false;
+    bool hasInitialGeometryR3Max = false;
+    bool hasInitialGeometrySigma3Min = false;
+    bool hasInitialGeometrySigma3Max = false;
     double initialGeometryR0 = 1.2;
     double initialGeometryA2 = 0.0;
     double initialGeometryR2x = 1.8;
@@ -115,6 +144,8 @@ namespace blastwave {
     double rRmsInitial = 0.0;
     double geoA2 = 0.0;
     double geoA3 = 0.0;
+    double geoR2x = 0.0;
+    double geoR2y = 0.0;
     double geoR3 = 0.0;
     double geoSigma3 = 0.0;
     double v3 = 0.0;
@@ -173,6 +204,17 @@ namespace blastwave {
       bool participant = false;
     };
 
+    // Per-event sampled template geometry parameters for response-test-023.
+    struct ResponseTest023EventGeometry {
+      int sourceCount = 0;
+      double a2 = 0.0;
+      double a3 = 0.0;
+      double r2x = 0.0;
+      double r2y = 0.0;
+      double r3 = 0.0;
+      double sigma3 = 0.0;
+    };
+
     struct FourMomentum {
       double px = 0.0;
       double py = 0.0;
@@ -188,7 +230,8 @@ namespace blastwave {
 
     [[nodiscard]] std::vector<Nucleon> sampleParticipants();
     [[nodiscard]] std::vector<Nucleon> sampleGlauberParticipants();
-    [[nodiscard]] std::vector<Nucleon> sampleResponseTest023Participants();
+    [[nodiscard]] std::vector<Nucleon> sampleResponseTest023Participants(const ResponseTest023EventGeometry &eventParameters);
+    [[nodiscard]] ResponseTest023EventGeometry sampleResponseTest023EventGeometry();
     [[nodiscard]] Nucleon sampleSingleNucleon(double xShift, int nucleusId);
     [[nodiscard]] EventMedium buildMedium(const std::vector<Nucleon> &participants) const;
     [[nodiscard]] std::vector<EmissionSite> sampleEventEmissionSites(const EventMedium &medium);

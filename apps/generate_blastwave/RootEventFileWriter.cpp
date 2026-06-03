@@ -164,6 +164,8 @@ namespace {
     branches.rRmsInit = info.rRmsInitial;
     branches.geoA2 = info.geoA2;
     branches.geoA3 = info.geoA3;
+    branches.geoR2x = info.geoR2x;
+    branches.geoR2y = info.geoR2y;
     branches.geoR3 = info.geoR3;
     branches.geoSigma3 = info.geoSigma3;
     branches.r2Final = info.r2Final;

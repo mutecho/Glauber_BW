@@ -11,9 +11,13 @@ cache_path="${build_dir}/CMakeCache.txt"
 generator_path="${repo_root}/bin/generate_blastwave_events"
 
 # config_path="${repo_root}/config/test_023_dense_mix_glauber.cfg"
-config_path="${repo_root}/config/test_023_dense_newrap_glauber.cfg"
+# config_path="${repo_root}/config/test_023_dense_newrap_glauber.cfg"
 # config_path="${repo_root}/config/test_023_ellipse_glauber.cfg"
 
+# config_path="${repo_root}/config/test_023_fluctuating.cfg"
+# config_path="${repo_root}/config/test_023_dense_fluct.cfg"
+config_path="${repo_root}/config/test_023_dense_newrap_fluct.cfg"
+# config_path="${repo_root}/config/test_023_ellipse_fluct.cfg"
 
 # Re-enter the canonical O2Physics runtime before inspecting or rebuilding ROOT-linked binaries.
 if [[ "${1:-}" != "--inside-alienv" ]]; then

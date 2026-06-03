@@ -23,6 +23,27 @@ Long command transcripts and repeated smoke-command variants were intentionally 
 - authoritative outside-sandbox `analyze_blastwave_vnpt ...`
 - ROOT key inspection through the shared inspector scripts when payload placement needs confirmation
 
+## T-036 Fluctuating `response-test-023` Broad-Distribution Geometry
+
+- Status: passed on 2026-06-03
+- Evidence:
+  - local `cmake --build /Users/allenzhou/Research_software/Blast_wave/build -j4` passed after adding per-event response-test fluctuation, `geo_r2x/geo_r2y` schema fields, config parsing, tests, and docs
+  - local `ctest --test-dir /Users/allenzhou/Research_software/Blast_wave/build --output-on-failure` passed with 10/10 tests
+  - `test_run_options` now covers default-off behavior, config/CLI parsing, CLI override, complete range validation, missing range rejection, range ordering rejection, invalid negative/zero values, and Glauber+fluctuate rejection
+  - `test_blast_wave_generator_response` now covers fixed 023 source-count/metadata regression, fluctuating source-count and event-local metadata ranges, and fixed-seed reproducibility
+  - O2Physics ROOT executor first reported `STATUS: ESCALATION_REQUIRED` inside the sandbox for ROOT environment entry; rerunning the same executor commands outside the sandbox returned `STATUS: PRIMARY_OK`
+  - O2Physics ROOT executor generated 5000-event `/private/tmp/test_023_fluctuating.root` from `config/test_023_fluctuating.cfg` and QA passed with `validation_passed events=5000`
+  - O2Physics ROOT executor generated 5000-event `/private/tmp/test_023_fixed.root` from `config/test_023_dense.cfg` as the fixed 023 comparison
+  - ROOT metric extraction confirmed `geo_r2x` and `geo_r2y` branches exist in both files
+  - final fluctuating metrics: `eps2 p95=0.362610`, `eps3 p95=0.297453`, `eps2 max=0.548728`, `eps3 max=0.506716`
+  - fixed comparison metrics: `eps2 p95=0.242961`, `eps3 p95=0.148330`, `eps2 max=0.301021`, `eps3 max=0.266574`
+  - event-local sampled template ranges in the final fluctuating file stayed inside the configured ranges: `Npart=180..700`, `geo_a2=0.000043..0.999992`, `geo_a3=0.000158..0.799243`, `geo_r2x=1.800358..3.199825`, `geo_r2y=0.900577..1.799830`, `geo_r3=1.400168..2.999992`, `geo_sigma3=0.450041..1.299206`
+- Locked conclusions:
+  - fixed `response-test-023` remains the closure baseline and keeps deterministic template parameters when `initial-geometry-fluctuate=false`
+  - `initial-geometry-fluctuate=true` is valid only for `response-test-023` and broadens measured `events.eps2/eps3` without changing Glauber generation
+  - `events.geo_a2/geo_a3/geo_r2x/geo_r2y/geo_r3/geo_sigma3` record the event-local template parameters actually used for each event
+  - the final tuned `config/test_023_fluctuating.cfg` reaches the planned broad-distribution acceptance window for `eps2/eps3` p95 and is visibly wider than fixed 023
+
 ## T-035 Density-Normal Gradient Fraction Expansion Compensation
 
 - Status: passed on 2026-05-19
@@ -111,8 +132,11 @@ Long command transcripts and repeated smoke-command variants were intentionally 
 
 ## T-029 Event-Level `v_n`-`epsilon_n` Regression Notebook
 
-- Status: passed for multi-file notebook smoke on 2026-05-11; maintained as `uproot`-only on 2026-05-13; source-checked after cross-harmonic fit-scope maintenance on 2026-05-20
+- Status: passed for grouped nine-file notebook execution on 2026-06-03; maintained as `uproot`-only on 2026-05-13; source-checked after cross-harmonic fit-scope maintenance on 2026-05-20
 - Evidence:
+  - 2026-06-03 source-level check: `jq empty notebooks/vn_epsn_regression.ipynb` passed, and all 11 code cells parsed with Python `ast`
+  - 2026-06-03 full `root_notebook` execution to `/private/tmp/vn_epsn_regression_fluct_executed.ipynb` passed with grouped inputs `glauber_direct`, `manual_third_order`, and `response_023_fluct`
+  - each 2026-06-03 group contributed `dense_mix`, `newrap`, and `ellipse`; all nine files contributed 5000 selected events, and same-harmonic plus cross-harmonic summary tables each produced 18 rows
   - 2026-05-20 source-level check: `jq empty notebooks/vn_epsn_regression.ipynb` passed, and all 11 code cells parsed with Python `ast`
   - `notebooks/vn_epsn_regression.ipynb` JSON parsed successfully and all code cells parsed with Python `ast`
   - executing all code cells from the Blast_wave repo root with the `root_notebook` environment completed labelled multi-file comparison over `qa/test_b8_response_023.root`, `qa/test_b8_response_023_mix.root`, and `qa/test_b8_023_newrap.root`
@@ -122,6 +146,7 @@ Long command transcripts and repeated smoke-command variants were intentionally 
 - Locked conclusions:
   - the notebook targets current event-level ROOT schema and uses the participant-plane projected response branches for regression
   - regression is performed on raw `events` tree rows for each labelled input file; binned means in the plots are visual guides only
+  - grouped inputs are analyzed and plotted independently, so fixed manual third-order and random-fluctuation 023 response-test files are not overlaid or compared against the Glauber-direct files
   - `uproot` is the notebook reader; PyROOT is no longer part of the maintained environment or notebook flow
   - no generator code, ROOT output schema, config contract, or QA schema changed
 

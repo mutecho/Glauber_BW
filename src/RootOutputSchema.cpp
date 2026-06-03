@@ -113,6 +113,8 @@ namespace blastwave::io {
     tree.Branch(kRRmsInitBranchName, &branches.rRmsInit, "R_rms_init/D");
     tree.Branch(kGeoA2BranchName, &branches.geoA2, "geo_a2/D");
     tree.Branch(kGeoA3BranchName, &branches.geoA3, "geo_a3/D");
+    tree.Branch(kGeoR2XBranchName, &branches.geoR2x, "geo_r2x/D");
+    tree.Branch(kGeoR2YBranchName, &branches.geoR2y, "geo_r2y/D");
     tree.Branch(kGeoR3BranchName, &branches.geoR3, "geo_r3/D");
     tree.Branch(kGeoSigma3BranchName, &branches.geoSigma3, "geo_sigma3/D");
     tree.Branch(kR2InitialBranchName, &branches.r2Initial, "r2_0/D");
@@ -217,6 +219,12 @@ namespace blastwave::io {
     tree.SetBranchAddress(kRRmsInitBranchName, &branches.rRmsInit);
     tree.SetBranchAddress(kGeoA2BranchName, &branches.geoA2);
     tree.SetBranchAddress(kGeoA3BranchName, &branches.geoA3);
+    if (tree.GetBranch(kGeoR2XBranchName) != nullptr) {
+      tree.SetBranchAddress(kGeoR2XBranchName, &branches.geoR2x);
+    }
+    if (tree.GetBranch(kGeoR2YBranchName) != nullptr) {
+      tree.SetBranchAddress(kGeoR2YBranchName, &branches.geoR2y);
+    }
     tree.SetBranchAddress(kGeoR3BranchName, &branches.geoR3);
     tree.SetBranchAddress(kGeoSigma3BranchName, &branches.geoSigma3);
     tree.SetBranchAddress(kR2InitialBranchName, &branches.r2Initial);

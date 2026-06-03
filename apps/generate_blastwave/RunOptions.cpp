@@ -339,10 +339,24 @@ namespace {
       runOptions.config.initialGeometryMode = parseInitialGeometryMode(rawValue, optionName, sourceDescription);
     } else if (optionName == "initial-geometry-source-count") {
       runOptions.config.initialGeometrySourceCount = parseInt(rawValue, optionName, sourceDescription);
+    } else if (optionName == "initial-geometry-fluctuate") {
+      runOptions.config.initialGeometryFluctuate = parseBool(rawValue, optionName, sourceDescription);
+    } else if (optionName == "initial-geometry-source-count-min") {
+      runOptions.config.initialGeometrySourceCountMin = parseInt(rawValue, optionName, sourceDescription);
+      runOptions.config.hasInitialGeometrySourceCountMin = true;
+    } else if (optionName == "initial-geometry-source-count-max") {
+      runOptions.config.initialGeometrySourceCountMax = parseInt(rawValue, optionName, sourceDescription);
+      runOptions.config.hasInitialGeometrySourceCountMax = true;
     } else if (optionName == "initial-geometry-r0") {
       runOptions.config.initialGeometryR0 = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "initial-geometry-a2") {
       runOptions.config.initialGeometryA2 = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "initial-geometry-a2-min") {
+      runOptions.config.initialGeometryA2Min = parseDouble(rawValue, optionName, sourceDescription);
+      runOptions.config.hasInitialGeometryA2Min = true;
+    } else if (optionName == "initial-geometry-a2-max") {
+      runOptions.config.initialGeometryA2Max = parseDouble(rawValue, optionName, sourceDescription);
+      runOptions.config.hasInitialGeometryA2Max = true;
     } else if (optionName == "initial-geometry-r2x") {
       runOptions.config.initialGeometryR2x = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "initial-geometry-r2y") {
@@ -351,6 +365,36 @@ namespace {
       runOptions.config.initialGeometryPhi2 = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "initial-geometry-a3") {
       runOptions.config.initialGeometryA3 = parseDouble(rawValue, optionName, sourceDescription);
+    } else if (optionName == "initial-geometry-a3-min") {
+      runOptions.config.initialGeometryA3Min = parseDouble(rawValue, optionName, sourceDescription);
+      runOptions.config.hasInitialGeometryA3Min = true;
+    } else if (optionName == "initial-geometry-a3-max") {
+      runOptions.config.initialGeometryA3Max = parseDouble(rawValue, optionName, sourceDescription);
+      runOptions.config.hasInitialGeometryA3Max = true;
+    } else if (optionName == "initial-geometry-r2x-min") {
+      runOptions.config.initialGeometryR2xMin = parseDouble(rawValue, optionName, sourceDescription);
+      runOptions.config.hasInitialGeometryR2xMin = true;
+    } else if (optionName == "initial-geometry-r2x-max") {
+      runOptions.config.initialGeometryR2xMax = parseDouble(rawValue, optionName, sourceDescription);
+      runOptions.config.hasInitialGeometryR2xMax = true;
+    } else if (optionName == "initial-geometry-r2y-min") {
+      runOptions.config.initialGeometryR2yMin = parseDouble(rawValue, optionName, sourceDescription);
+      runOptions.config.hasInitialGeometryR2yMin = true;
+    } else if (optionName == "initial-geometry-r2y-max") {
+      runOptions.config.initialGeometryR2yMax = parseDouble(rawValue, optionName, sourceDescription);
+      runOptions.config.hasInitialGeometryR2yMax = true;
+    } else if (optionName == "initial-geometry-r3-min") {
+      runOptions.config.initialGeometryR3Min = parseDouble(rawValue, optionName, sourceDescription);
+      runOptions.config.hasInitialGeometryR3Min = true;
+    } else if (optionName == "initial-geometry-r3-max") {
+      runOptions.config.initialGeometryR3Max = parseDouble(rawValue, optionName, sourceDescription);
+      runOptions.config.hasInitialGeometryR3Max = true;
+    } else if (optionName == "initial-geometry-sigma3-min") {
+      runOptions.config.initialGeometrySigma3Min = parseDouble(rawValue, optionName, sourceDescription);
+      runOptions.config.hasInitialGeometrySigma3Min = true;
+    } else if (optionName == "initial-geometry-sigma3-max") {
+      runOptions.config.initialGeometrySigma3Max = parseDouble(rawValue, optionName, sourceDescription);
+      runOptions.config.hasInitialGeometrySigma3Max = true;
     } else if (optionName == "initial-geometry-r3") {
       runOptions.config.initialGeometryR3 = parseDouble(rawValue, optionName, sourceDescription);
     } else if (optionName == "initial-geometry-sigma3") {
@@ -551,6 +595,14 @@ namespace blastwave::app {
               << "  initial-geometry-r2y, initial-geometry-phi2, initial-geometry-a3,\n"
               << "  initial-geometry-r3, initial-geometry-sigma3, initial-geometry-phi3,\n"
               << "  b, temperature, thermal-sampler, mj-pmax, mj-grid-points,\n"
+              << "  initial-geometry-fluctuate, initial-geometry-source-count-min,\n"
+              << "  initial-geometry-source-count-max, initial-geometry-a2-min,\n"
+              << "  initial-geometry-a2-max, initial-geometry-a3-min,\n"
+              << "  initial-geometry-a3-max, initial-geometry-r2x-min,\n"
+              << "  initial-geometry-r2x-max, initial-geometry-r2y-min,\n"
+              << "  initial-geometry-r2y-max, initial-geometry-r3-min,\n"
+              << "  initial-geometry-r3-max, initial-geometry-sigma3-min,\n"
+              << "  initial-geometry-sigma3-max,\n"
               << "  tau0, smear, sigma-nn, seed, output,\n"
               << "  v2pt-bins, v3pt-bins, flowpt-output-mode, flowpt-output,\n"
               << "  progress,\n"
@@ -581,15 +633,31 @@ namespace blastwave::app {
               << "  --mj-grid-points <int>\n"
               << "  --tau0 <fm/c>\n"
               << "  --initial-geometry <glauber|response-test-023>\n"
+              << "  --initial-geometry-fluctuate\n"
+              << "  --no-initial-geometry-fluctuate\n"
               << "  --initial-geometry-source-count <int>\n"
+              << "  --initial-geometry-source-count-min <int>\n"
+              << "  --initial-geometry-source-count-max <int>\n"
               << "  --initial-geometry-r0 <fm>\n"
               << "  --initial-geometry-a2 <value>\n"
+              << "  --initial-geometry-a2-min <value>\n"
+              << "  --initial-geometry-a2-max <value>\n"
               << "  --initial-geometry-r2x <fm>\n"
+              << "  --initial-geometry-r2x-min <fm>\n"
+              << "  --initial-geometry-r2x-max <fm>\n"
               << "  --initial-geometry-r2y <fm>\n"
+              << "  --initial-geometry-r2y-min <fm>\n"
+              << "  --initial-geometry-r2y-max <fm>\n"
               << "  --initial-geometry-phi2 <rad>\n"
               << "  --initial-geometry-a3 <value>\n"
+              << "  --initial-geometry-a3-min <value>\n"
+              << "  --initial-geometry-a3-max <value>\n"
               << "  --initial-geometry-r3 <fm>\n"
+              << "  --initial-geometry-r3-min <fm>\n"
+              << "  --initial-geometry-r3-max <fm>\n"
               << "  --initial-geometry-sigma3 <fm>\n"
+              << "  --initial-geometry-sigma3-min <fm>\n"
+              << "  --initial-geometry-sigma3-max <fm>\n"
               << "  --initial-geometry-phi3 <rad>\n"
               << "  --smear <fm>\n"
               << "  --sigma-nn <fm^2>   default 7.0 fm^2 (70 mb)\n"
@@ -667,6 +735,8 @@ namespace blastwave::app {
     bool hasCliDebugGradientResponseOverride = false;
     bool cliDebugInitialGeometry = false;
     bool hasCliDebugInitialGeometryOverride = false;
+    bool cliInitialGeometryFluctuate = false;
+    bool hasCliInitialGeometryFluctuateOverride = false;
     bool cliDensityNormalKappaCompensation = false;
     bool hasCliDensityNormalKappaCompensationOverride = false;
 
@@ -735,6 +805,18 @@ namespace blastwave::app {
         continue;
       }
 
+      if (argument == "--initial-geometry-fluctuate") {
+        cliInitialGeometryFluctuate = true;
+        hasCliInitialGeometryFluctuateOverride = true;
+        continue;
+      }
+
+      if (argument == "--no-initial-geometry-fluctuate") {
+        cliInitialGeometryFluctuate = false;
+        hasCliInitialGeometryFluctuateOverride = true;
+        continue;
+      }
+
       if (argument == "--density-normal-kappa-compensation") {
         cliDensityNormalKappaCompensation = true;
         hasCliDensityNormalKappaCompensationOverride = true;
@@ -785,6 +867,9 @@ namespace blastwave::app {
     }
     if (hasCliDebugInitialGeometryOverride) {
       runOptions.config.debugInitialGeometry = cliDebugInitialGeometry;
+    }
+    if (hasCliInitialGeometryFluctuateOverride) {
+      runOptions.config.initialGeometryFluctuate = cliInitialGeometryFluctuate;
     }
 
     const bool hasDifferentialFlowBins = !runOptions.v2PtBinEdges.empty() || !runOptions.v3PtBinEdges.empty();
