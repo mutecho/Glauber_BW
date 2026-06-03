@@ -464,3 +464,22 @@
   - lowering the fraction to `0.8` no longer applies a uniform geometric-direction blend that washes out all gradient-driven anisotropy
   - `1-f` is a physical minimum outward projection for global expansion, not a hand-tuned anisotropy coefficient and not a prescribed ellipse or triangle shape
   - tests now cover the pure geometric limit, preservation of already-outward density-gradient directions, inward-gradient cone enforcement, and gradient-fraction scaling of the shell-gradient correction
+
+## DEC-023 Keep Independent 023 Source Pools As Opt-In Diagnostic Mode
+
+- Status: accepted
+- Date: 2026-06-03
+- Context:
+  - fluctuating `response-test-023` controls showed that the default fixed-total `1:A2:A3` allocation couples measured `events.eps2/eps3`
+  - the requested first repair was an independent source-pool mode that removes direct competition for one fixed total source budget
+  - the implementation must preserve existing configs by default and must not expand the ROOT event schema with component source-count fields in this packet
+- Decision:
+  - add public `initial-geometry-source-allocation = ratio-total | independent-pools`
+  - keep `ratio-total` as the default and preserve the existing fixed-total allocation behavior
+  - define `independent-pools` as `N0=source-count`, `N2=round(N0*A2)`, and `N3=round(N0*A3)`, with positive `A3` promoted to at least three triangular hotspot sources
+  - keep `A2/A3` as template weights rather than measured eccentricity targets
+  - keep the ROOT schema unchanged; downstream users can infer the mode from config provenance and inspect `Npart` plus existing `geo_*` snapshots
+- Consequences:
+  - `independent-pools` removes fixed-total component competition but lets total `Npart` and common radial-moment denominators vary with `A2/A3`
+  - 5000-event validation did not satisfy the planned `|corr(eps2,eps3)| < 0.08` acceptance target, so the mode is diagnostic rather than a strict decorrelation solution
+  - strict isolation of second- and third-order measured eccentricities requires a later stratified-matching, target-eccentricity, or explicit reweighting design

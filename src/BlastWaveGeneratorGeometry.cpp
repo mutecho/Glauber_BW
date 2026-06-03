@@ -11,6 +11,72 @@ namespace {
   constexpr double kTwoPi = 2.0 * kPi;
   constexpr double kTiny = 1.0e-12;
 
+  std::array<int, 3> allocateRatioTotalCounts(int total, const std::array<double, 3> &weights) {
+    std::array<int, 3> counts = {0, 0, 0};
+    if (total <= 0) {
+      return counts;
+    }
+    const double totalWeight = weights[0] + weights[1] + weights[2];
+    const double invTotalWeight = 1.0 / totalWeight;
+    std::array<double, 3> fractions = {weights[0] * total * invTotalWeight, weights[1] * total * invTotalWeight, weights[2] * total * invTotalWeight};
+    int allocated = 0;
+    for (std::size_t iComp = 0; iComp < fractions.size(); ++iComp) {
+      counts[iComp] = static_cast<int>(std::floor(fractions[iComp]));
+      allocated += counts[iComp];
+    }
+
+    int remaining = total - allocated;
+    while (remaining > 0) {
+      std::size_t bestIndex = 0;
+      for (std::size_t iIndex = 1; iIndex < fractions.size(); ++iIndex) {
+        if ((fractions[iIndex] - counts[iIndex]) > (fractions[bestIndex] - counts[bestIndex])) {
+          bestIndex = iIndex;
+        }
+      }
+      ++counts[bestIndex];
+      --remaining;
+    }
+    return counts;
+  }
+
+  int roundNonNegativePoolCount(int backgroundCount, double componentWeight) {
+    const double rawCount = static_cast<double>(backgroundCount) * std::max(0.0, componentWeight);
+    return static_cast<int>(std::lround(rawCount));
+  }
+
+  std::array<int, 3> allocateIndependentPoolCounts(int backgroundCount, double rawA2, double rawA3) {
+    const int ellipticCount = roundNonNegativePoolCount(backgroundCount, rawA2);
+    int triangularCount = roundNonNegativePoolCount(backgroundCount, rawA3);
+    if (rawA3 > kTiny && triangularCount < 3) {
+      triangularCount = 3;
+    }
+    return {backgroundCount, ellipticCount, triangularCount};
+  }
+
+  void ensureMinimumComponentCount(std::array<int, 3> &componentCounts, std::size_t indexNeed, int minimumCount, int targetCount) {
+    if (componentCounts[indexNeed] >= minimumCount || targetCount < minimumCount) {
+      return;
+    }
+
+    while (componentCounts[indexNeed] < minimumCount) {
+      int donor = -1;
+      for (std::size_t iComponent = 0; iComponent < componentCounts.size(); ++iComponent) {
+        if (iComponent == indexNeed || componentCounts[iComponent] <= 0) {
+          continue;
+        }
+        if (donor < 0 || componentCounts[iComponent] > componentCounts[static_cast<std::size_t>(donor)]) {
+          donor = static_cast<int>(iComponent);
+        }
+      }
+
+      if (donor < 0) {
+        break;
+      }
+      --componentCounts[static_cast<std::size_t>(donor)];
+      ++componentCounts[indexNeed];
+    }
+  }
+
 }  // namespace
 
 namespace blastwave {
@@ -96,86 +162,41 @@ namespace blastwave {
   }
 
   // Build the response-test source cloud from three components with explicit 1:A2:A3
-  // allocation and then recenter to remove artificial dipoles in the synthetic template.
+  // allocation or independent component pools, then recenter to remove
+  // artificial dipoles in the synthetic template.
   std::vector<BlastWaveGenerator::Nucleon> BlastWaveGenerator::sampleResponseTest023Participants(
       const ResponseTest023EventGeometry &eventParameters) {
     // Use sampled per-event template parameters so one config can produce a stochastic
-    // geometry template population while preserving the same 1:A2:A3 allocation logic.
-    const int targetCount = std::max(1, eventParameters.sourceCount);
+    // geometry template population while keeping the selected allocation contract explicit.
+    const int sourceCount = std::max(1, eventParameters.sourceCount);
     const double rawA2 = std::max(0.0, eventParameters.a2);
     const double rawA3 = std::max(0.0, eventParameters.a3);
     const double rawA0 = 1.0;
 
-    auto allocateCounts = [](int total, const std::array<double, 3> &weights) {
-      std::array<int, 3> counts = {0, 0, 0};
-      if (total <= 0) {
-        return counts;
-      }
-      const double totalWeight = weights[0] + weights[1] + weights[2];
-      const double invTotalWeight = 1.0 / totalWeight;
-      std::array<double, 3> fractions = {weights[0] * total * invTotalWeight, weights[1] * total * invTotalWeight, weights[2] * total * invTotalWeight};
-      int allocated = 0;
-      for (std::size_t iComp = 0; iComp < fractions.size(); ++iComp) {
-        counts[iComp] = static_cast<int>(std::floor(fractions[iComp]));
-        allocated += counts[iComp];
-      }
+    std::array<int, 3> componentCounts = {0, 0, 0};
+    if (config_.initialGeometrySourceAllocationMode == InitialGeometrySourceAllocationMode::IndependentPools) {
+      componentCounts = allocateIndependentPoolCounts(sourceCount, rawA2, rawA3);
+    } else {
+      const std::array<double, 3> weights = {rawA0, rawA2, rawA3};
+      componentCounts = allocateRatioTotalCounts(sourceCount, weights);
 
-      int remaining = total - allocated;
-      while (remaining > 0) {
-        std::size_t bestIndex = 0;
-        for (std::size_t iIndex = 1; iIndex < fractions.size(); ++iIndex) {
-          if ((fractions[iIndex] - counts[iIndex]) > (fractions[bestIndex] - counts[bestIndex])) {
-            bestIndex = iIndex;
-          }
-        }
-        ++counts[bestIndex];
-        --remaining;
+      if (rawA2 > kTiny) {
+        ensureMinimumComponentCount(componentCounts, 1, 1, sourceCount);
       }
-      return counts;
-    };
-
-    const std::array<double, 3> weights = {rawA0, rawA2, rawA3};
-    std::array<int, 3> componentCounts = allocateCounts(targetCount, weights);
-
-    const auto ensureComponentCount = [&](std::size_t indexNeed, int minimumCount) {
-      if (componentCounts[indexNeed] >= minimumCount || targetCount < minimumCount) {
-        return;
+      if (rawA3 > kTiny) {
+        ensureMinimumComponentCount(componentCounts, 2, 3, sourceCount);
       }
 
-      while (componentCounts[indexNeed] < minimumCount) {
-        int donor = -1;
-        for (std::size_t iComponent = 0; iComponent < componentCounts.size(); ++iComponent) {
-          if (iComponent == indexNeed || componentCounts[iComponent] <= 0) {
-            continue;
-          }
-          if (donor < 0 || componentCounts[iComponent] > componentCounts[static_cast<std::size_t>(donor)]) {
-            donor = static_cast<int>(iComponent);
-          }
-        }
-
-        if (donor < 0) {
-          break;
-        }
-        --componentCounts[static_cast<std::size_t>(donor)];
-        ++componentCounts[indexNeed];
+      const int totalAssigned = componentCounts[0] + componentCounts[1] + componentCounts[2];
+      if (totalAssigned > sourceCount && componentCounts[0] > 0) {
+        componentCounts[0] -= std::min(componentCounts[0], totalAssigned - sourceCount);
       }
-    };
-
-    if (rawA2 > kTiny) {
-      ensureComponentCount(1, 1);
-    }
-    if (rawA3 > kTiny) {
-      ensureComponentCount(2, 3);
+      if (componentCounts[0] + componentCounts[1] + componentCounts[2] < sourceCount && componentCounts[0] >= 0) {
+        componentCounts[0] += sourceCount - (componentCounts[0] + componentCounts[1] + componentCounts[2]);
+      }
     }
 
-    const int totalAssigned = componentCounts[0] + componentCounts[1] + componentCounts[2];
-    if (totalAssigned > targetCount && componentCounts[0] > 0) {
-      componentCounts[0] -= std::min(componentCounts[0], totalAssigned - targetCount);
-    }
-    if (componentCounts[0] + componentCounts[1] + componentCounts[2] < targetCount && componentCounts[0] >= 0) {
-      componentCounts[0] += targetCount - (componentCounts[0] + componentCounts[1] + componentCounts[2]);
-    }
-
+    const int totalSourceCount = componentCounts[0] + componentCounts[1] + componentCounts[2];
     const double cosPhi2 = std::cos(config_.initialGeometryPhi2);
     const double sinPhi2 = std::sin(config_.initialGeometryPhi2);
     std::normal_distribution<double> backgroundDistX(0.0, config_.initialGeometryR0);
@@ -183,7 +204,7 @@ namespace blastwave {
     std::normal_distribution<double> ellipseDistY(0.0, eventParameters.r2y);
     std::normal_distribution<double> triangleDist(0.0, eventParameters.sigma3);
     std::vector<WeightedTransversePoint> sourcePoints;
-    sourcePoints.reserve(static_cast<std::size_t>(targetCount));
+    sourcePoints.reserve(static_cast<std::size_t>(totalSourceCount));
 
     for (int i = 0; i < componentCounts[0]; ++i) {
       sourcePoints.push_back({backgroundDistX(rng_), backgroundDistX(rng_), 1.0});
@@ -207,8 +228,8 @@ namespace blastwave {
       }
     }
 
-    if (static_cast<int>(sourcePoints.size()) != targetCount) {
-      sourcePoints.resize(static_cast<std::size_t>(targetCount), sourcePoints.empty() ? WeightedTransversePoint{0.0, 0.0, 1.0} : sourcePoints.back());
+    if (static_cast<int>(sourcePoints.size()) != totalSourceCount) {
+      sourcePoints.resize(static_cast<std::size_t>(totalSourceCount), sourcePoints.empty() ? WeightedTransversePoint{0.0, 0.0, 1.0} : sourcePoints.back());
     }
 
     double centroidX = 0.0;

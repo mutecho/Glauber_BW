@@ -164,6 +164,20 @@ namespace {
         "Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription + ". Expected 'glauber' or 'response-test-023'.");
   }
 
+  blastwave::InitialGeometrySourceAllocationMode parseInitialGeometrySourceAllocationMode(const std::string &rawValue,
+                                                                                         const std::string &optionName,
+                                                                                         const std::string &sourceDescription) {
+    if (rawValue == "ratio-total") {
+      return blastwave::InitialGeometrySourceAllocationMode::RatioTotal;
+    }
+    if (rawValue == "independent-pools") {
+      return blastwave::InitialGeometrySourceAllocationMode::IndependentPools;
+    }
+
+    throw std::invalid_argument("Invalid value '" + rawValue + "' for '" + optionName + "' from " + sourceDescription
+                                + ". Expected 'ratio-total' or 'independent-pools'.");
+  }
+
   blastwave::AffineEffectiveMode parseAffineEffectiveMode(const std::string &rawValue, const std::string &optionName, const std::string &sourceDescription) {
     if (rawValue == "additive-rho") {
       return blastwave::AffineEffectiveMode::AdditiveRho;
@@ -337,6 +351,8 @@ namespace {
       runOptions.config.nEvents = parseInt(rawValue, optionName, sourceDescription);
     } else if (optionName == "initial-geometry") {
       runOptions.config.initialGeometryMode = parseInitialGeometryMode(rawValue, optionName, sourceDescription);
+    } else if (optionName == "initial-geometry-source-allocation") {
+      runOptions.config.initialGeometrySourceAllocationMode = parseInitialGeometrySourceAllocationMode(rawValue, optionName, sourceDescription);
     } else if (optionName == "initial-geometry-source-count") {
       runOptions.config.initialGeometrySourceCount = parseInt(rawValue, optionName, sourceDescription);
     } else if (optionName == "initial-geometry-fluctuate") {
@@ -591,6 +607,7 @@ namespace blastwave::app {
               << "  output = qa/test_b8_5000.root\n"
               << "Configuration keys:\n"
               << "  nevents, initial-geometry, initial-geometry-source-count,\n"
+              << "  initial-geometry-source-allocation,\n"
               << "  initial-geometry-r0, initial-geometry-a2, initial-geometry-r2x,\n"
               << "  initial-geometry-r2y, initial-geometry-phi2, initial-geometry-a3,\n"
               << "  initial-geometry-r3, initial-geometry-sigma3, initial-geometry-phi3,\n"
@@ -633,6 +650,7 @@ namespace blastwave::app {
               << "  --mj-grid-points <int>\n"
               << "  --tau0 <fm/c>\n"
               << "  --initial-geometry <glauber|response-test-023>\n"
+              << "  --initial-geometry-source-allocation <ratio-total|independent-pools>\n"
               << "  --initial-geometry-fluctuate\n"
               << "  --no-initial-geometry-fluctuate\n"
               << "  --initial-geometry-source-count <int>\n"

@@ -136,6 +136,8 @@
 - `response-test-023` 是 opt-in response/closure test；默认 `initial-geometry = glauber` 不变。
 - `initial-geometry-a2/a3` 是模板权重，不是实际 `eps2/eps3`。
 - `initial-geometry-fluctuate` 只允许用于 `response-test-023`；固定 023 用于 closure baseline，fluctuating 023 用于宽 `events.eps2/eps3` 分布测试。
-- 当前 `response-test-023` 模板按 `1:A2:A3` 在同一总源数池内竞争分配源点；`A2/A3` 抽样独立不保证测得的 `events.eps2/eps3` 独立，交叉性控制样本应优先用 `config/test_023_dense_eps2_only_fluct.cfg` 和 `config/test_023_dense_eps3_only_fluct.cfg`。
+- 默认 `response-test-023` 模板按 `initial-geometry-source-allocation = ratio-total` 在同一总源数池内按 `1:A2:A3` 竞争分配源点；`A2/A3` 抽样独立不保证测得的 `events.eps2/eps3` 独立，交叉性控制样本应优先用 `config/test_023_dense_eps2_only_fluct.cfg` 和 `config/test_023_dense_eps3_only_fluct.cfg`。
+- `initial-geometry-source-allocation = independent-pools` 已实现为 opt-in 诊断模式，但 5000-event full/eps3-only 验证未达到 `|corr(eps2,eps3)| < 0.08`；严格解耦下一步应做分层匹配或目标 eccentricity 反解。
+- `notebooks/vn_epsn_multivariate_regression.ipynb` 是当前 independent-pools 交叉响应的分析级扣除入口；它报告 raw cross slope、two-step 几何相关扣除和多元条件斜率，不能替代生成级 decorrelation 验收。
 - `qa/` 目录中存在旧 schema ROOT 文件；复用前先确认是否匹配当前契约。
 - 在这台机器上，沙箱内 `alienv` ROOT smoke 若出现 PCM / module 噪声，不应当作权威结果；权威验证依旧来自沙箱外 O2Physics 路径。

@@ -47,6 +47,10 @@ namespace blastwave {
     if (config_.initialGeometryMode != InitialGeometryMode::Glauber && config_.initialGeometryMode != InitialGeometryMode::ResponseTest023) {
       throw std::invalid_argument("initial-geometry must be 'glauber' or 'response-test-023'.");
     }
+    if (config_.initialGeometrySourceAllocationMode != InitialGeometrySourceAllocationMode::RatioTotal
+        && config_.initialGeometrySourceAllocationMode != InitialGeometrySourceAllocationMode::IndependentPools) {
+      throw std::invalid_argument("initial-geometry-source-allocation must be 'ratio-total' or 'independent-pools'.");
+    }
     if (config_.initialGeometryFluctuate && config_.initialGeometryMode != InitialGeometryMode::ResponseTest023) {
       throw std::invalid_argument("initial-geometry-fluctuate requires initial-geometry=response-test-023.");
     }

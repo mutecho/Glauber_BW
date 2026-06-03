@@ -137,6 +137,35 @@ namespace {
     require(event.info.nCharged > 0, "Response sample should emit at least one particle.");
   }
 
+  void runResponseModeIndependentPoolsSourceCountTest() {
+    blastwave::BlastWaveConfig config = makeFixedResponseConfig();
+    config.initialGeometrySourceAllocationMode = blastwave::InitialGeometrySourceAllocationMode::IndependentPools;
+    config.initialGeometrySourceCount = 10;
+    config.initialGeometryA2 = 0.4;
+    config.initialGeometryA3 = 0.3;
+
+    blastwave::BlastWaveGenerator generator(config);
+    const blastwave::GeneratedEvent event = generator.generateEvent(0);
+
+    require(event.info.initialGeometryMode == 1, "Independent-pools response event should stay in response-test mode.");
+    require(event.info.nParticipants == 17, "Independent pools should use N0 + round(N0*A2) + round(N0*A3).");
+    require(event.participants.size() == static_cast<std::size_t>(event.info.nParticipants),
+            "Independent-pools participant vector should match EventInfo Npart.");
+  }
+
+  void runResponseModeIndependentPoolsTriangularMinimumTest() {
+    blastwave::BlastWaveConfig config = makeFixedResponseConfig();
+    config.initialGeometrySourceAllocationMode = blastwave::InitialGeometrySourceAllocationMode::IndependentPools;
+    config.initialGeometrySourceCount = 10;
+    config.initialGeometryA2 = 0.0;
+    config.initialGeometryA3 = 0.1;
+
+    blastwave::BlastWaveGenerator generator(config);
+    const blastwave::GeneratedEvent event = generator.generateEvent(0);
+
+    require(event.info.nParticipants == 13, "Positive A3 independent pools should provide at least three triangular hotspot sources.");
+  }
+
   // Verify fluctuating response-test events draw source count and metadata per event.
   void runResponseModeFluctuatingRangeTest() {
     const blastwave::BlastWaveConfig config = makeFluctuatingResponseConfig();
@@ -181,6 +210,8 @@ namespace {
 int main() {
   try {
     runResponseModeTemplateTest();
+    runResponseModeIndependentPoolsSourceCountTest();
+    runResponseModeIndependentPoolsTriangularMinimumTest();
     runResponseModeFluctuatingRangeTest();
     runResponseModeFluctuatingSeedReproducibleTest();
     std::cout << "Blast-wave generator response tests passed.\n";

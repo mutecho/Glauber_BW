@@ -23,6 +23,52 @@ Long command transcripts and repeated smoke-command variants were intentionally 
 - authoritative outside-sandbox `analyze_blastwave_vnpt ...`
 - ROOT key inspection through the shared inspector scripts when payload placement needs confirmation
 
+## T-039 Independent-Pools Multivariate Response Analysis
+
+- Status: implemented and verified on 2026-06-03
+- Evidence:
+  - added `notebooks/vn_epsn_multivariate_regression.ipynb`, which reads `events.eps2/eps3` and `events.v2_wrt_psi2/v3_wrt_psi3` through `uproot`
+  - notebook fits `v2_wrt_psi2 = c2 + k22*eps2 + k23*eps3` and `v3_wrt_psi3 = c3 + k32*eps2 + k33*eps3`, then compares raw diagonal/cross slopes with conditional multivariate slopes and two-step geometry-correlation subtraction
+  - added complete Chinese configs `config/test_023_dense_mix_fluct_independent_pools.cfg`, `config/test_023_dense_newrap_fluct_independent_pools.cfg`, and `config/test_023_ellipse_fluct_independent_pools.cfg`; the existing `config/test_023_dense_fluct_independent_pools.cfg` provides the dense member of the same comparison set
+  - O2Physics ROOT executor generated and QA-validated all four 5000-event outputs under `qa/` with `STATUS: PRIMARY_OK`
+  - QA reported dense `validation_passed events=5000 particles=8396320 mean_Npart=839.759 mean_eps2=0.166401 mean_eps3=0.122276 mean_v2=0.0445615 mean_v3=0.0493821`
+  - QA reported dense_mix `validation_passed events=5000 particles=8396320 mean_Npart=839.759 mean_eps2=0.166401 mean_eps3=0.122276 mean_v2=0.0458813 mean_v3=0.0511161`
+  - QA reported newrap `validation_passed events=5000 particles=8396320 mean_Npart=839.759 mean_eps2=0.166401 mean_eps3=0.122276 mean_v2=0.0460191 mean_v3=0.0513497`
+  - QA reported ellipse `validation_passed events=5000 particles=8396320 mean_Npart=839.759 mean_eps2=0.166401 mean_eps3=0.122276 mean_v2=0.0279217 mean_v3=0.0412835`
+  - `conda run -n root_notebook jupyter nbconvert --to notebook --execute --inplace notebooks/vn_epsn_multivariate_regression.ipynb --ExecutePreprocessor.kernel_name=python3 --ExecutePreprocessor.timeout=600` completed and wrote the executed notebook; warnings were limited to non-writable IPython/fontconfig caches
+  - executed notebook read all four files with `n_events=5000` and `selected_events=5000`, and reported common `corr(eps2,eps3)=-0.331139`
+  - executed notebook reported dense raw `v2~eps3=-0.123119` and conditional `k23=-0.037593`; raw `v3~eps2=-0.085026` and conditional `k32=-0.029924`
+  - executed notebook reported dense_mix raw `v2~eps3=-0.122487` and conditional `k23=-0.029378`; raw `v3~eps2=-0.091905` and conditional `k32=-0.028774`
+  - executed notebook reported newrap raw `v2~eps3=-0.122036` and conditional `k23=-0.026321`; raw `v3~eps2=-0.095921` and conditional `k32=-0.026854`
+  - executed notebook reported ellipse raw `v2~eps3=0.004945` and conditional `k23=-0.015840`; raw `v3~eps2=0.097891` and conditional `k32=0.031841`
+  - follow-up notebook execution added normal diagonal analysis and a four-panel same-harmonic figure, with dense raw `v2~eps2=0.207871`, conditional `k22=0.198313`, raw `v3~eps3=0.229620`, conditional `k33=0.216715`
+  - follow-up notebook execution reported dense_mix raw `v2~eps2=0.223369`, conditional `k22=0.215899`, raw `v3~eps3=0.260701`, conditional `k33=0.248292`
+  - follow-up notebook execution reported newrap raw `v2~eps2=0.228631`, conditional `k22=0.221938`, raw `v3~eps3=0.283222`, conditional `k33=0.271640`
+  - follow-up notebook execution reported ellipse raw `v2~eps2=-0.044168`, conditional `k22=-0.048195`, raw `v3~eps3=-0.273504`, conditional `k33=-0.259772`
+- Locked conclusions:
+  - multivariate/partial regression is the maintained independent-pools analysis path for both same-harmonic diagonal response and linear `eps2-eps3` geometry-corrected cross response
+  - conditional cross slopes are substantially smaller than raw cross slopes for dense, dense_mix, and newrap, but they should be interpreted as analysis corrections, not as proof that the generated sample is decorrelated
+
+## T-038 `response-test-023` Independent Source Pool Allocation
+
+- Status: implemented and build/QA verified on 2026-06-03; the `|corr(eps2,eps3)| < 0.08` decorrelation target was not satisfied
+- Evidence:
+  - added public `initial-geometry-source-allocation = ratio-total | independent-pools`, with default `ratio-total` preserving existing fixed-total `1:A2:A3` allocation
+  - `independent-pools` uses `source-count` as the circular background pool `N0`, then uses `N2=round(N0*A2)` and `N3=round(N0*A3)`, with positive `A3` promoted to at least three triangular hotspot sources
+  - added complete Chinese diagnostic config `config/test_023_dense_fluct_independent_pools.cfg`
+  - local O2Physics `cmake --preset default -S /Users/allenzhou/Research_software/Blast_wave -DROOT_DIR="${ROOTSYS}/cmake" && cmake --build /Users/allenzhou/Research_software/Blast_wave/build -j4` passed with `STATUS: PRIMARY_OK`
+  - local O2Physics `ctest --test-dir /Users/allenzhou/Research_software/Blast_wave/build --output-on-failure` passed with 10/10 tests and `STATUS: PRIMARY_OK`
+  - O2Physics ROOT executor generated and QA-validated 5000-event `/private/tmp/blastwave_023_independent_full.root`, reporting `validation_passed events=5000`, `mean_Npart=839.759`, `mean_eps2=0.166401`, and `mean_eps3=0.122276`
+  - O2Physics ROOT executor generated and QA-validated 5000-event `/private/tmp/blastwave_023_independent_eps2_only.root`, reporting `validation_passed events=5000`, `mean_Npart=1016.97`, `mean_eps2=0.166765`, and `mean_eps3=0.0642582`
+  - O2Physics ROOT executor generated and QA-validated 5000-event `/private/tmp/blastwave_023_independent_eps3_only.root`, reporting `validation_passed events=5000`, `mean_Npart=1138.41`, `mean_eps2=0.162694`, and `mean_eps3=0.0838188`
+  - ROOT event-stat extraction reported full-fluctuation `corr(eps2,eps3)=-0.331139`, `corr(v2_wrt_psi2,eps3)=-0.271612`, and `corr(v3_wrt_psi3,eps2)=-0.242805`
+  - ROOT event-stat extraction reported eps3-only `corr(eps2,eps3)=-0.316660`, `corr(eps2,geo_a3)=-0.564709`, `corr(v2_wrt_psi2,eps3)=-0.124638`, and `corr(v3_wrt_psi3,eps2)=-0.316390`
+  - ROOT event-stat extraction reported eps2-only `corr(eps2,eps3)=-0.216197`, `corr(eps3,geo_a2)=-0.228626`, `corr(v2_wrt_psi2,eps3)=-0.177367`, and `corr(v3_wrt_psi3,eps2)=-0.110738`
+- Locked conclusions:
+  - independent source pools remove fixed-total component competition but do not decouple the measured eccentricities because total `Npart` and the shared radial-moment denominators still vary with `A2/A3`
+  - `independent-pools` should be treated as an opt-in diagnostic/control mode, not as a passed decorrelation solution
+  - the next strict decorrelation implementation should use post-sampled stratified matching, target eccentricity inversion, or another explicit acceptance/reweighting design
+
 ## T-037 `response-test-023` One-Harmonic Fluctuation Cross-Checks
 
 - Status: passed on 2026-06-03 as a diagnostic audit; the decorrelation condition was not satisfied

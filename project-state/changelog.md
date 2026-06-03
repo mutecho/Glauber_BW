@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-06-03 Independent-Pools Multivariate Response Notebook
+
+- Added `notebooks/vn_epsn_multivariate_regression.ipynb` to read independent-pools fluctuating 023 ROOT files and fit `v2_wrt_psi2 = c2 + k22*eps2 + k23*eps3` plus `v3_wrt_psi3 = c3 + k32*eps2 + k33*eps3`.
+- Added complete Chinese configs `config/test_023_dense_mix_fluct_independent_pools.cfg`, `config/test_023_dense_newrap_fluct_independent_pools.cfg`, and `config/test_023_ellipse_fluct_independent_pools.cfg`; together with the existing dense independent config they cover dense, dense_mix, newrap, and ellipse.
+- Generated and QA-validated all four 5000-event independent-pools ROOT outputs under `qa/` through the O2Physics executor; all reported `validation_passed events=5000` and `STATUS: PRIMARY_OK`.
+- Executed the new notebook in the `root_notebook` environment; all four inputs were read with 5000 selected events each.
+- Recorded the key conditional cross-response results: dense `k23=-0.037593`, `k32=-0.029924`; dense_mix `k23=-0.029378`, `k32=-0.028774`; newrap `k23=-0.026321`, `k32=-0.026854`; ellipse `k23=-0.015840`, `k32=0.031841`.
+
+## 2026-06-03 `response-test-023` Independent Source Pools
+
+- Added opt-in `initial-geometry-source-allocation = ratio-total | independent-pools`; default `ratio-total` preserves the existing fixed-total `1:A2:A3` behavior.
+- Implemented `independent-pools` so `initial-geometry-source-count` is the circular background pool `N0`, with `N2=round(N0*A2)` and `N3=round(N0*A3)` plus a three-hotspot minimum for positive `A3`.
+- Added `config/test_023_dense_fluct_independent_pools.cfg` as a complete Chinese diagnostic config, plus parser and generator tests for the new allocation mode.
+- Validated local build and full 10/10 CTest, and generated/QA-validated 5000-event full, eps2-only, and eps3-only independent-pools ROOT samples through the O2Physics executor.
+- Recorded that the decorrelation target was not met: independent-pools reported `corr(eps2,eps3)=-0.331139` for full fluctuation and `-0.316660` for eps3-only, so strict `eps2/eps3` isolation still needs stratified matching or target-eccentricity sampling.
+
 ## 2026-06-03 `response-test-023` One-Harmonic Cross-Check Configs
 
 - Added `config/test_023_dense_eps2_only_fluct.cfg` and `config/test_023_dense_eps3_only_fluct.cfg` as complete Chinese control configs that isolate one open template-weight fluctuation at a time.

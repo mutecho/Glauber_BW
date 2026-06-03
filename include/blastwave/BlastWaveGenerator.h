@@ -13,6 +13,7 @@ namespace blastwave {
 
   enum class ThermalSamplerMode { MaxwellJuttner, Gamma };
   enum class InitialGeometryMode { Glauber, ResponseTest023 };
+  enum class InitialGeometrySourceAllocationMode { RatioTotal, IndependentPools };
 
   struct BlastWaveConfig {
     int nEvents = 100;
@@ -23,6 +24,7 @@ namespace blastwave {
 
     double impactParameter = 8.0;      // fm
     InitialGeometryMode initialGeometryMode = InitialGeometryMode::Glauber;
+    InitialGeometrySourceAllocationMode initialGeometrySourceAllocationMode = InitialGeometrySourceAllocationMode::RatioTotal;
     int initialGeometrySourceCount = 600;
     bool initialGeometryFluctuate = false;
     int initialGeometrySourceCountMin = 600;

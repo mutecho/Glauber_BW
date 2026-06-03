@@ -849,6 +849,8 @@ namespace {
     const ParsedRunOptions parsed = parseArguments({});
     require(parsed.runOptions.config.initialGeometryMode == blastwave::InitialGeometryMode::Glauber,
             "Default initial-geometry should remain Glauber.");
+    require(parsed.runOptions.config.initialGeometrySourceAllocationMode == blastwave::InitialGeometrySourceAllocationMode::RatioTotal,
+            "Default initial-geometry-source-allocation should stay ratio-total.");
     require(!parsed.runOptions.config.initialGeometryFluctuate, "Default initial-geometry-fluctuate should be false.");
     require(!parsed.runOptions.config.hasInitialGeometrySourceCountMin && !parsed.runOptions.config.hasInitialGeometrySourceCountMax,
             "Default source-count fluctuation range should stay implicit.");
@@ -872,6 +874,37 @@ namespace {
     requireNear(parsed.runOptions.config.initialGeometryR3, 1.8, 1.0e-12, "Default initial-geometry-r3 mismatch.");
     requireNear(parsed.runOptions.config.initialGeometrySigma3, 0.6, 1.0e-12, "Default initial-geometry-sigma3 mismatch.");
     require(!parsed.runOptions.config.debugInitialGeometry, "Default debug-initial-geometry should be disabled.");
+  }
+
+  void runInitialGeometrySourceAllocationParseTest() {
+    const TemporaryConfigFile configFile(
+        "initial-geometry = response-test-023\n"
+        "initial-geometry-source-allocation = independent-pools\n");
+    const ParsedRunOptions configParsed = parseArguments({configFile.path().string()});
+    require(configParsed.runOptions.config.initialGeometrySourceAllocationMode == blastwave::InitialGeometrySourceAllocationMode::IndependentPools,
+            "Config initial-geometry-source-allocation should parse independent-pools.");
+    requireGeneratorValidationSuccess(configParsed.runOptions.config, "Config independent-pools allocation should validate.");
+
+    const ParsedRunOptions cliRatio = parseArguments({"--initial-geometry-source-allocation", "ratio-total"});
+    require(cliRatio.runOptions.config.initialGeometrySourceAllocationMode == blastwave::InitialGeometrySourceAllocationMode::RatioTotal,
+            "CLI initial-geometry-source-allocation should parse ratio-total.");
+    requireGeneratorValidationSuccess(cliRatio.runOptions.config, "CLI ratio-total allocation should validate.");
+
+    const ParsedRunOptions cliOverride =
+        parseArguments({configFile.path().string(), "--initial-geometry-source-allocation", "ratio-total"});
+    require(cliOverride.runOptions.config.initialGeometrySourceAllocationMode == blastwave::InitialGeometrySourceAllocationMode::RatioTotal,
+            "CLI initial-geometry-source-allocation should override config.");
+  }
+
+  void runInvalidInitialGeometrySourceAllocationRejectsTest() {
+    requireParseFailureContains({"--initial-geometry-source-allocation", "fixed-total"},
+                                "ratio-total",
+                                "Invalid CLI initial-geometry-source-allocation should name valid values.");
+
+    const TemporaryConfigFile invalidConfig("initial-geometry-source-allocation = not-a-mode\n");
+    requireParseFailureContains({invalidConfig.path().string()},
+                                "independent-pools",
+                                "Invalid config initial-geometry-source-allocation should name valid values.");
   }
 
   void runInitialGeometryParseAndOverrideTest() {
@@ -1317,6 +1350,8 @@ int main() {
     runFlowTransValidationRejectsTest();
     runDensityNormalFlowTransValidationSuccessTest();
     runInitialGeometryDefaultParseTest();
+    runInitialGeometrySourceAllocationParseTest();
+    runInvalidInitialGeometrySourceAllocationRejectsTest();
     runInitialGeometryFluctuationCliParseTest();
     runInitialGeometryFluctuationConfigParseTest();
     runInitialGeometryFluctuationCliOverrideTest();
