@@ -126,6 +126,8 @@ namespace {
 
     require(event.info.eps3 >= 0.0 && std::isfinite(event.info.eps3), "eps3 should be finite and non-negative.");
     require(event.info.v3 >= 0.0 && event.info.v3 <= 1.0 + kTolerance, "v3 should lie in [0,1] for finite event sample.");
+    require(std::isfinite(event.info.v2LabX), "v2_lab_x should be finite.");
+    require(std::isfinite(event.info.v2LabY), "v2_lab_y should be finite.");
     require(std::isfinite(event.info.v2WrtPsi2), "v2_wrt_psi2 should be finite.");
     require(std::isfinite(event.info.v3WrtPsi3), "v3_wrt_psi3 should be finite.");
     requireNear(event.info.geoA2, config.initialGeometryA2, kTolerance, "Fixed response geoA2 should mirror config.");

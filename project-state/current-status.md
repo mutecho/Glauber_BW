@@ -2,13 +2,14 @@
 
 ## Snapshot
 
-- Date: 2026-06-03
+- Date: 2026-06-04
 - Repository: `/Users/allenzhou/Research_software/Blast_wave`
 - Durable baseline: the current documented runtime contract includes the default V1a path, the opt-in affine-effective closure path with `additive-rho` and `full-tensor` submodes, the opt-in V2 gradient-response path, optional differential `v2/v3{2}(pT)` analysis, event-level `v_n`-`epsilon_n` univariate and multivariate regression notebook analysis, the opt-in fixed/fluctuating `response-test-023` initial-geometry response-test paths with selectable source allocation, and the opt-in density-normal `shell-gradient-corrected` transverse-flow magnitude mode.
 - Latest durable verification anchor: 2026-06-03 added opt-in per-event `response-test-023` template fluctuation for source count and `A2/A3/r2x/r2y/r3/sigma3`, extended ROOT `events` with `geo_r2x/geo_r2y`, and added `config/test_023_fluctuating.cfg`. Local build and full `ctest` passed with 10/10 tests; O2Physics ROOT executor generated and QA-validated 5000-event `/private/tmp/test_023_fluctuating.root` with `STATUS: PRIMARY_OK`; final ROOT metric extraction reported fluctuating `eps2 p95=0.362610`, `eps3 p95=0.297453`, both inside the planned broad-distribution window and wider than fixed 023 (`eps2 p95=0.242961`, `eps3 p95=0.148330`).
 - Latest diagnostic update: 2026-06-03 added one-harmonic-open control configs `config/test_023_dense_eps2_only_fluct.cfg` and `config/test_023_dense_eps3_only_fluct.cfg`; 5000-event O2Physics generate+QA passed for both, but the `eps3_only` sample still showed `corr(eps2,eps3)=-0.195345` and `corr(eps2,geoA3)=-0.461106`, so the observed broad-fluctuation cross correlation did not disappear under the control test.
 - Latest response-test allocation update: 2026-06-03 added opt-in `initial-geometry-source-allocation = independent-pools` and `config/test_023_dense_fluct_independent_pools.cfg`; local build, full 10/10 CTest, and three 5000-event O2Physics generate+QA samples passed, but the decorrelation target failed with full-fluctuation `corr(eps2,eps3)=-0.331139` and eps3-only `corr(eps2,eps3)=-0.316660`.
 - Latest conditional-response analysis update: 2026-06-03 added `notebooks/vn_epsn_multivariate_regression.ipynb` and independent-pools configs for dense_mix, newrap, and ellipse; O2Physics generated and QA-validated dense/dense_mix/newrap/ellipse 5000-event ROOT outputs under `qa/`, and the executed notebook read 5000 selected events from each file. The shared geometry had `corr(eps2,eps3)=-0.331139`; raw cross slopes were largely reduced by the conditional fit, with dense `k23=-0.037593`, `k32=-0.029924`, dense_mix `k23=-0.029378`, `k32=-0.028774`, newrap `k23=-0.026321`, `k32=-0.026854`, and ellipse `k23=-0.015840`, `k32=0.031841`.
+- Latest lab-frame V2 update: 2026-06-04 added fixed-coordinate `events.v2_lab_x/y` plus matching ROOT histograms, refreshed all 13 notebook input ROOT files from the `scripts/run_b8_v3.sh` config set, and QA-validated every refreshed file with `STATUS: PRIMARY_OK`. The refreshed univariate notebook now reads all nine configured inputs and produces a 36-row lab V2 table; the refreshed multivariate notebook reads all four independent-pools inputs and produces an eight-row lab V2 table. Neither notebook has lab-skip outputs after the refresh.
 - Latest user-run-flow update: workspace cfg examples no longer carry inactive response-test, affine-effective, affine-evolution, gradient-response, or shell-gradient knobs outside their selected mode combinations; copied `scripts/run_*.sh` entrypoints now self-resolve their re-entry `script_path`; the maintained notebook entrypoint remains `notebooks/vn_epsn_regression.ipynb`.
 - Latest task narrowed the notebook environment and analysis path to `uproot` only, deleting the PyROOT-only comparison notebook; the latest physics task is the density-normal gradient-fraction expansion-compensation fix recorded in DEC-022.
 
@@ -61,6 +62,7 @@
   - `analyze_blastwave_vnpt`
   - `notebooks/vn_epsn_regression.ipynb` for grouped labelled multi-file event-level `v_n`-`epsilon_n` and `v_n`-`epsilon_m` regression comparisons on ROOT result files through `uproot`
   - `notebooks/vn_epsn_multivariate_regression.ipynb` for independent-pools `v2/v3` conditional response fits against both `eps2` and `eps3`
+  - both maintained notebooks also include optional lab-frame `v2_lab_x/y` diagnostics when the input ROOT files have the refreshed lab V2 schema
 - canonical tracked example config:
   - `config/test_b8.cfg`
   - `config/test_b8_affine_effective.cfg`
@@ -105,6 +107,8 @@
   - `particles.x0`
   - `particles.y0`
   - `particles.emission_weight`
+  - `events.v2_lab_x`
+  - `events.v2_lab_y`
 - optional payload groups:
   - `initial_geometry_density_x-y` when `debug-initial-geometry = true`
   - flow-ellipse debug objects, including affine mode encoding, closure diagnostics, and additive-rho surface decomposition when `affine-effective` is selected
@@ -155,6 +159,7 @@
   - `response-test-023` generation + QA with optional `initial_geometry_density_x-y`
   - four-point `A3 = 0, 0.05, 0.10, 0.15` response-test scan showing increasing `mean(v3_wrt_psi3)`
   - `response-test-023` cross-harmonic control generation + QA for eps2-only and eps3-only template-weight fluctuations, showing the `eps3_only` geometry correlation persists through the fixed-total `1:A2:A3` source allocation and through the current `independent-pools` diagnostic allocation
+  - lab-frame V2 schema smoke generation + QA, including `events.v2_lab_x/y` branches, matching histograms, and particle-level recomputation checks
 
 Use `project-state/tests.md` for the summarized evidence trail.
 
@@ -170,7 +175,7 @@ Use `project-state/tests.md` for the summarized evidence trail.
 - default `response-test-023` source allocation uses one fixed total source pool with approximate fractions `1:A2:A3`; independently sampling `A2/A3` therefore does not guarantee independent measured `events.eps2/eps3`, and an `A3`-only fluctuation can still anti-correlate with `events.eps2`
 - `initial-geometry-source-allocation = independent-pools` removes fixed-total source competition but still failed the measured decorrelation target because total `Npart` and shared radial-moment denominators vary with `A2/A3`
 - response/cross-talk TH2 objects keep full storage ranges `epsilon = 0..1` and projected `v = -1..1`, but open with compact default display ranges `epsilon = 0..0.35` and projected `v = -0.15..0.15`
-- event-level `v_n`-`epsilon_n` regression should use `events.v2_wrt_psi2` / `events.v3_wrt_psi3` against `events.eps2` / `events.eps3`; `notebooks/vn_epsn_regression.ipynb` uses `uproot`, supports grouped `INPUT_FILE_GROUPS` overlays, keeps Glauber-direct, fixed manual third-order response-test, and 023 random-fluctuation response-test inputs in separate plot groups, keeps same-harmonic free-intercept plus through-origin response fits, uses free-intercept-only fits for cross-harmonic `v2/eps3` and `v3/eps2` mixing checks, and no longer depends on PyROOT
+- event-level `v_n`-`epsilon_n` regression should use `events.v2_wrt_psi2` / `events.v3_wrt_psi3` against `events.eps2` / `events.eps3`; `events.v2_lab_x/y` are fixed-lab-coordinate sign/orientation diagnostics, not replacement response observables. `notebooks/vn_epsn_regression.ipynb` uses `uproot`, supports grouped `INPUT_FILE_GROUPS` overlays, keeps Glauber-direct, fixed manual third-order response-test, and 023 random-fluctuation response-test inputs in separate plot groups, keeps same-harmonic free-intercept plus through-origin response fits, uses free-intercept-only fits for cross-harmonic `v2/eps3` and `v3/eps2` mixing checks, conditionally adds lab V2 diagnostics when the branches exist, and no longer depends on PyROOT
 - `shell_weight` and any `EmissionSite::emissionWeight` restructuring remain intentionally deferred; the current response-test rollout only adds geometry templates and observables
 - older validation ledgers may cite pre-archive response-test config names; current tracked response-test examples use `config/test_023_dense*.cfg`
 

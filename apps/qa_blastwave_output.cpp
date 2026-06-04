@@ -253,6 +253,8 @@ int main(int argc, char **argv) {
                                      blastwave::io::kR2FinalHistogramName,
                                      blastwave::io::kR2RatioHistogramName,
                                      blastwave::io::kV2HistogramName,
+                                     blastwave::io::kV2LabXHistogramName,
+                                     blastwave::io::kV2LabYHistogramName,
                                      blastwave::io::kCentralityHistogramName,
                                      blastwave::io::kParticipantXYHistogramName,
                                      blastwave::io::kParticipantXYCanvasName,
@@ -280,6 +282,10 @@ int main(int argc, char **argv) {
     const bool hasGeoR2yBranch = eventsTree->GetBranch(blastwave::io::kGeoR2YBranchName) != nullptr;
     if (hasGeoR2xBranch != hasGeoR2yBranch) {
       throw std::runtime_error("events tree must contain geo_r2x and geo_r2y together.");
+    }
+    if (eventsTree->GetBranch(blastwave::io::kV2LabXBranchName) == nullptr
+        || eventsTree->GetBranch(blastwave::io::kV2LabYBranchName) == nullptr) {
+      throw std::runtime_error("events tree must contain v2_lab_x and v2_lab_y.");
     }
 
     blastwave::io::EventBranches eventBranches;
@@ -321,6 +327,14 @@ int main(int argc, char **argv) {
     auto *v2Input = dynamic_cast<TH1 *>(inputFile.Get(blastwave::io::kV2HistogramName));
     if (v2Input == nullptr) {
       throw std::runtime_error("Input object 'v2' is not a TH1.");
+    }
+    auto *v2LabXInput = dynamic_cast<TH1 *>(inputFile.Get(blastwave::io::kV2LabXHistogramName));
+    if (v2LabXInput == nullptr) {
+      throw std::runtime_error("Input object 'v2_lab_x' is not a TH1.");
+    }
+    auto *v2LabYInput = dynamic_cast<TH1 *>(inputFile.Get(blastwave::io::kV2LabYHistogramName));
+    if (v2LabYInput == nullptr) {
+      throw std::runtime_error("Input object 'v2_lab_y' is not a TH1.");
     }
     auto *eps3Input = dynamic_cast<TH1 *>(inputFile.Get(blastwave::io::kEps3HistogramName));
     if (eps3Input == nullptr) {
@@ -435,6 +449,8 @@ int main(int argc, char **argv) {
     TH2F hPxPy("qa_px-py", "QA transverse momentum map;p_{x} [GeV];p_{y} [GeV]", 120, -3.0, 3.0, 120, -3.0, 3.0);
     TH1F hPsi2("qa_psi2", "QA participant-plane angle;#Psi_{2} [rad];Events", 128, -1.7, 1.7);
     TH1F hV2("qa_v2", "QA event-by-event final-state v_{2};v_{2};Events", 120, 0.0, 1.0);
+    TH1F hV2LabX("qa_v2_lab_x", "QA second-harmonic lab x projection;#LT cos 2#phi #GT;Events", 200, -1.0, 1.0);
+    TH1F hV2LabY("qa_v2_lab_y", "QA second-harmonic lab y projection;#LT sin 2#phi #GT;Events", 200, -1.0, 1.0);
     TH1F hPt("qa_pT", "QA transverse momentum;p_{T} [GeV];Particles", 120, 0.0, 3.0);
     TH1F hEta("qa_eta", "QA pseudorapidity;#eta;Particles", 120, -6.0, 6.0);
     TH1F hPhi("qa_phi", "QA azimuth;#phi;Particles", 128, -3.2, 3.2);
@@ -548,6 +564,8 @@ int main(int argc, char **argv) {
     double meanNpart = 0.0;
     double meanEps2 = 0.0;
     double meanV2 = 0.0;
+    double meanV2LabX = 0.0;
+    double meanV2LabY = 0.0;
     bool sawFirstCentrality = false;
     double firstCentrality = 0.0;
     int previousEventId = -1;
@@ -582,6 +600,10 @@ int main(int argc, char **argv) {
           q2WeightByEvent[eventBranches.eventId] > 0.0
               ? std::hypot(q2xByEvent[eventBranches.eventId], q2yByEvent[eventBranches.eventId]) / q2WeightByEvent[eventBranches.eventId]
               : 0.0;
+      const double expectedV2LabX =
+          q2WeightByEvent[eventBranches.eventId] > 0.0 ? q2xByEvent[eventBranches.eventId] / q2WeightByEvent[eventBranches.eventId] : 0.0;
+      const double expectedV2LabY =
+          q2WeightByEvent[eventBranches.eventId] > 0.0 ? q2yByEvent[eventBranches.eventId] / q2WeightByEvent[eventBranches.eventId] : 0.0;
       const double expectedV3 =
           q3WeightByEvent[eventBranches.eventId] > 0.0
               ? std::hypot(q3xByEvent[eventBranches.eventId], q3yByEvent[eventBranches.eventId]) / q3WeightByEvent[eventBranches.eventId]
@@ -598,6 +620,12 @@ int main(int argc, char **argv) {
               : 0.0;
       if (!isFinite(eventBranches.v2) || eventBranches.v2 < 0.0 || eventBranches.v2 > 1.0) {
         throw std::runtime_error("v2 must stay within [0, 1].");
+      }
+      if (!isFinite(eventBranches.v2LabX) || eventBranches.v2LabX < -1.0 || eventBranches.v2LabX > 1.0) {
+        throw std::runtime_error("v2_lab_x must be finite and within [-1, 1].");
+      }
+      if (!isFinite(eventBranches.v2LabY) || eventBranches.v2LabY < -1.0 || eventBranches.v2LabY > 1.0) {
+        throw std::runtime_error("v2_lab_y must be finite and within [-1, 1].");
       }
       if (!isFinite(eventBranches.v3) || eventBranches.v3 < 0.0 || eventBranches.v3 > 1.0) {
         throw std::runtime_error("v3 must stay within [0, 1].");
@@ -640,6 +668,12 @@ int main(int argc, char **argv) {
       }
       if (!nearlyEqual(eventBranches.v2, expectedV2, 1.0e-9)) {
         throw std::runtime_error("events.v2 does not match the particle-level second-harmonic Q-vector magnitude.");
+      }
+      if (!nearlyEqual(eventBranches.v2LabX, expectedV2LabX, 1.0e-9) || !nearlyEqual(eventBranches.v2LabY, expectedV2LabY, 1.0e-9)) {
+        throw std::runtime_error("events.v2_lab_x/y do not match the particle-level second-harmonic Q-vector components.");
+      }
+      if (!nearlyEqual(eventBranches.v2, std::hypot(eventBranches.v2LabX, eventBranches.v2LabY), 1.0e-9)) {
+        throw std::runtime_error("events.v2 must equal hypot(v2_lab_x, v2_lab_y).");
       }
       if (!nearlyEqual(eventBranches.v2WrtPsi2, expectedV2WrtPsi2, 1.0e-9)) {
         throw std::runtime_error("events.v2_wrt_psi2 does not match the projected particle-level Q2.");
@@ -712,9 +746,13 @@ int main(int argc, char **argv) {
       meanEps2 += eventBranches.eps2;
       meanEps3 += eventBranches.eps3;
       meanV2 += eventBranches.v2;
+      meanV2LabX += eventBranches.v2LabX;
+      meanV2LabY += eventBranches.v2LabY;
       meanV3 += eventBranches.v3;
       hPsi2.Fill(eventBranches.psi2);
       hV2.Fill(eventBranches.v2);
+      hV2LabX.Fill(eventBranches.v2LabX);
+      hV2LabY.Fill(eventBranches.v2LabY);
       eventIdsSeen[eventBranches.eventId] = true;
     }
 
@@ -942,6 +980,8 @@ int main(int argc, char **argv) {
       meanEps2 /= eventCount;
       meanEps3 /= eventCount;
       meanV2 /= eventCount;
+      meanV2LabX /= eventCount;
+      meanV2LabY /= eventCount;
       meanV3 /= eventCount;
     }
     if (std::abs(centralityInput->GetEntries() - eventCount) > 1.0e-9) {
@@ -949,6 +989,12 @@ int main(int argc, char **argv) {
     }
     if (std::abs(v2Input->GetEntries() - eventCount) > 1.0e-9) {
       throw std::runtime_error("v2 histogram entry count does not match events tree.");
+    }
+    if (std::abs(v2LabXInput->GetEntries() - eventCount) > 1.0e-9) {
+      throw std::runtime_error("v2_lab_x histogram entry count does not match events tree.");
+    }
+    if (std::abs(v2LabYInput->GetEntries() - eventCount) > 1.0e-9) {
+      throw std::runtime_error("v2_lab_y histogram entry count does not match events tree.");
     }
     if (std::abs(eps2FreezeoutInput->GetEntries() - eventCount) > 1.0e-9) {
       throw std::runtime_error("eps2_f histogram entry count does not match events tree.");
@@ -998,6 +1044,9 @@ int main(int argc, char **argv) {
     if (eventCount > 0.0 && !nearlyEqual(v2Input->GetMean(), meanV2, 1.0e-9)) {
       throw std::runtime_error("v2 histogram mean does not match the events.v2 mean.");
     }
+    if (eventCount > 0.0 && (!nearlyEqual(v2LabXInput->GetMean(), meanV2LabX, 1.0e-9) || !nearlyEqual(v2LabYInput->GetMean(), meanV2LabY, 1.0e-9))) {
+      throw std::runtime_error("v2_lab_x/y histogram means do not match the events tree means.");
+    }
 
     validateDifferentialFlowPayloadAgainstParticles(v2PtPayload, flowTracksByEvent);
     validateDifferentialFlowPayloadAgainstParticles(v3PtPayload, flowTracksByEvent);
@@ -1040,6 +1089,8 @@ int main(int argc, char **argv) {
     hPxPy.Write();
     hPsi2.Write();
     hV2.Write();
+    hV2LabX.Write();
+    hV2LabY.Write();
     hPt.Write();
     hEta.Write();
     hPhi.Write();
@@ -1048,6 +1099,7 @@ int main(int argc, char **argv) {
     std::cout << "validation_passed"
               << " events=" << eventsTree->GetEntries() << " particles=" << particlesTree->GetEntries() << " mean_Npart=" << meanNpart
               << " mean_eps2=" << meanEps2 << " mean_eps3=" << meanEps3 << " mean_v2=" << meanV2 << " mean_v3=" << meanV3
+              << " mean_v2_lab_x=" << meanV2LabX << " mean_v2_lab_y=" << meanV2LabY
               << " max_abs_eta_s=" << maxAbsEtaS << " max_E=" << maxEnergy << " max_mass_shell_deviation=" << maxMassShellDeviation << '\n';
     return 0;
   } catch (const std::exception &error) {

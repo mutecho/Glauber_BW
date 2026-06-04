@@ -2,18 +2,16 @@
 
 ## Latest Durable Handoff
 
-- Stage completed: independent-pools multivariate response analysis
+- Stage completed: lab-frame V2 output and regression diagnostics
 - What changed:
-  - added `notebooks/vn_epsn_multivariate_regression.ipynb` as the `uproot` analysis path for conditional same-harmonic and cross-response fits
-  - notebook fits `v2_wrt_psi2 = c2 + k22*eps2 + k23*eps3` and `v3_wrt_psi3 = c3 + k32*eps2 + k33*eps3`
-  - added complete Chinese independent-pools configs for `dense_mix`, `newrap`, and `ellipse`, reusing the existing dense independent-pools config as the fourth member
-  - generated and QA-validated four 5000-event independent-pools ROOT outputs under `qa/`: dense, dense_mix, newrap, and ellipse
-  - executed the new notebook in `root_notebook`; it read all four files with 5000 selected events each
-  - recorded that the shared measured geometry correlation remains `corr(eps2,eps3)=-0.331139`
-  - added normal diagonal analysis and plots for raw `v2~eps2`, raw `v3~eps3`, partial `k22`, and partial `k33`
-  - recorded diagonal coefficients: dense `k22=0.198313`, `k33=0.216715`; dense_mix `k22=0.215899`, `k33=0.248292`; newrap `k22=0.221938`, `k33=0.271640`; ellipse `k22=-0.048195`, `k33=-0.259772`
-  - recorded conditional cross-response coefficients: dense `k23=-0.037593`, `k32=-0.029924`; dense_mix `k23=-0.029378`, `k32=-0.028774`; newrap `k23=-0.026321`, `k32=-0.026854`; ellipse `k23=-0.015840`, `k32=0.031841`
-  - updated active docs and `project-state/` so analysis-level subtraction is documented separately from generation-level decorrelation
+  - added `events.v2_lab_x` and `events.v2_lab_y` as fixed-lab-coordinate second-harmonic Q-vector components
+  - added matching `v2_lab_x` and `v2_lab_y` TH1 payloads to generated ROOT files
+  - kept `events.v2` as the non-negative Q-vector magnitude and `events.v2_wrt_psi2` as the participant-plane projection used for response analysis
+  - updated QA to recompute lab components from `particles`, require the new histograms, and check `v2 = hypot(v2_lab_x, v2_lab_y)`
+  - updated `notebooks/vn_epsn_regression.ipynb` and `notebooks/vn_epsn_multivariate_regression.ipynb` with optional lab V2 diagnostic sections
+  - corrected the univariate notebook manual dense mapping to the actual cfg output `qa/test_023_dense_mix.root`
+  - regenerated all 13 notebook input ROOT files from the `scripts/run_b8_v3.sh` config set and QA-validated every refreshed file with `STATUS: PRIMARY_OK`
+  - refreshed both maintained notebooks in place; the univariate notebook now produces a 36-row lab V2 table over nine inputs, and the multivariate notebook produces an eight-row lab V2 table over four independent-pools inputs
 - Current documentation ownership:
   - documentation index and role map: `docs/README.md`
   - detailed runtime and physics explanation: `docs/项目说明.md`
@@ -36,6 +34,7 @@
 - `initial-geometry-source-allocation = ratio-total` keeps the default fixed-total source pool with approximate fractions `1:A2:A3`; independent template-weight random numbers do not guarantee independent measured `events.eps2/eps3`
 - `initial-geometry-source-allocation = independent-pools` is available as an opt-in diagnostic mode but is not a passed decorrelation solution
 - `notebooks/vn_epsn_multivariate_regression.ipynb` is the maintained analysis-level path for independent-pools same-harmonic and cross-response checks; its cross-response subtraction does not prove the generated sample is decorrelated
+- `events.v2_lab_x/y` are lab-frame sign/orientation diagnostics; use `v2_wrt_psi2` for participant-plane response fits
 - use `config/test_023_dense_eps2_only_fluct.cfg` and `config/test_023_dense_eps3_only_fluct.cfg` for one-harmonic-open cross-correlation controls before interpreting broad fluctuating `v2/eps3` or `v3/eps2` slopes
 - Glauber mirror configs exist for the response-test comparison settings: `config/test_023_dense_mix_glauber.cfg`, `config/test_023_dense_newrap_glauber.cfg`, and `config/test_023_ellipse_glauber.cfg`
 - workspace cfg examples are intentionally mode-local: do not re-add inactive response-test, affine-effective, affine-evolution, gradient-response, or shell-gradient knobs unless the selected mode combination uses them
@@ -68,6 +67,7 @@
 
 ## Verification Status
 
+- latest lab-frame V2 packet is `implemented` and verified on 2026-06-04; O2Physics build, CTest, full 13-file ROOT regeneration, 13-file QA, and both in-place notebooks passed with lab V2 tables and no lab-skip outputs
 - latest independent-pools packet is `implemented` and ROOT-QA verified on 2026-06-03, but decorrelation acceptance failed
 - latest multivariate response notebook packet is `implemented` and verified on 2026-06-03
 - O2Physics ROOT executor generated and QA-validated `qa/test_023_dense_fluct_independent_pools.root`, `qa/test_023_dense_mix_fluct_independent_pools.root`, `qa/test_023_dense_newrap_fluct_independent_pools.root`, and `qa/test_023_ellipse_fluct_independent_pools.root`, each with 5000 events and `STATUS: PRIMARY_OK`

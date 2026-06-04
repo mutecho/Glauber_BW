@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-06-04 Lab-Frame V2 Output And Regression Diagnostics
+
+- Extended the current ROOT event schema with `events.v2_lab_x` and `events.v2_lab_y`, plus matching `v2_lab_x` and `v2_lab_y` TH1 payloads.
+- Defined the new fields as fixed-lab-coordinate second-harmonic Q-vector components: `v2_lab_x=<cos2phi>` and `v2_lab_y=<sin2phi>` with the same event weights as `events.v2`.
+- Updated independent QA to require the new objects, recompute them from `particles`, check `events.v2 = hypot(v2_lab_x, v2_lab_y)`, and print lab-component means.
+- Added optional lab V2 diagnostic sections to both regression notebooks; old-schema files skip the section, while new-schema files produce lab component summaries and plots.
+- Validated O2Physics build, 10/10 CTest, a 20-event ROOT generate+QA smoke, ROOT branch/hist presence, default notebook execution, and temp smoke-input notebook execution for the lab branch path.
+- Corrected the univariate notebook manual dense input to `qa/test_023_dense_mix.root`, matching `config/test_023_dense_mix.cfg`.
+- Regenerated all 13 ROOT files read by the maintained notebooks from the `scripts/run_b8_v3.sh` config set and QA-validated every refreshed file with `STATUS: PRIMARY_OK`.
+- Re-executed both maintained notebooks in place; `vn_epsn_regression.ipynb` now reads all nine configured inputs and produces a 36-row lab V2 table, while `vn_epsn_multivariate_regression.ipynb` reads all four independent-pools inputs and produces an eight-row lab V2 table.
+- No public config keys changed.
+
 ## 2026-06-03 Independent-Pools Multivariate Response Notebook
 
 - Added `notebooks/vn_epsn_multivariate_regression.ipynb` to read independent-pools fluctuating 023 ROOT files and fit `v2_wrt_psi2 = c2 + k22*eps2 + k23*eps3` plus `v3_wrt_psi3 = c3 + k32*eps2 + k33*eps3`.

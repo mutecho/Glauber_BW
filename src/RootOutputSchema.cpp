@@ -121,6 +121,8 @@ namespace blastwave::io {
     tree.Branch(kR2FinalBranchName, &branches.r2Final, "r2_f/D");
     tree.Branch(kR2RatioBranchName, &branches.r2Ratio, "r2_ratio/D");
     tree.Branch(kV2BranchName, &branches.v2, "v2/D");
+    tree.Branch(kV2LabXBranchName, &branches.v2LabX, "v2_lab_x/D");
+    tree.Branch(kV2LabYBranchName, &branches.v2LabY, "v2_lab_y/D");
     tree.Branch(kCentralityBranchName, &branches.centrality, "centrality/D");
     tree.Branch(kNchBranchName, &branches.nCharged, "Nch/I");
   }
@@ -231,6 +233,8 @@ namespace blastwave::io {
     tree.SetBranchAddress(kR2FinalBranchName, &branches.r2Final);
     tree.SetBranchAddress(kR2RatioBranchName, &branches.r2Ratio);
     tree.SetBranchAddress(kV2BranchName, &branches.v2);
+    tree.SetBranchAddress(kV2LabXBranchName, &branches.v2LabX);
+    tree.SetBranchAddress(kV2LabYBranchName, &branches.v2LabY);
     tree.SetBranchAddress(kCentralityBranchName, &branches.centrality);
     tree.SetBranchAddress(kNchBranchName, &branches.nCharged);
   }

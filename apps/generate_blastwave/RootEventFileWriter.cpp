@@ -171,6 +171,8 @@ namespace {
     branches.r2Final = info.r2Final;
     branches.r2Ratio = info.r2Ratio;
     branches.v2 = info.v2;
+    branches.v2LabX = info.v2LabX;
+    branches.v2LabY = info.v2LabY;
     branches.centrality = info.centrality;
     branches.nCharged = static_cast<Int_t>(info.nCharged);
     return branches;
@@ -322,6 +324,8 @@ namespace blastwave::app {
           hR2Final(blastwave::io::kR2FinalHistogramName, "Centered final emission radius moment;#LT (r_{f}-#LT r_{f}#GT)^{2} #GT [fm^{2}];Events", 160, 0.0, 80.0),
           hR2Ratio(blastwave::io::kR2RatioHistogramName, "Radius moment response;#LT r_{f}^{2} #GT / #LT r_{0}^{2} #GT;Events", 200, 0.0, 4.0),
           hV2(blastwave::io::kV2HistogramName, "Event-by-event final-state v_{2};v_{2};Events", 120, 0.0, 1.0),
+          hV2LabX(blastwave::io::kV2LabXHistogramName, "Final-state second-harmonic lab x projection;#LT cos 2#phi #GT;Events", 200, -1.0, 1.0),
+          hV2LabY(blastwave::io::kV2LabYHistogramName, "Final-state second-harmonic lab y projection;#LT sin 2#phi #GT;Events", 200, -1.0, 1.0),
           hV3(blastwave::io::kV3HistogramName, "Event-by-event final-state v_{3};v_{3};Events", 120, 0.0, 1.0),
           hV2WrtPsi2(blastwave::io::kV2WrtPsi2HistogramName, "Final-state v_{2} projected onto #Psi_{2};v_{2|#Psi_{2}};Events", 200, -1.0, 1.0),
           hV3WrtPsi3(blastwave::io::kV3WrtPsi3HistogramName, "Final-state v_{3} projected onto #Psi_{3};v_{3|#Psi_{3}};Events", 200, -1.0, 1.0),
@@ -436,6 +440,8 @@ namespace blastwave::app {
       hR2Final.Fill(eventBranches.r2Final);
       hR2Ratio.Fill(eventBranches.r2Ratio);
       hV2.Fill(eventBranches.v2);
+      hV2LabX.Fill(eventBranches.v2LabX);
+      hV2LabY.Fill(eventBranches.v2LabY);
       hEps3.Fill(eventBranches.eps3);
       hPsi3.Fill(eventBranches.psi3);
       hV3.Fill(eventBranches.v3);
@@ -630,6 +636,8 @@ namespace blastwave::app {
       hR2Final.Write();
       hR2Ratio.Write();
       hV2.Write();
+      hV2LabX.Write();
+      hV2LabY.Write();
       hEps3.Write();
       hPsi3.Write();
       hV3.Write();
@@ -760,6 +768,8 @@ namespace blastwave::app {
     TH1F hR2Final;
     TH1F hR2Ratio;
     TH1F hV2;
+    TH1F hV2LabX;
+    TH1F hV2LabY;
     TH1F hV3;
     TH1F hV2WrtPsi2;
     TH1F hV3WrtPsi3;

@@ -23,6 +23,31 @@ Long command transcripts and repeated smoke-command variants were intentionally 
 - authoritative outside-sandbox `analyze_blastwave_vnpt ...`
 - ROOT key inspection through the shared inspector scripts when payload placement needs confirmation
 
+## T-040 Lab-Frame V2 Output And Regression Diagnostics
+
+- Status: implemented and verified on 2026-06-04
+- Evidence:
+  - added mandatory `events.v2_lab_x` and `events.v2_lab_y` branches plus matching `v2_lab_x` and `v2_lab_y` TH1 payloads
+  - independent QA now recomputes both lab components from `particles`, checks their histograms, and verifies `events.v2 = hypot(v2_lab_x, v2_lab_y)`
+  - O2Physics ROOT executor build passed: `cmake --build /Users/allenzhou/Research_software/Blast_wave/build -j4`, `STATUS: PRIMARY_OK`
+  - O2Physics ROOT executor CTest passed: `ctest --output-on-failure`, 10/10 tests, `STATUS: PRIMARY_OK`
+  - generated `/tmp/blastwave_lab_v2_schema_smoke.root` with 20 events through the O2Physics ROOT executor, `STATUS: PRIMARY_OK`
+  - QA on the smoke file passed with `validation_passed events=20 particles=7077 mean_v2=0.153496 mean_v2_lab_x=0.140587 mean_v2_lab_y=-0.00887433`, `STATUS: PRIMARY_OK`
+  - ROOT branch/hist probe on the smoke file reported `v2_lab_x branch=1 hist=1` and `v2_lab_y branch=1 hist=1`, `STATUS: PRIMARY_OK`
+  - notebook code-cell AST parsing passed for `notebooks/vn_epsn_regression.ipynb` and `notebooks/vn_epsn_multivariate_regression.ipynb`
+  - default notebook execution to `/tmp` passed for both notebooks; old-schema default inputs skipped the lab V2 sections with explicit skip messages rather than failing
+  - temp smoke-input notebook execution to `/tmp` passed for both notebooks against `/tmp/blastwave_lab_v2_schema_smoke.root`; lab V2 sections produced tables instead of skip messages
+  - refreshed all 13 notebook input ROOT files from the configs listed near `scripts/run_b8_v3.sh`: three Glauber, three fixed manual 023, three fluctuating ratio-total 023, and four fluctuating independent-pools 023 files; O2Physics ROOT executor returned `STATUS: PRIMARY_OK`
+  - all 13 refreshed notebook inputs reported 5000 `events` entries plus `v2_lab_x/v2_lab_y` branches and matching TH1 payloads in a ROOT probe, `STATUS: PRIMARY_OK`
+  - `qa_blastwave_output` passed on all 13 refreshed notebook inputs with `--expect-nevents 5000`, recomputing lab components from `particles` and reporting `STATUS: PRIMARY_OK`
+  - corrected the univariate notebook manual dense input mapping to the actual cfg output `qa/test_023_dense_mix.root`, so the `manual_third_order/dense_mix` file is no longer skipped
+  - refreshed in-place `notebooks/vn_epsn_regression.ipynb`; it read all nine configured inputs with 5000/5000 selected events, produced a 36-row lab V2 univariate table, emitted lab figures, and had `skip_outputs=0` plus `no_lab_outputs=0`
+  - refreshed in-place `notebooks/vn_epsn_multivariate_regression.ipynb`; it read all four independent-pools inputs with 5000/5000 selected events, produced an eight-row lab V2 multivariate table, emitted lab figures, and had `skip_outputs=0` plus `no_lab_outputs=0`
+  - refreshed multivariate notebook reproduced `corr(eps2,eps3)=-0.331139`, dense `k22=0.198313`, dense `k33=0.216715`, dense lab `v2_lab_x` coefficients `eps2=-0.194195` and `eps3=0.041102`, and dense lab `v2_lab_y` remained near zero with `r2=0.000316`
+- Locked conclusions:
+  - `v2_lab_x/y` are maintained as fixed-coordinate sign/orientation diagnostics
+  - participant-plane response analysis remains anchored on `v2_wrt_psi2` and `v3_wrt_psi3`
+
 ## T-039 Independent-Pools Multivariate Response Analysis
 
 - Status: implemented and verified on 2026-06-03

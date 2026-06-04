@@ -26,6 +26,10 @@ namespace blastwave::io {
   inline constexpr char kR2FinalHistogramName[] = "r2_f";
   inline constexpr char kR2RatioHistogramName[] = "r2_ratio";
   inline constexpr char kV2HistogramName[] = "v2";
+  inline constexpr char kV2LabXBranchName[] = "v2_lab_x";
+  inline constexpr char kV2LabYBranchName[] = "v2_lab_y";
+  inline constexpr char kV2LabXHistogramName[] = "v2_lab_x";
+  inline constexpr char kV2LabYHistogramName[] = "v2_lab_y";
   inline constexpr char kV3HistogramName[] = "v3";
   inline constexpr char kV2WrtPsi2HistogramName[] = "v2_wrt_psi2";
   inline constexpr char kV3WrtPsi3HistogramName[] = "v3_wrt_psi3";
@@ -87,6 +91,8 @@ namespace blastwave::io {
     Double_t r2Final = 0.0;
     Double_t r2Ratio = 0.0;
     Double_t v2 = 0.0;
+    Double_t v2LabX = 0.0;
+    Double_t v2LabY = 0.0;
     Double_t centrality = 0.0;
     Int_t nCharged = 0;
   };

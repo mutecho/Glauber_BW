@@ -483,3 +483,23 @@
   - `independent-pools` removes fixed-total component competition but lets total `Npart` and common radial-moment denominators vary with `A2/A3`
   - 5000-event validation did not satisfy the planned `|corr(eps2,eps3)| < 0.08` acceptance target, so the mode is diagnostic rather than a strict decorrelation solution
   - strict isolation of second- and third-order measured eccentricities requires a later stratified-matching, target-eccentricity, or explicit reweighting design
+
+## DEC-024 Add Lab-Frame V2 Components As Diagnostics
+
+- Status: accepted
+- Date: 2026-06-04
+- Context:
+  - `events.v2` is a non-negative Q-vector magnitude and therefore hides fixed lab x/y sign changes
+  - `events.v2_wrt_psi2` is the participant-plane projection used for response analysis, so it intentionally rotates away from the lab frame
+  - debugging the manual 023 versus Glauber orientation question needs the fixed-coordinate second-harmonic components without changing the primary response definition
+- Decision:
+  - add mandatory ROOT event branches `v2_lab_x` and `v2_lab_y`
+  - define them as `Re(Q2)/sum(w)` and `Im(Q2)/sum(w)` using the same particle weights as `events.v2`
+  - add matching TH1 payloads named `v2_lab_x` and `v2_lab_y`
+  - make QA recompute both components from `particles`, require the histograms, and check `v2 = hypot(v2_lab_x, v2_lab_y)`
+  - keep `v2_wrt_psi2` / `v3_wrt_psi3` as the maintained response-regression observables; use lab components only for coordinate/sign diagnostics
+  - add notebook lab V2 sections as optional readers so older ROOT files skip them instead of failing
+- Consequences:
+  - current-schema ROOT generation and QA now require `v2_lab_x/y`
+  - historical ROOT files without the new branches remain readable by the notebooks but are older schema for current QA
+  - no public config key is needed because the lab components are deterministic projections of already-written particles

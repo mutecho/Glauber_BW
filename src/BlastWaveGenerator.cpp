@@ -160,6 +160,8 @@ namespace blastwave {
 
     event.info.nCharged = static_cast<int>(event.particles.size());
     event.info.v2 = harmonicWeight > 0.0 ? std::hypot(q2x, q2y) / harmonicWeight : 0.0;
+    event.info.v2LabX = harmonicWeight > 0.0 ? q2x / harmonicWeight : 0.0;
+    event.info.v2LabY = harmonicWeight > 0.0 ? q2y / harmonicWeight : 0.0;
     event.info.v3 = harmonicWeight > 0.0 ? std::hypot(q3x, q3y) / harmonicWeight : 0.0;
     event.info.v2WrtPsi2 = harmonicWeight > 0.0 ? (q2x * std::cos(2.0 * event.info.psi2) + q2y * std::sin(2.0 * event.info.psi2)) / harmonicWeight : 0.0;
     event.info.v3WrtPsi3 =

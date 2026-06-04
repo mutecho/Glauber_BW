@@ -136,6 +136,8 @@ namespace blastwave {
     double r2Final = 0.0;
     double r2Ratio = 0.0;
     double v2 = 0.0;
+    double v2LabX = 0.0;
+    double v2LabY = 0.0;
     double centrality = 0.0;
     int nCharged = 0;
     int initialGeometryMode = 0;
