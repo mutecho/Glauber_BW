@@ -13,7 +13,8 @@ generator_path="${repo_root}/bin/generate_blastwave_events"
 # config_path="${repo_root}/config/PbPb_b1_dense_mix_glauber.cfg"
 # config_path="${repo_root}/config/PbPb_b3_dense_mix_glauber.cfg"
 # config_path="${repo_root}/config/PbPb_b6_dense_mix_glauber.cfg"
-config_path="${repo_root}/config/PbPb_b8_dense_mix_glauber.cfg"
+# config_path="${repo_root}/config/PbPb_b8_dense_mix_glauber.cfg"
+config_path="${repo_root}/config/PbPb_b6_dense_mix_glauber_ptest.cfg"
 
 
 # Re-enter the canonical O2Physics runtime before inspecting or rebuilding ROOT-linked binaries.

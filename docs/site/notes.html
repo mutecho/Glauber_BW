@@ -86,6 +86,13 @@ id="toc-最容易混淆的点">最容易混淆的点</a></li>
 初态三阶几何；<code>eps2/psi2</code> 仍保留 covariance 语义。</li>
 <li><code>initial-geometry-a2/a3</code> 只是人工模板混合权重，不等同于
 <code>eps2/eps3</code>。</li>
+<li><code>initial-geometry-source-allocation = independent-pools</code>
+只移除固定总源数内的组分竞争；最新 5000-event 诊断仍未通过
+<code>eps2/eps3</code> 解耦验收，严格解耦还需要分层匹配或目标
+eccentricity 反解。</li>
+<li><code>notebooks/vn_epsn_multivariate_regression.ipynb</code>
+是分析层面的线性扣除：它用多元回归给出 fixed-eps
+条件交叉斜率，但不说明生成样本本身已经 decorrelated。</li>
 <li><code>eps2_f/psi2_f/chi2</code> 是 freeze-out
 几何诊断量，不替换初态语义。</li>
 <li><code>source_x/source_y</code>、<code>x0/y0</code>、<code>x/y</code>
@@ -95,7 +102,9 @@ id="toc-最容易混淆的点">最容易混淆的点</a></li>
 <li>marker 初态位置</li>
 <li>最终发射位置</li>
 </ul></li>
-<li><code>events.v2</code> 是事件级末态汇总量。</li>
+<li><code>events.v2</code> 是事件级末态二阶 Q-vector
+模长；<code>events.v2_lab_x/y</code> 是同一 Q-vector 在固定 lab 坐标下的
+<code>cos2phi/sin2phi</code> 分量，用于看符号和朝向。</li>
 <li><code>events.v3</code> 是事件级末态三阶 Q-vector
 模长；<code>v2_wrt_psi2</code> 和 <code>v3_wrt_psi3</code>
 是相对初态几何平面的投影。</li>

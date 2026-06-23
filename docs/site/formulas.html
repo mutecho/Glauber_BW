@@ -346,8 +346,10 @@ response/closure test，不用于替代真实初态模型。</p>
 \]</span></p>
 <p>这里 <span class="math inline">\(A_2,A_3\)</span>
 只是模板混合权重，不等同于实际 <span
-class="math inline">\(\epsilon_2,\epsilon_3\)</span>。固定模板模式按
-<code>1:A2:A3</code> 把 <code>initial-geometry-source-count</code>
+class="math inline">\(\epsilon_2,\epsilon_3\)</span>。默认
+<code>initial-geometry-source-allocation = ratio-total</code>
+保持原固定总池契约：按 <code>1:A2:A3</code> 把
+<code>initial-geometry-source-count</code>
 个离散源点分配到三类分量：</p>
 <ul>
 <li><span class="math inline">\(n=0\)</span>：宽度
@@ -391,6 +393,39 @@ R_3\sim U(R_{3,\min},R_{3,\max}),\quad
 字段保存每个事件实际抽到的模板参数，因此分析时应使用
 <code>events.eps2/eps3</code> 判断几何响应，而不是把配置范围或 <span
 class="math inline">\(A_2,A_3\)</span> 解释成物理 eccentricity。</p>
+<p>默认模板用同一个固定总源数池近似实现</p>
+<p><span class="math display">\[
+N_0:N_2:N_3\simeq 1:A_2:A_3 .
+\]</span></p>
+<p>因此 <span class="math inline">\(A_2\)</span> 与 <span
+class="math inline">\(A_3\)</span>
+的抽样独立只说明模板权重随机数独立，不保证最终点云中测得的 <span
+class="math inline">\(\epsilon_2\)</span> 与 <span
+class="math inline">\(\epsilon_3\)</span> 独立。提高 <span
+class="math inline">\(A_3\)</span>
+会在同一个总源数预算里改变背景和二阶椭圆分量的相对占比，同时改变二阶矩分母；提高
+<span class="math inline">\(A_2\)</span> 也会以同样方式改变三角 hotspot
+的相对统计权重。</p>
+<p>可选
+<code>initial-geometry-source-allocation = independent-pools</code> 把
+<code>initial-geometry-source-count</code> 解释为圆形背景池 <span
+class="math inline">\(N_0\)</span>，并使用</p>
+<p><span class="math display">\[
+N_2=\mathrm{round}(N_0 A_2),\qquad
+N_3=\mathrm{round}(N_0 A_3),
+\]</span></p>
+<p>其中 <span class="math inline">\(A_3&gt;0\)</span> 且取整后少于 3
+时，<span class="math inline">\(N_3\)</span> 会补到 3 个源点，使三个
+hotspot
+至少各有一个样本。该模式去掉了固定总源数下的组分竞争，但总点数和共同径向矩仍随
+<span class="math inline">\(A_2,A_3\)</span> 改变。2026-06-03 的
+5000-event 验证显示它没有达到 <code>|corr(eps2,eps3)| &lt; 0.08</code>
+的 measured-eccentricity 解耦验收：full fluctuating 样本
+<code>corr(eps2,eps3)=-0.331139</code>，<code>eps3_only</code> 控制样本
+<code>corr(eps2,eps3)=-0.316660</code>。因此它目前是诊断/对照模式，不是最终
+decorrelation
+方案；若需要严格隔离二阶和三阶初态自由度，应继续做分层匹配后的事件抽样、目标
+eccentricity 反解，或其它显式 decorrelation 方案。</p>
 <h4 id="代码位置-2">代码位置</h4>
 <ul>
 <li><code>include/blastwave/BlastWaveGenerator.h</code>：<code>InitialGeometryMode</code>
@@ -404,6 +439,14 @@ class="math inline">\(A_2,A_3\)</span> 解释成物理 eccentricity。</p>
 <li><code>config/test_023_dense.cfg</code>：完整中文说明的三阶响应测试配置。</li>
 <li><code>config/test_023_fluctuating.cfg</code>：完整中文说明的逐事件宽分布
 response-test 配置。</li>
+<li><code>config/test_023_dense_eps2_only_fluct.cfg</code> 与
+<code>config/test_023_dense_eps3_only_fluct.cfg</code>：只打开一个模板权重区间的交叉性控制配置。</li>
+<li><code>config/test_023_dense_fluct_independent_pools.cfg</code>：使用独立源池分配的宽分布诊断配置；它不应被解释为已经通过
+<code>eps2/eps3</code> 解耦验收。</li>
+<li><code>config/test_023_dense_mix_fluct_independent_pools.cfg</code>、<code>config/test_023_dense_newrap_fluct_independent_pools.cfg</code>
+与 <code>config/test_023_ellipse_fluct_independent_pools.cfg</code>：与
+dense independent-pools 使用同一组 fluctuating
+初态随机区间，但切换流场/半径 profile 设置以做 response 对比。</li>
 </ul>
 <h2 id="participant-初态几何epsilon_2psi_2-与-epsilon_3psi_3">2.
 Participant 初态几何：<span
@@ -1852,12 +1895,12 @@ v_2^{\rm event}
 的核心字段：</p>
 <pre class="text"><code>participants -&gt; Npart, eps2, psi2, eps3, psi3, centrality
 emission sites -&gt; r2_0, r2_f, r2_ratio, eps2_f, psi2_f, chi2
-particles -&gt; Nch, weighted event v2/v3 and plane projections</code></pre>
+particles -&gt; Nch, weighted event v2/v3, lab-frame v2 components, and plane projections</code></pre>
 <h4 id="代码位置-27">代码位置</h4>
 <ul>
 <li><code>src/BlastWaveGenerator.cpp</code>：<code>generateEvent()</code>
 在粒子循环中累积 <code>q2x/q2y/q2Weight</code>，最后写入
-<code>event.info.v2</code>。</li>
+<code>event.info.v2</code> 与 <code>event.info.v2LabX/Y</code>。</li>
 <li><code>src/PhysicsUtils.cpp</code>：<code>computeAzimuth()</code>
 保持 producer、QA 和分析中的方位角定义一致。</li>
 <li><code>apps/qa_blastwave_output.cpp</code>：独立 QA 从
@@ -1888,24 +1931,69 @@ v_{3|\Psi_3}
 =
 \frac{\operatorname{Re}(Q_3 e^{-3i\Psi_3})}{\sum_j w_j}.
 \]</span></p>
-<p>这些量在 ROOT 中写为 <code>v2_wrt_psi2</code> 和
+<p>二阶 Q-vector 同时写出 lab-frame 分量：</p>
+<p><span class="math display">\[
+v_{2,x}^{\rm lab}=\frac{\operatorname{Re}Q_2}{\sum_j w_j},\qquad
+v_{2,y}^{\rm lab}=\frac{\operatorname{Im}Q_2}{\sum_j w_j}.
+\]</span></p>
+<p>ROOT branch 名分别是 <code>v2_lab_x</code> 和
+<code>v2_lab_y</code>，并满足</p>
+<p><span class="math display">\[
+v_2=\sqrt{(v_{2,x}^{\rm lab})^2+(v_{2,y}^{\rm lab})^2},\qquad
+v_{2|\Psi_2}=v_{2,x}^{\rm lab}\cos2\Psi_2+v_{2,y}^{\rm lab}\sin2\Psi_2.
+\]</span></p>
+<p>这些几何平面投影在 ROOT 中写为 <code>v2_wrt_psi2</code> 和
 <code>v3_wrt_psi3</code>。它们用于 response
-test，因为初态几何平面已知，不需要先做末态 event-plane reconstruction。
-对应的四张 response/cross-talk TH2 使用完整存储范围
+test，因为初态几何平面已知，不需要先做末态 event-plane
+reconstruction。lab-frame 分量只用于固定坐标下的符号和旋转诊断，主
+response 解释仍优先使用 <code>v2_wrt_psi2</code>。 对应的四张
+response/cross-talk TH2 使用完整存储范围
 <code>epsilon = 0..1</code>、<code>v_{n|\Psi_n} = -1..1</code>，但默认显示窗口缩到
 <code>epsilon = 0..0.35</code>、<code>v_{n|\Psi_n} = -0.15..0.15</code>，方便直接查看当前
 response-test 的点云密集区。</p>
+<p>若 <code>eps2</code> 与 <code>eps3</code> 在生成样本中相关，raw cross
+slope
+会混入同阶响应项。<code>notebooks/vn_epsn_multivariate_regression.ipynb</code>
+对同一个 <code>events</code> tree 做条件线性响应拟合：</p>
+<p><span class="math display">\[
+v_{2|\Psi_2}=c_2+k_{22}\epsilon_2+k_{23}\epsilon_3,
+\qquad
+v_{3|\Psi_3}=c_3+k_{32}\epsilon_2+k_{33}\epsilon_3.
+\]</span></p>
+<p>其中 <span class="math inline">\(k_{23}\)</span> 和 <span
+class="math inline">\(k_{32}\)</span> 是固定另一个 eccentricity
+后的条件交叉响应估计。notebook 同时报告 two-step 扣除量</p>
+<p><span class="math display">\[
+\hat k_{23}^{\rm two-step}
+=
+\mathrm{slope}(v_{2|\Psi_2}\sim\epsilon_3)
+-
+\mathrm{slope}(v_{2|\Psi_2}\sim\epsilon_2)\,
+\mathrm{slope}(\epsilon_2\sim\epsilon_3),
+\]</span></p>
+<p><span class="math display">\[
+\hat k_{32}^{\rm two-step}
+=
+\mathrm{slope}(v_{3|\Psi_3}\sim\epsilon_2)
+-
+\mathrm{slope}(v_{3|\Psi_3}\sim\epsilon_3)\,
+\mathrm{slope}(\epsilon_3\sim\epsilon_2),
+\]</span></p>
+<p>作为和直觉扣除法的对照；最终解释优先使用二维回归系数。</p>
 <h4 id="代码位置-28">代码位置</h4>
 <ul>
 <li><code>src/PhysicsUtils.cpp</code>：<code>computeRecenteredHarmonicGeometry()</code>
 实现 recentered harmonic geometry 和符号约定。</li>
 <li><code>src/BlastWaveGenerator.cpp</code>：<code>generateEvent()</code>
 填充
-<code>eps3/psi3</code>、<code>v3</code>、<code>v2_wrt_psi2</code>、<code>v3_wrt_psi3</code>。</li>
+<code>eps3/psi3</code>、<code>v3</code>、<code>v2_lab_x/y</code>、<code>v2_wrt_psi2</code>、<code>v3_wrt_psi3</code>。</li>
 <li><code>apps/generate_blastwave/RootEventFileWriter.cpp</code>：写出
 response/cross-talk TH2，并设置紧凑默认显示窗口。</li>
 <li><code>apps/qa_blastwave_output.cpp</code>：从 <code>particles</code>
 tree 复算 <code>Q2/Q3</code> 并校验四个末态摘要。</li>
+<li><code>notebooks/vn_epsn_multivariate_regression.ipynb</code>：用
+<code>uproot</code> 读取 independent-pools ROOT 输出，并比较 raw cross
+slope、two-step 扣除和多元条件斜率。</li>
 </ul>
 <h2 id="差分-v_n2pt-分析">13. 差分 <code>v_n{2}(pT)</code> 分析</h2>
 <h3 id="数学物理公式-17">数学/物理公式</h3>
@@ -2090,6 +2178,13 @@ class="math inline">\(\epsilon_{2,f}/\epsilon_{2,0}\)</span></td>
 <td><span class="math inline">\(|\sum w_i e^{2i\phi_i}|/\sum
 w_i\)</span></td>
 <td>末态粒子动量</td>
+</tr>
+<tr>
+<td><code>v2_lab_x</code>, <code>v2_lab_y</code></td>
+<td><span
+class="math inline">\((\operatorname{Re}Q_2,\operatorname{Im}Q_2)/\sum
+w_i\)</span></td>
+<td>固定 lab 坐标下的二阶 Q-vector 分量</td>
 </tr>
 <tr>
 <td><code>v3</code></td>
